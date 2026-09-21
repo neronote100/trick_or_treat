@@ -28,16 +28,16 @@ noteで活動する参加者が、自分のキャラクターを使ったお菓�
 
 詳細は [docs/identity-and-collection.md](docs/identity-and-collection.md) を参照してください。
 
-## 初版の画面
+## 画面
 
-- トップ: 企画説明、参加、みんなのお店
-- 自分のお店: 店名、紹介文、キャラクター画像、お菓子画像の登録
-- 公開店舗: トリック・オア・トリート抽選
-- お菓子図鑑: 入手済み・未発見のお菓子、訪問店舗数
-- 特別報酬: 10店舗達成時の画像
-- 管理画面: 出店承認、店舗の非公開化、特別画像の登録
+- `お店をひらく`: 店名、キャラクター、お菓子を登録して出店申請
+- `お店をめぐる`: 公開店を選び、何度でも抽選
+- `図鑑`: 入手したお菓子、重複数、10店舗までの進捗、特別画像
+- `管理`: 出店承認と特別画像の登録（`/#/admin`）
 
-## 技術構成（予定）
+メイン操作は画面下の3メニューへ集約しています。同じ参加IDで出店側と訪問側の両方を利用できます。
+
+## 技術構成
 
 - フロントエンド: モバイルファーストのWebアプリ
 - API: Cloudflare Workers
@@ -47,6 +47,53 @@ noteで活動する参加者が、自分のキャラクターを使ったお菓�
 
 画像生成APIは使用しません。お菓子画像は参加者が各自のAIで作成し、完成画像をアップロードします。
 
-## 現在の段階
+## ローカル起動
 
-企画とID認証方式を確定した段階です。次は画面遷移とデータベース設計を確定し、最小版を実装します。
+```bash
+npm install
+npm run db:migrate:local
+npm run dev
+```
+
+構文確認と一連のAPIテスト:
+
+```bash
+npm run check
+npm test
+```
+
+## Cloudflareへ公開
+
+1. D1とR2を作成します。
+
+```bash
+npx wrangler login
+npx wrangler d1 create trick-or-treat-db
+npx wrangler r2 bucket create trick-or-treat-images
+```
+
+2. D1作成時に表示されたIDを `wrangler.jsonc` の `database_id` へ設定します。
+3. 管理者キーを登録します。
+
+```bash
+npx wrangler secret put ADMIN_TOKEN
+```
+
+4. マイグレーションを適用して公開します。
+
+```bash
+npm run db:migrate:remote
+npm run deploy
+```
+
+CloudflareのGit連携で自動公開する場合も、先にD1・R2・`ADMIN_TOKEN` の準備が必要です。
+
+## 実装済み
+
+- note IDと端末秘密鍵による参加・自動ログイン
+- 引き継ぎコードによる別端末への移行
+- 店舗、キャラクター画像、お菓子画像の登録
+- 管理者による出店承認
+- 店舗ごとの共有URLとランダム抽選
+- お菓子図鑑、重複回数、異なる店舗数の集計
+- 10店舗達成時の特別画像解放

@@ -1,0 +1,18 @@
+{
+  "name": "trick-or-treat-collection",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply trick-or-treat-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply trick-or-treat-db --remote",
+    "check": "node --check src/index.js && node --check public/app.js && node --check tests/smoke.mjs",
+    "test": "node tests/smoke.mjs"
+  },
+  "devDependencies": {
+    "miniflare": "^4.20250917.0",
+    "wrangler": "^4.38.0"
+  }
+}
