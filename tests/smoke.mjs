@@ -45,9 +45,12 @@ try {
   assert.equal(allShops.shops.length, 1);
   assert.equal(allShops.shops[0].status, "published");
 
-  const shops = await okFetch("/api/shops");
-  assert.equal(shops.shops[0].noteId, shopOwner.noteId);
-  assert.equal(shops.shops[0].treatCount, 1);
+  const publicList = await mf.dispatchFetch(new Request(`${base}/api/shops`));
+  assert.equal(publicList.status, 404);
+
+  const directShop = await okFetch(`/api/shops/${shopOwner.noteId}`);
+  assert.equal(directShop.shop.noteId, shopOwner.noteId);
+  assert.equal(directShop.shop.treatCount, 1);
 
   const draw = await okFetch(`/api/shops/${shopOwner.noteId}/draw`, { method: "POST" }, visitor);
   assert.equal(draw.treat.name, "月のキャンディ");
@@ -57,6 +60,9 @@ try {
   const collection = await okFetch("/api/collection", {}, visitor);
   assert.equal(collection.items.length, 1);
   assert.equal(collection.items[0].obtainedCount, 1);
+  assert.equal(collection.shops.length, 1);
+  assert.equal(collection.shops[0].noteId, shopOwner.noteId);
+  assert.equal(collection.shops[0].collectedCount, 1);
   const image = await mf.dispatchFetch(`${base}${collection.items[0].imageUrl}`);
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");

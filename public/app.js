@@ -7,7 +7,6 @@ const IDENTITY_KEY = "trick-or-treat.identity.v1";
 const state = {
   identity: loadIdentity(),
   me: null,
-  shops: [],
   collection: null,
   busy: false,
 };
@@ -29,15 +28,15 @@ async function boot() {
       if (error.code === "AUTH_INVALID" || error.code === "AUTH_REQUIRED") logout(false);
     }
   }
-  if (!location.hash) location.hash = "#/explore";
+  if (!location.hash) location.hash = "#/collection";
   await renderRoute();
   if (!state.identity) openJoin();
 }
 
 async function renderRoute() {
   const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
-  const page = parts[0] || "explore";
-  setActiveNav(page === "shop" ? "explore" : page);
+  const page = parts[0] || "collection";
+  setActiveNav(page === "shop" ? "collection" : page);
   window.scrollTo({ top: 0, behavior: "smooth" });
 
   try {
@@ -45,41 +44,10 @@ async function renderRoute() {
     if (page === "collection") return renderCollection();
     if (page === "shop" && parts[1]) return renderShop(parts[1]);
     if (page === "admin") return renderAdmin();
-    return renderExplore();
+    location.hash = "#/collection";
   } catch (error) {
     app.innerHTML = errorState(error.message);
   }
-}
-
-async function renderExplore() {
-  showLoader();
-  const data = await api("/api/shops", { auth: false });
-  state.shops = data.shops;
-  app.innerHTML = `
-    <section class="page">
-      <div class="hero-card">
-        <p class="eyebrow">Halloween Collection</p>
-        <h1>扉の向こうに、<br>お菓子が待ってる。</h1>
-        <p>好きなお店を選んで、トリック・オア・トリート。</p>
-      </div>
-      <div class="page-head">
-        <div><p class="eyebrow">SHOPS</p><h2>みんなのお店</h2></div>
-        <span class="status">${data.shops.length} shops</span>
-      </div>
-      ${data.shops.length ? `<div class="shop-grid">${data.shops.map(shopCard).join("")}</div>` : `
-        <div class="empty-state"><div><span class="empty-icon">☾</span>最初のお店を準備中</div></div>`}
-      <a class="admin-link" href="#/admin">管理</a>
-    </section>`;
-}
-
-function shopCard(shop) {
-  return `<a class="shop-card" href="#/shop/${encodeURIComponent(shop.noteId)}">
-    ${shop.characterImageUrl ? `<img class="card-image" src="${escapeAttr(shop.characterImageUrl)}" alt="${escapeAttr(shop.name)}">` : `<div class="card-image"></div>`}
-    <div class="card-body">
-      <h3>${escapeHtml(shop.name)}</h3>
-      <p class="card-meta"><span>@${escapeHtml(shop.noteId)}</span><b class="candy-count">${shop.treatCount} 🍬</b></p>
-    </div>
-  </a>`;
 }
 
 async function renderStudio() {
@@ -123,6 +91,7 @@ async function renderStudio() {
         </div>
         ${status === "suspended" ? `<p class="subtle">このお店は管理者によって公開停止されています。</p>` : ""}
       </div>` : ""}
+      <a class="admin-link" href="#/admin">管理者はこちら</a>
     </section>`;
 }
 
@@ -140,7 +109,7 @@ async function renderShop(noteId) {
   const shop = data.shop;
   app.innerHTML = `
     <section class="page">
-      <a class="text-button" href="#/explore">← お店一覧</a>
+      <a class="text-button" href="#/collection">← 図鑑へ</a>
       <div class="shop-stage">
         <img class="shop-stage-image" src="${escapeAttr(shop.characterImageUrl)}" alt="${escapeAttr(shop.name)}">
         <div class="shop-stage-body">
@@ -168,10 +137,23 @@ async function renderCollection() {
         <div class="progress-copy"><h2>${data.shopCount >= data.goal ? "コンプリート！" : "あと " + (data.goal - data.shopCount) + " 店"}</h2><p>ちがうお店のお菓子を集めよう</p></div>
       </div>
       ${data.rewards.map(rewardCard).join("")}
+      <p class="section-label">訪れたお店 ${data.shops.length}</p>
+      ${data.shops.length ? `<div class="shop-grid">${data.shops.map(visitedShopCard).join("")}</div>` : `
+        <div class="empty-state compact"><div><span class="empty-icon">☾</span>お店のURLが届いたら訪ねてみよう</div></div>`}
       <p class="section-label">見つけたお菓子 ${data.items.length}</p>
       ${data.items.length ? `<div class="collection-grid">${data.items.map(collectionCard).join("")}</div>` : `
         <div class="empty-state"><div><span class="empty-icon">◇</span>まだ見つけていません</div></div>`}
     </section>`;
+}
+
+function visitedShopCard(shop) {
+  return `<a class="shop-card" href="#/shop/${encodeURIComponent(shop.noteId)}">
+    ${shop.characterImageUrl ? `<img class="card-image" src="${escapeAttr(shop.characterImageUrl)}" alt="${escapeAttr(shop.name)}">` : `<div class="card-image"></div>`}
+    <div class="card-body">
+      <h3>${escapeHtml(shop.name)}</h3>
+      <p class="card-meta"><span>@${escapeHtml(shop.noteId)}</span><b class="candy-count">${shop.collectedCount} 🍬</b></p>
+    </div>
+  </a>`;
 }
 
 function collectionCard(item) {
@@ -410,7 +392,7 @@ function logout(render = true) {
   updateAccount();
   closeOverlay();
   if (render) {
-    location.hash = "#/explore";
+    location.hash = "#/collection";
     renderRoute();
     openJoin();
   }

@@ -39,7 +39,6 @@ async function route(request, env) {
   if (/^\/api\/me\/treats\/[^/]+$/.test(path) && request.method === "DELETE") {
     return deleteTreat(request, env, path.split("/").pop());
   }
-  if (path === "/api/shops" && request.method === "GET") return listShops(env);
   if (/^\/api\/shops\/[^/]+\/draw$/.test(path) && request.method === "POST") {
     return drawTreat(request, env, decodeURIComponent(path.split("/")[3]));
   }
@@ -214,20 +213,6 @@ async function submitShop(request, env) {
   return json({ status: "published" });
 }
 
-async function listShops(env) {
-  const rows = await env.DB.prepare(`
-    SELECT s.id, s.name, s.description, s.character_image_key, u.note_id,
-      COUNT(t.id) AS treat_count
-    FROM shops s
-    JOIN users u ON u.id = s.owner_user_id
-    LEFT JOIN treats t ON t.shop_id = s.id AND t.is_active = 1
-    WHERE s.status = 'published'
-    GROUP BY s.id
-    ORDER BY s.updated_at DESC
-  `).all();
-  return json({ shops: rows.results.map(publicShop) });
-}
-
 async function getShop(env, noteIdRaw) {
   const noteId = normalizeNoteId(noteIdRaw);
   const shop = await env.DB.prepare(`
@@ -316,10 +301,29 @@ async function getCollection(request, env) {
     FROM user_rewards ur JOIN rewards r ON r.id = ur.reward_id
     WHERE ur.user_id = ? ORDER BY ur.unlocked_at DESC
   `).bind(user.id).all();
+  const shops = await env.DB.prepare(`
+    SELECT s.name, s.character_image_key, u.note_id,
+      COUNT(DISTINCT c.treat_id) AS collected_count,
+      MAX(c.first_obtained_at) AS last_visited_at
+    FROM collection_items c
+    JOIN treats t ON t.id = c.treat_id
+    JOIN shops s ON s.id = t.shop_id
+    JOIN users u ON u.id = s.owner_user_id
+    WHERE c.user_id = ?
+    GROUP BY s.id
+    ORDER BY last_visited_at DESC
+  `).bind(user.id).all();
   const shopIds = new Set(items.results.map((item) => item.note_id));
   return json({
     shopCount: shopIds.size,
     goal: 10,
+    shops: shops.results.map((shop) => ({
+      noteId: shop.note_id,
+      name: shop.name,
+      characterImageUrl: imageUrl(shop.character_image_key),
+      collectedCount: Number(shop.collected_count || 0),
+      lastVisitedAt: shop.last_visited_at,
+    })),
     items: items.results.map((item) => ({
       id: item.id,
       name: item.name,
