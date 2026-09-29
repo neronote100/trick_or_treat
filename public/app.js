@@ -30,7 +30,8 @@ async function boot() {
   }
   if (!location.hash) location.hash = "#/collection";
   await renderRoute();
-  if (!state.identity) openJoin();
+  const page = location.hash.replace(/^#\/?/, "").split("/")[0];
+  if (!state.identity && page !== "admin") openJoin();
 }
 
 async function renderRoute() {
