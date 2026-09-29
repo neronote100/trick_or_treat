@@ -45,6 +45,24 @@ try {
   assert.equal(allShops.shops.length, 1);
   assert.equal(allShops.shops[0].status, "published");
 
+  const reset = await okFetch(`/api/admin/users/${shopOwner.noteId}/recovery`, {
+    method: "POST",
+    headers: { "x-admin-token": "test-admin" },
+  });
+  assert.match(reset.recoveryCode, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  const recoveredOwner = { noteId: shopOwner.noteId, secret: "c".repeat(64) };
+  await okFetch("/api/users/recover", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      noteId: recoveredOwner.noteId,
+      recoveryCode: reset.recoveryCode,
+      deviceSecret: recoveredOwner.secret,
+    }),
+  });
+  const recoveredMe = await okFetch("/api/me", {}, recoveredOwner);
+  assert.equal(recoveredMe.shop.name, "月夜のお菓子店");
+
   const publicList = await mf.dispatchFetch(new Request(`${base}/api/shops`));
   assert.equal(publicList.status, 404);
 
@@ -66,7 +84,7 @@ try {
   const image = await mf.dispatchFetch(`${base}${collection.items[0].imageUrl}`);
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");
-  console.log("Smoke test passed: register → open shop → publish → admin list → draw → collection");
+  console.log("Smoke test passed: register → publish → admin recovery → draw → collection");
 } finally {
   await mf.dispose();
 }

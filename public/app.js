@@ -185,6 +185,12 @@ async function showAdmin(token) {
   app.innerHTML = `
     <section class="page">
       <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>みんなのお店</h1></div><span class="status">${data.shops.length} 店</span></div>
+      <form class="panel" data-form="admin-recovery" data-token="${escapeAttr(token)}">
+        <h2>引き継ぎコード再発行</h2>
+        <p class="subtle">紛失した参加者のnote IDを入力します。以前のコードは無効になります。</p>
+        <label class="field"><span>note ID</span><input name="noteId" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]+" autocomplete="off" placeholder="neronote100"></label>
+        <button class="btn btn-secondary" type="submit">新しいコードを発行</button>
+      </form>
       ${data.shops.length ? data.shops.map((shop) => `<div class="panel">
         <div class="panel-head"><div><h2>${escapeHtml(shop.name)}</h2><p class="subtle">@${escapeHtml(shop.noteId)} ・ ${shop.treatCount} 🍬</p><span class="status ${escapeAttr(shop.status)}">${shopStatusLabel(shop.status)}</span></div>${shop.characterImageUrl ? `<img src="${escapeAttr(shop.characterImageUrl)}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">` : ""}</div>
         <p class="subtle">${escapeHtml(shop.description || "")}</p>
@@ -224,6 +230,15 @@ async function handleSubmit(event) {
       await renderStudio();
     }
     if (kind === "admin-login") await showAdmin(new FormData(form).get("token"));
+    if (kind === "admin-recovery") {
+      const noteId = String(new FormData(form).get("noteId") || "").trim().toLowerCase();
+      const result = await api(`/api/admin/users/${encodeURIComponent(noteId)}/recovery`, {
+        method: "POST",
+        adminToken: form.dataset.token,
+        auth: false,
+      });
+      showRecoveryCode(result.recoveryCode);
+    }
     if (kind === "reward") {
       await api("/api/admin/reward", { method: "POST", body: new FormData(form), adminToken: form.dataset.token, auth: false });
       notify("特別画像を登録しました");

@@ -54,6 +54,9 @@ async function route(request, env) {
   if (/^\/api\/admin\/shops\/[^/]+\/suspend$/.test(path) && request.method === "POST") {
     return adminSuspendShop(request, env, path.split("/")[4]);
   }
+  if (/^\/api\/admin\/users\/[^/]+\/recovery$/.test(path) && request.method === "POST") {
+    return adminResetRecoveryCode(request, env, decodeURIComponent(path.split("/")[4]));
+  }
   if (path === "/api/admin/reward" && request.method === "POST") return adminSaveReward(request, env);
 
   if (path.startsWith("/api/")) return json({ error: "見つかりませんでした。" }, 404);
@@ -371,6 +374,20 @@ async function adminSuspendShop(request, env, shopId) {
   ).bind(shopId).run();
   if (!result.meta.changes) return json({ error: "対象のお店が見つかりません。" }, 404);
   return json({ status: "suspended" });
+}
+
+async function adminResetRecoveryCode(request, env, noteIdRaw) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const noteId = normalizeNoteId(noteIdRaw);
+  if (!NOTE_ID_PATTERN.test(noteId)) return json({ error: "note IDを確認してください。" }, 400);
+
+  const user = await env.DB.prepare("SELECT id FROM users WHERE note_id = ?").bind(noteId).first();
+  if (!user) return json({ error: "このIDは登録されていません。" }, 404);
+
+  const recoveryCode = createRecoveryCode();
+  await env.DB.prepare("UPDATE users SET recovery_code_hash = ? WHERE id = ?")
+    .bind(await sha256(recoveryCode), user.id).run();
+  return json({ noteId, recoveryCode });
 }
 
 async function adminSaveReward(request, env) {
