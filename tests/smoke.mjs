@@ -36,16 +36,14 @@ try {
   treatForm.set("rarity", "rare");
   treatForm.set("image", pngFile("treat.png"));
   await okFetch("/api/me/treats", { method: "POST", body: treatForm }, shopOwner);
-  await okFetch("/api/me/shop/submit", { method: "POST" }, shopOwner);
+  const published = await okFetch("/api/me/shop/submit", { method: "POST" }, shopOwner);
+  assert.equal(published.status, "published");
 
-  const pending = await okFetch("/api/admin/shops?status=pending", {
+  const allShops = await okFetch("/api/admin/shops", {
     headers: { "x-admin-token": "test-admin" },
   });
-  assert.equal(pending.shops.length, 1);
-  await okFetch(`/api/admin/shops/${pending.shops[0].id}/approve`, {
-    method: "POST",
-    headers: { "x-admin-token": "test-admin" },
-  });
+  assert.equal(allShops.shops.length, 1);
+  assert.equal(allShops.shops[0].status, "published");
 
   const shops = await okFetch("/api/shops");
   assert.equal(shops.shops[0].noteId, shopOwner.noteId);
@@ -62,7 +60,7 @@ try {
   const image = await mf.dispatchFetch(`${base}${collection.items[0].imageUrl}`);
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");
-  console.log("Smoke test passed: register → open shop → approve → draw → collection");
+  console.log("Smoke test passed: register → open shop → publish → admin list → draw → collection");
 } finally {
   await mf.dispose();
 }

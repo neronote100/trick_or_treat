@@ -142,7 +142,6 @@ async function saveShop(request, env) {
       name = excluded.name,
       description = excluded.description,
       character_image_key = excluded.character_image_key,
-      status = CASE WHEN shops.status = 'published' THEN 'pending' ELSE shops.status END,
       updated_at = CURRENT_TIMESTAMP
   `).bind(shopId, user.id, name, description, characterKey).run();
 
@@ -169,10 +168,6 @@ async function addTreat(request, env) {
     "INSERT INTO treats (id, shop_id, name, image_key, rarity, weight) VALUES (?, ?, ?, ?, ?, ?)",
   ).bind(crypto.randomUUID(), shop.id, name, imageKey, rarity, weight).run();
 
-  if (shop.status === "published") {
-    await env.DB.prepare("UPDATE shops SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .bind(shop.id).run();
-  }
   return json(await loadMe(env, user.id), 201);
 }
 
@@ -189,8 +184,13 @@ async function deleteTreat(request, env, treatId) {
   await env.DB.prepare("DELETE FROM treats WHERE id = ?").bind(treat.id).run();
   await env.IMAGES.delete(treat.image_key);
   if (treat.status === "published") {
-    await env.DB.prepare("UPDATE shops SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .bind(treat.shop_id).run();
+    const remaining = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM treats WHERE shop_id = ? AND is_active = 1",
+    ).bind(treat.shop_id).first();
+    if (!Number(remaining.count)) {
+      await env.DB.prepare("UPDATE shops SET status = 'draft', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+        .bind(treat.shop_id).run();
+    }
   }
   return json(await loadMe(env, user.id));
 }
@@ -199,16 +199,19 @@ async function submitShop(request, env) {
   const user = await requireUser(request, env);
   if (user.response) return user.response;
   const shop = await env.DB.prepare(`
-    SELECT s.id, s.character_image_key,
+    SELECT s.id, s.character_image_key, s.status,
       (SELECT COUNT(*) FROM treats t WHERE t.shop_id = s.id AND t.is_active = 1) AS treat_count
     FROM shops s WHERE s.owner_user_id = ?
   `).bind(user.id).first();
   if (!shop?.character_image_key) return json({ error: "キャラクター画像を登録してください。" }, 400);
   if (!shop.treat_count) return json({ error: "お菓子を1つ以上登録してください。" }, 400);
+  if (shop.status === "suspended") {
+    return json({ error: "このお店は管理者によって公開停止されています。" }, 403);
+  }
 
-  await env.DB.prepare("UPDATE shops SET status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+  await env.DB.prepare("UPDATE shops SET status = 'published', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
     .bind(shop.id).run();
-  return json({ status: "pending" });
+  return json({ status: "published" });
 }
 
 async function listShops(env) {
@@ -335,13 +338,16 @@ async function adminListShops(request, env, url) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const status = ["draft", "pending", "published", "suspended"].includes(url.searchParams.get("status"))
     ? url.searchParams.get("status")
-    : "pending";
-  const rows = await env.DB.prepare(`
+    : null;
+  const sql = `
     SELECT s.id, s.name, s.description, s.character_image_key, s.status, u.note_id,
       (SELECT COUNT(*) FROM treats t WHERE t.shop_id = s.id) AS treat_count
     FROM shops s JOIN users u ON u.id = s.owner_user_id
-    WHERE s.status = ? ORDER BY s.updated_at
-  `).bind(status).all();
+    ${status ? "WHERE s.status = ?" : ""}
+    ORDER BY s.updated_at DESC
+  `;
+  const statement = env.DB.prepare(sql);
+  const rows = status ? await statement.bind(status).all() : await statement.all();
   return json({ shops: rows.results.map(publicShop) });
 }
 

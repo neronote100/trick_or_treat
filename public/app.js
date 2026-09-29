@@ -88,7 +88,7 @@ async function renderStudio() {
   state.me = await api("/api/me");
   const { shop, treats } = state.me;
   const status = shop?.status || "draft";
-  const statusLabel = { draft: "下書き", pending: "確認中", published: "公開中", suspended: "停止中" }[status];
+  const statusLabel = { draft: "準備中", pending: "旧申請", published: "公開中", suspended: "停止中" }[status];
   app.innerHTML = `
     <section class="page">
       <div class="page-head"><div><p class="eyebrow">MY SHOP</p><h1>お店をひらく</h1></div><span class="status ${status}">${statusLabel}</span></div>
@@ -119,9 +119,9 @@ async function renderStudio() {
 
       ${shop ? `<div class="panel">
         <div class="button-row">
-          ${status === "published" ? `<button class="btn btn-secondary" data-action="share" data-path="${escapeAttr(shop.sharePath)}">URLをコピー</button>` : `<button class="btn btn-primary" data-action="submit-shop" ${!shop.characterImageUrl || !treats.length ? "disabled" : ""}>出店を申請</button>`}
+          ${status === "published" ? `<button class="btn btn-secondary" data-action="share" data-path="${escapeAttr(shop.sharePath)}">URLをコピー</button>` : status === "suspended" ? "" : `<button class="btn btn-primary" data-action="submit-shop" ${!shop.characterImageUrl || !treats.length ? "disabled" : ""}>出店する</button>`}
         </div>
-        ${status === "pending" ? `<p class="subtle">確認が終わると公開されます。</p>` : ""}
+        ${status === "suspended" ? `<p class="subtle">このお店は管理者によって公開停止されています。</p>` : ""}
       </div>` : ""}
     </section>`;
 }
@@ -199,15 +199,18 @@ async function renderAdmin() {
 }
 
 async function showAdmin(token) {
-  const data = await api("/api/admin/shops?status=pending", { adminToken: token, auth: false });
+  const data = await api("/api/admin/shops", { adminToken: token, auth: false });
   app.innerHTML = `
     <section class="page">
-      <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>出店申請</h1></div><span class="status">${data.shops.length}</span></div>
+      <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>みんなのお店</h1></div><span class="status">${data.shops.length} 店</span></div>
       ${data.shops.length ? data.shops.map((shop) => `<div class="panel">
-        <div class="panel-head"><div><h2>${escapeHtml(shop.name)}</h2><p class="subtle">@${escapeHtml(shop.noteId)} ・ ${shop.treatCount} 🍬</p></div>${shop.characterImageUrl ? `<img src="${escapeAttr(shop.characterImageUrl)}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">` : ""}</div>
+        <div class="panel-head"><div><h2>${escapeHtml(shop.name)}</h2><p class="subtle">@${escapeHtml(shop.noteId)} ・ ${shop.treatCount} 🍬</p><span class="status ${escapeAttr(shop.status)}">${shopStatusLabel(shop.status)}</span></div>${shop.characterImageUrl ? `<img src="${escapeAttr(shop.characterImageUrl)}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">` : ""}</div>
         <p class="subtle">${escapeHtml(shop.description || "")}</p>
-        <button class="btn btn-primary" data-action="approve-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">公開する</button>
-      </div>`).join("") : `<div class="empty-state">申請はありません</div>`}
+        <div class="button-row">
+          ${shop.status === "published" ? `<a class="btn btn-secondary" href="#/shop/${encodeURIComponent(shop.noteId)}">お店を見る</a><button class="btn btn-secondary" data-action="suspend-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">公開停止</button>` : ""}
+          ${["pending", "suspended"].includes(shop.status) ? `<button class="btn btn-primary" data-action="publish-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">再公開する</button>` : ""}
+        </div>
+      </div>`).join("") : `<div class="empty-state">お店はまだありません</div>`}
       <form class="panel" data-form="reward" data-token="${escapeAttr(token)}">
         <h2>特別画像</h2>
         <label class="field"><span>名前</span><input name="name" maxlength="50" value="10店舗コンプリート"></label>
@@ -273,12 +276,18 @@ async function handleClick(event) {
     }
     if (action === "submit-shop") {
       await api("/api/me/shop/submit", { method: "POST" });
-      notify("出店を申請しました");
+      notify("お店を公開しました");
       await renderStudio();
     }
-    if (action === "approve-shop") {
+    if (action === "publish-shop") {
       await api(`/api/admin/shops/${encodeURIComponent(button.dataset.id)}/approve`, { method: "POST", adminToken: button.dataset.token, auth: false });
-      notify("公開しました");
+      notify("再公開しました");
+      await showAdmin(button.dataset.token);
+    }
+    if (action === "suspend-shop") {
+      if (!confirm("このお店を公開停止しますか？")) return;
+      await api(`/api/admin/shops/${encodeURIComponent(button.dataset.id)}/suspend`, { method: "POST", adminToken: button.dataset.token, auth: false });
+      notify("公開を停止しました");
       await showAdmin(button.dataset.token);
     }
   } catch (error) {
@@ -443,6 +452,7 @@ function setActiveNav(page) {
 function showLoader() { app.innerHTML = `<div class="page-loader"><span></span><span></span><span></span></div>`; }
 function setBusy(button, busy) { if (button) button.disabled = busy; }
 function rarityLabel(value) { return { normal: "NORMAL", rare: "RARE ✦", secret: "SECRET ✦✦" }[value] || "NORMAL"; }
+function shopStatusLabel(value) { return { draft: "準備中", pending: "旧申請", published: "公開中", suspended: "停止中" }[value] || value; }
 function errorState(message) { return `<div class="empty-state"><div><span class="empty-icon">!</span>${escapeHtml(message)}</div></div>`; }
 
 let toastTimer;
