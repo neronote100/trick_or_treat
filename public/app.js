@@ -264,7 +264,8 @@ async function handleClick(event) {
   if (action === "copy-recovery") return copyText(button.dataset.code, "コードをコピーしました");
   if (action === "share") return copyText(new URL(button.dataset.path, location.origin).href, "URLをコピーしました");
 
-  if (!ensureAuth()) return;
+  const adminAction = ["publish-shop", "suspend-shop"].includes(action);
+  if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
     if (action === "draw") await draw(button.dataset.noteId);
