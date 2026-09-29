@@ -31,7 +31,6 @@ async function route(request, env) {
   if (path.startsWith("/api/")) await ensureDatabase(env);
 
   if (path === "/api/users" && request.method === "POST") return registerUser(request, env);
-  if (path === "/api/users/recover" && request.method === "POST") return recoverUser(request, env);
   if (path === "/api/me" && request.method === "GET") return getMe(request, env);
   if (path === "/api/me/shop" && request.method === "PUT") return saveShop(request, env);
   if (path === "/api/me/shop/submit" && request.method === "POST") return submitShop(request, env);
@@ -54,9 +53,6 @@ async function route(request, env) {
   if (/^\/api\/admin\/shops\/[^/]+\/suspend$/.test(path) && request.method === "POST") {
     return adminSuspendShop(request, env, path.split("/")[4]);
   }
-  if (/^\/api\/admin\/users\/[^/]+\/recovery$/.test(path) && request.method === "POST") {
-    return adminResetRecoveryCode(request, env, decodeURIComponent(path.split("/")[4]));
-  }
   if (path === "/api/admin/reward" && request.method === "POST") return adminSaveReward(request, env);
 
   if (path.startsWith("/api/")) return json({ error: "見つかりませんでした。" }, 404);
@@ -66,51 +62,19 @@ async function route(request, env) {
 async function registerUser(request, env) {
   const body = await readJson(request);
   const noteId = normalizeNoteId(body.noteId);
-  const deviceSecret = String(body.deviceSecret || "");
 
   if (!NOTE_ID_PATTERN.test(noteId)) {
     return json({ error: "note IDは3〜32文字の英数字とアンダースコアで入力してください。" }, 400);
   }
-  if (deviceSecret.length < 32) return json({ error: "端末キーを作成できませんでした。" }, 400);
 
   const existing = await env.DB.prepare("SELECT id FROM users WHERE note_id = ?").bind(noteId).first();
-  if (existing) return json({ noteId, ownerAccess: false });
-
-  const recoveryCode = createRecoveryCode();
-  await env.DB.prepare(
-    "INSERT INTO users (id, note_id, credential_hash, recovery_code_hash) VALUES (?, ?, ?, ?)",
-  )
-    .bind(crypto.randomUUID(), noteId, await sha256(deviceSecret), await sha256(recoveryCode))
-    .run();
-
-  return json({ noteId, recoveryCode, ownerAccess: true }, 201);
-}
-
-async function recoverUser(request, env) {
-  const body = await readJson(request);
-  const noteId = normalizeNoteId(body.noteId);
-  const recoveryCode = normalizeRecoveryCode(body.recoveryCode);
-  const newDeviceSecret = String(body.deviceSecret || "");
-
-  if (!NOTE_ID_PATTERN.test(noteId) || !recoveryCode || newDeviceSecret.length < 32) {
-    return json({ error: "IDまたは引き継ぎコードを確認してください。" }, 400);
+  if (!existing) {
+    await env.DB.prepare(
+      "INSERT INTO users (id, note_id, credential_hash, recovery_code_hash) VALUES (?, ?, '', '')",
+    ).bind(crypto.randomUUID(), noteId).run();
   }
 
-  const user = await env.DB.prepare(
-    "SELECT id, recovery_code_hash FROM users WHERE note_id = ?",
-  ).bind(noteId).first();
-  if (!user || user.recovery_code_hash !== await sha256(recoveryCode)) {
-    return json({ error: "IDまたは引き継ぎコードが違います。" }, 401);
-  }
-
-  const nextRecoveryCode = createRecoveryCode();
-  await env.DB.prepare(
-    "UPDATE users SET credential_hash = ?, recovery_code_hash = ? WHERE id = ?",
-  )
-    .bind(await sha256(newDeviceSecret), await sha256(nextRecoveryCode), user.id)
-    .run();
-
-  return json({ noteId, recoveryCode: nextRecoveryCode });
+  return json({ noteId }, existing ? 200 : 201);
 }
 
 async function getMe(request, env) {
@@ -376,20 +340,6 @@ async function adminSuspendShop(request, env, shopId) {
   return json({ status: "suspended" });
 }
 
-async function adminResetRecoveryCode(request, env, noteIdRaw) {
-  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
-  const noteId = normalizeNoteId(noteIdRaw);
-  if (!NOTE_ID_PATTERN.test(noteId)) return json({ error: "note IDを確認してください。" }, 400);
-
-  const user = await env.DB.prepare("SELECT id FROM users WHERE note_id = ?").bind(noteId).first();
-  if (!user) return json({ error: "このIDは登録されていません。" }, 404);
-
-  const recoveryCode = createRecoveryCode();
-  await env.DB.prepare("UPDATE users SET recovery_code_hash = ? WHERE id = ?")
-    .bind(await sha256(recoveryCode), user.id).run();
-  return json({ noteId, recoveryCode });
-}
-
 async function adminSaveReward(request, env) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const form = await request.formData();
@@ -438,18 +388,7 @@ async function loadMe(env, userId) {
 }
 
 async function requireUser(request, env) {
-  const noteId = normalizeNoteId(request.headers.get("x-note-id"));
-  const deviceSecret = String(request.headers.get("x-device-secret") || "");
-  if (!NOTE_ID_PATTERN.test(noteId) || !deviceSecret) {
-    return { response: json({ error: "参加IDを入力してください。", code: "AUTH_REQUIRED" }, 401) };
-  }
-  const user = await env.DB.prepare(
-    "SELECT id, note_id, credential_hash FROM users WHERE note_id = ?",
-  ).bind(noteId).first();
-  if (!user || user.credential_hash !== await sha256(deviceSecret)) {
-    return { response: json({ error: "この端末では確認できません。引き継ぎを選んでください。", code: "AUTH_INVALID" }, 401) };
-  }
-  return user;
+  return requireVisitor(request, env);
 }
 
 async function requireVisitor(request, env) {
@@ -601,10 +540,6 @@ function normalizeNoteId(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function normalizeRecoveryCode(value) {
-  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
-}
-
 function cleanText(value, maxLength) {
   return String(value || "").replace(/\r\n?/g, "\n").trim().slice(0, maxLength);
 }
@@ -615,20 +550,6 @@ async function readJson(request) {
   } catch {
     throw new PublicError("入力内容を確認してください。", 400);
   }
-}
-
-async function sha256(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function createRecoveryCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(12));
-  const parts = [0, 1, 2].map((part) => [...bytes.slice(part * 4, part * 4 + 4)]
-    .map((byte) => alphabet[byte % alphabet.length]).join(""));
-  return parts.join("-");
 }
 
 function isAdmin(request, env) {

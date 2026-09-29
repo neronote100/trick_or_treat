@@ -22,15 +22,11 @@ boot();
 async function boot() {
   updateAccount();
   if (state.identity) {
-    if (state.identity.deviceSecret) {
-      try {
-        state.me = await api("/api/me");
-      } catch (error) {
-        if (error.code === "AUTH_INVALID" || error.code === "AUTH_REQUIRED") {
-          state.identity = { noteId: state.identity.noteId };
-          state.me = null;
-          saveIdentity();
-        }
+    try {
+      state.me = await api("/api/me");
+    } catch (error) {
+      if (error.code === "AUTH_INVALID" || error.code === "AUTH_REQUIRED") {
+        logout(false);
       }
     }
   }
@@ -183,7 +179,7 @@ async function renderAdmin() {
     <section class="page">
       <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>管理</h1></div></div>
       <form class="panel" data-form="admin-login">
-        <label class="field"><span>管理者キー</span><input name="token" type="password" required autocomplete="current-password"></label>
+        <label class="field"><span>王子専用パスワード</span><input name="token" type="password" required autocomplete="current-password"></label>
         <button class="btn btn-primary" type="submit">確認する</button>
       </form>
     </section>`;
@@ -194,12 +190,6 @@ async function showAdmin(token) {
   app.innerHTML = `
     <section class="page">
       <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>みんなのお店</h1></div><span class="status">${data.shops.length} 店</span></div>
-      <form class="panel" data-form="admin-recovery" data-token="${escapeAttr(token)}">
-        <h2>引き継ぎコード再発行</h2>
-        <p class="subtle">紛失した参加者のnote IDを入力します。以前のコードは無効になります。</p>
-        <label class="field"><span>note ID</span><input name="noteId" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]+" autocomplete="off" placeholder="neronote100"></label>
-        <button class="btn btn-secondary" type="submit">新しいコードを発行</button>
-      </form>
       ${data.shops.length ? data.shops.map((shop) => `<div class="panel">
         <div class="panel-head"><div><h2>${escapeHtml(shop.name)}</h2><p class="subtle">@${escapeHtml(shop.noteId)} ・ ${shop.treatCount} 🍬</p><span class="status ${escapeAttr(shop.status)}">${shopStatusLabel(shop.status)}</span></div>${shop.characterImageUrl ? `<img src="${escapeAttr(shop.characterImageUrl)}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">` : ""}</div>
         <p class="subtle preserve-lines">${escapeHtml(shop.description || "")}</p>
@@ -227,7 +217,6 @@ async function handleSubmit(event) {
   setBusy(submit, true);
   try {
     if (kind === "join") await register(new FormData(form));
-    if (kind === "recover") await recover(new FormData(form));
     if (kind === "shop") {
       state.me = await api("/api/me/shop", { method: "PUT", body: new FormData(form) });
       notify("保存しました");
@@ -239,15 +228,6 @@ async function handleSubmit(event) {
       await renderStudio();
     }
     if (kind === "admin-login") await showAdmin(new FormData(form).get("token"));
-    if (kind === "admin-recovery") {
-      const noteId = String(new FormData(form).get("noteId") || "").trim().toLowerCase();
-      const result = await api(`/api/admin/users/${encodeURIComponent(noteId)}/recovery`, {
-        method: "POST",
-        adminToken: form.dataset.token,
-        auth: false,
-      });
-      showRecoveryCode(result.recoveryCode);
-    }
     if (kind === "reward") {
       await api("/api/admin/reward", { method: "POST", body: new FormData(form), adminToken: form.dataset.token, auth: false });
       notify("特別画像を登録しました");
@@ -264,10 +244,8 @@ async function handleClick(event) {
   if (!button) return;
   const action = button.dataset.action;
   if (action === "close-overlay") return closeOverlay();
-  if (action === "show-recover") return openRecover();
   if (action === "show-join") return openJoin();
   if (action === "logout") return logout();
-  if (action === "copy-recovery") return copyText(button.dataset.code, "コードをコピーしました");
   if (action === "share") return copyText(new URL(button.dataset.path, location.origin).href, "URLをコピーしました");
 
   const adminAction = ["publish-shop", "suspend-shop"].includes(action);
@@ -318,30 +296,16 @@ function handleChange(event) {
 
 async function register(form) {
   const noteId = String(form.get("noteId") || "").trim().toLowerCase();
-  const deviceSecret = randomSecret();
-  const result = await api("/api/users", { method: "POST", body: JSON.stringify({ noteId, deviceSecret }), auth: false });
-  state.identity = result.ownerAccess ? { noteId: result.noteId, deviceSecret } : { noteId: result.noteId };
-  saveIdentity();
-  state.me = result.ownerAccess ? await api("/api/me") : null;
-  updateAccount();
-  await renderRoute();
-  if (result.recoveryCode) showRecoveryCode(result.recoveryCode);
-  else closeOverlay();
-}
-
-async function recover(form) {
-  const noteId = String(form.get("noteId") || "").trim().toLowerCase();
-  const deviceSecret = randomSecret();
-  const result = await api("/api/users/recover", {
+  const result = await api("/api/users", {
     method: "POST",
-    body: JSON.stringify({ noteId, recoveryCode: form.get("recoveryCode"), deviceSecret }),
+    body: JSON.stringify({ noteId }),
     auth: false,
   });
-  state.identity = { noteId: result.noteId, deviceSecret };
+  state.identity = { noteId: result.noteId };
   saveIdentity();
   state.me = await api("/api/me");
   updateAccount();
-  showRecoveryCode(result.recoveryCode);
+  closeOverlay();
   await renderRoute();
 }
 
@@ -362,35 +326,12 @@ async function draw(noteId) {
 function openJoin() {
   overlay.hidden = false;
   overlay.innerHTML = `<div class="dialog">
-    <p class="eyebrow">JOIN</p><h2>参加IDではじめる</h2>
+    <p class="eyebrow">JOIN</p><h2>note IDではじめる</h2>
     <form data-form="join">
       <label class="field"><span>note ID</span><input name="noteId" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]+" autocomplete="username" placeholder="neronote100"></label>
       <button class="btn btn-primary" type="submit">このIDではじめる</button>
     </form>
-    <div class="dialog-actions"><button class="text-button" data-action="show-recover">引き継ぐ</button>${state.identity ? `<button class="text-button" data-action="close-overlay">閉じる</button>` : ""}</div>
-  </div>`;
-}
-
-function openRecover() {
-  overlay.hidden = false;
-  overlay.innerHTML = `<div class="dialog">
-    <p class="eyebrow">TRANSFER</p><h2>引き継ぐ</h2>
-    <form data-form="recover">
-      <label class="field"><span>note ID</span><input name="noteId" required minlength="3" maxlength="32" autocomplete="username"></label>
-      <label class="field"><span>引き継ぎコード</span><input name="recoveryCode" required autocomplete="one-time-code" placeholder="XXXX-XXXX-XXXX"></label>
-      <button class="btn btn-primary" type="submit">引き継ぐ</button>
-    </form>
-    <div class="dialog-actions"><button class="text-button" data-action="show-join">戻る</button></div>
-  </div>`;
-}
-
-function showRecoveryCode(code) {
-  overlay.hidden = false;
-  overlay.innerHTML = `<div class="dialog">
-    <p class="eyebrow">SAVE THIS CODE</p><h2>引き継ぎコード</h2>
-    <p class="subtle">機種変更に使います。スクリーンショットで保存してください。</p>
-    <div class="recovery-code">${escapeHtml(code)}</div>
-    <div class="dialog-actions"><button class="btn btn-secondary" data-action="copy-recovery" data-code="${escapeAttr(code)}">コピー</button><button class="btn btn-primary" data-action="close-overlay">保存した</button></div>
+    ${state.identity ? `<div class="dialog-actions"><button class="text-button" data-action="close-overlay">閉じる</button></div>` : ""}
   </div>`;
 }
 
@@ -399,8 +340,8 @@ function openAccount() {
   overlay.hidden = false;
   overlay.innerHTML = `<div class="dialog">
     <p class="eyebrow">ACCOUNT</p><h2>@${escapeHtml(state.identity.noteId)}</h2>
-    ${state.identity.deviceSecret ? "" : `<p class="subtle">IDだけで遊べる訪問モードです。お店の編集には引き継ぎが必要です。</p>`}
-    <div class="dialog-actions">${state.identity.deviceSecret ? "" : `<button class="btn btn-secondary" data-action="show-recover">店舗編集を引き継ぐ</button>`}<button class="btn btn-secondary" data-action="close-overlay">閉じる</button><button class="btn btn-danger" data-action="logout">この端末から解除</button></div>
+    <p class="subtle">このnote IDで参加中です。別のブラウザでも同じIDを入力すれば利用できます。</p>
+    <div class="dialog-actions"><button class="btn btn-secondary" data-action="close-overlay">閉じる</button><button class="btn btn-danger" data-action="logout">この端末から解除</button></div>
   </div>`;
 }
 
@@ -411,10 +352,7 @@ function ensureAuth() {
 }
 
 function ensureOwner() {
-  if (!ensureAuth()) return false;
-  if (state.identity.deviceSecret) return true;
-  openRecover();
-  return false;
+  return ensureAuth();
 }
 
 function logout(render = true) {
@@ -435,7 +373,6 @@ async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   if (options.auth !== false && state.identity) {
     headers.set("x-note-id", state.identity.noteId);
-    headers.set("x-device-secret", state.identity.deviceSecret);
   }
   if (options.adminToken) headers.set("x-admin-token", options.adminToken);
   if (typeof options.body === "string") headers.set("content-type", "application/json");
@@ -447,11 +384,6 @@ async function api(path, options = {}) {
     throw error;
   }
   return data;
-}
-
-function randomSecret() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function loadIdentity() {
