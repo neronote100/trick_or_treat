@@ -12,8 +12,8 @@ const mf = new Miniflare({
 });
 
 const base = "http://example.test";
-const shopOwner = { noteId: "moon_shop", secret: "a".repeat(64) };
-const visitor = { noteId: "night_guest", secret: "b".repeat(64) };
+const shopOwner = { noteId: "moon_shop" };
+const visitor = { noteId: "night_guest" };
 
 try {
   const db = await mf.getD1Database("DB");
@@ -24,8 +24,8 @@ try {
 
   const ownerRegistration = await register(shopOwner);
   const visitorRegistration = await register(visitor);
-  assert.equal(ownerRegistration.ownerAccess, true);
-  assert.equal(visitorRegistration.ownerAccess, true);
+  assert.equal(ownerRegistration.noteId, shopOwner.noteId);
+  assert.equal(visitorRegistration.noteId, visitor.noteId);
 
   const shopForm = new FormData();
   shopForm.set("name", "月夜のお菓子店");
@@ -47,24 +47,6 @@ try {
   assert.equal(allShops.shops.length, 1);
   assert.equal(allShops.shops[0].status, "published");
 
-  const reset = await okFetch(`/api/admin/users/${shopOwner.noteId}/recovery`, {
-    method: "POST",
-    headers: { "x-admin-token": "test-admin" },
-  });
-  assert.match(reset.recoveryCode, /^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
-  const recoveredOwner = { noteId: shopOwner.noteId, secret: "c".repeat(64) };
-  await okFetch("/api/users/recover", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      noteId: recoveredOwner.noteId,
-      recoveryCode: reset.recoveryCode,
-      deviceSecret: recoveredOwner.secret,
-    }),
-  });
-  const recoveredMe = await okFetch("/api/me", {}, recoveredOwner);
-  assert.equal(recoveredMe.shop.name, "月夜のお菓子店");
-
   const publicList = await mf.dispatchFetch(new Request(`${base}/api/shops`));
   assert.equal(publicList.status, 404);
 
@@ -73,14 +55,11 @@ try {
   assert.equal(directShop.shop.treatCount, 1);
   assert.equal(directShop.shop.description, "星明かりの下でどうぞ\n何度でも遊びに来てね");
 
-  const repeatLogin = await register({ noteId: visitor.noteId, secret: "d".repeat(64) });
-  assert.equal(repeatLogin.ownerAccess, false);
-  assert.equal(repeatLogin.recoveryCode, undefined);
+  const repeatLogin = await register({ noteId: visitor.noteId });
+  assert.equal(repeatLogin.noteId, visitor.noteId);
   const visitorOnly = { noteId: visitor.noteId };
-  const ownerOnlyResponse = await mf.dispatchFetch(new Request(`${base}/api/me`, {
-    headers: { "x-note-id": visitorOnly.noteId },
-  }));
-  assert.equal(ownerOnlyResponse.status, 401);
+  const visitorMe = await okFetch("/api/me", {}, visitorOnly);
+  assert.equal(visitorMe.user.noteId, visitor.noteId);
 
   const draw = await okFetch(`/api/shops/${shopOwner.noteId}/draw`, { method: "POST" }, visitorOnly);
   assert.equal(draw.treat.name, "月のキャンディ");
@@ -96,7 +75,7 @@ try {
   const image = await mf.dispatchFetch(`${base}${collection.items[0].imageUrl}`);
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");
-  console.log("Smoke test passed: register → publish → admin recovery → draw → collection");
+  console.log("Smoke test passed: note ID login → publish → admin password → draw → collection");
 } finally {
   await mf.dispose();
 }
@@ -105,7 +84,7 @@ async function register(identity) {
   return okFetch("/api/users", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ noteId: identity.noteId, deviceSecret: identity.secret }),
+    body: JSON.stringify({ noteId: identity.noteId }),
   });
 }
 
@@ -113,7 +92,6 @@ async function okFetch(path, options = {}, identity) {
   const headers = new Headers(options.headers || {});
   if (identity) {
     headers.set("x-note-id", identity.noteId);
-    if (identity.secret) headers.set("x-device-secret", identity.secret);
   }
   const request = new Request(`${base}${path}`, { ...options, headers });
   const response = await mf.dispatchFetch(request);
