@@ -6,6 +6,7 @@ const IMAGE_TYPES = new Map([
   ["image/gif", "gif"],
 ]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+let schemaReady;
 
 export default {
   async fetch(request, env) {
@@ -27,6 +28,7 @@ async function route(request, env) {
 
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: securityHeaders() });
   if (path.startsWith("/images/") && request.method === "GET") return serveImage(path, env);
+  if (path.startsWith("/api/")) await ensureDatabase(env);
 
   if (path === "/api/users" && request.method === "POST") return registerUser(request, env);
   if (path === "/api/users/recover" && request.method === "POST") return recoverUser(request, env);
@@ -425,14 +427,13 @@ async function requireUser(request, env) {
 
 async function serveImage(path, env) {
   const key = path.slice("/images/".length).split("/").map(decodeURIComponent).join("/");
-  const object = await env.IMAGES.get(key);
-  if (!object) return new Response("Not found", { status: 404, headers: securityHeaders() });
+  const object = await env.IMAGES.getWithMetadata(key, { type: "arrayBuffer" });
+  if (!object.value) return new Response("Not found", { status: 404, headers: securityHeaders() });
   const headers = securityHeaders();
-  object.writeHttpMetadata(headers);
-  headers.set("etag", object.httpEtag);
+  headers.set("content-type", object.metadata?.contentType || "application/octet-stream");
   headers.set("cache-control", "public, max-age=31536000, immutable");
   headers.set("x-content-type-options", "nosniff");
-  return new Response(object.body, { headers });
+  return new Response(object.value, { headers });
 }
 
 async function storeRequiredImage(value, env, folder) {
@@ -448,9 +449,78 @@ async function storeImageIfPresent(value, env, folder) {
   if (!extension) throw new PublicError("PNG・JPEG・WebP・GIFの画像を選んでください。", 400);
   const key = `${folder}/${crypto.randomUUID()}.${extension}`;
   await env.IMAGES.put(key, await value.arrayBuffer(), {
-    httpMetadata: { contentType: value.type },
+    metadata: { contentType: value.type },
   });
   return key;
+}
+
+function ensureDatabase(env) {
+  if (!schemaReady) {
+    const statements = [
+      `CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        note_id TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        credential_hash TEXT NOT NULL,
+        recovery_code_hash TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS shops (
+        id TEXT PRIMARY KEY,
+        owner_user_id TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        character_image_key TEXT,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'pending', 'published', 'suspended')),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS treats (
+        id TEXT PRIMARY KEY,
+        shop_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        image_key TEXT NOT NULL,
+        rarity TEXT NOT NULL DEFAULT 'normal' CHECK (rarity IN ('normal', 'rare', 'secret')),
+        weight INTEGER NOT NULL DEFAULT 10 CHECK (weight BETWEEN 1 AND 100),
+        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS collection_items (
+        user_id TEXT NOT NULL,
+        treat_id TEXT NOT NULL,
+        first_obtained_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        obtained_count INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (user_id, treat_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (treat_id) REFERENCES treats(id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS rewards (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        required_shop_count INTEGER NOT NULL DEFAULT 10,
+        image_key TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS user_rewards (
+        user_id TEXT NOT NULL,
+        reward_id TEXT NOT NULL,
+        unlocked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, reward_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_shops_status ON shops(status)",
+      "CREATE INDEX IF NOT EXISTS idx_treats_shop_active ON treats(shop_id, is_active)",
+      "CREATE INDEX IF NOT EXISTS idx_collection_user ON collection_items(user_id)",
+    ];
+    schemaReady = env.DB.batch(statements.map((statement) => env.DB.prepare(statement))).catch((error) => {
+      schemaReady = undefined;
+      throw error;
+    });
+  }
+  return schemaReady;
 }
 
 function weightedPick(items) {

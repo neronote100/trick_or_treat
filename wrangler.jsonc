@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "trick-or-treat-collection",
+  "name": "trick-or-treat",
   "main": "src/index.js",
   "compatibility_date": "2026-09-21",
   "assets": {
@@ -11,15 +11,12 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "trick-or-treat-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [
+  "kv_namespaces": [
     {
-      "binding": "IMAGES",
-      "bucket_name": "trick-or-treat-images"
+      "binding": "IMAGES"
     }
   ]
 }

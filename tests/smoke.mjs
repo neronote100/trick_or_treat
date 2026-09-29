@@ -7,7 +7,7 @@ const mf = new Miniflare({
   scriptPath: "src/index.js",
   compatibilityDate: "2026-09-21",
   d1Databases: { DB: "test-db" },
-  r2Buckets: { IMAGES: "test-images" },
+  kvNamespaces: { IMAGES: "test-images" },
   bindings: { ADMIN_TOKEN: "test-admin" },
 });
 
@@ -59,6 +59,9 @@ try {
   const collection = await okFetch("/api/collection", {}, visitor);
   assert.equal(collection.items.length, 1);
   assert.equal(collection.items[0].obtainedCount, 1);
+  const image = await mf.dispatchFetch(`${base}${collection.items[0].imageUrl}`);
+  assert.equal(image.status, 200);
+  assert.equal(image.headers.get("content-type"), "image/png");
   console.log("Smoke test passed: register → open shop → approve → draw → collection");
 } finally {
   await mf.dispose();

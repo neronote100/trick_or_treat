@@ -42,7 +42,7 @@ noteで活動する参加者が、自分のキャラクターを使ったお菓�
 - フロントエンド: モバイルファーストのWebアプリ
 - API: Cloudflare Workers
 - データベース: Cloudflare D1
-- 画像保存: Cloudflare R2
+- 画像保存: Cloudflare Workers KV（無料枠）
 - 配信: Cloudflare Workers / Pages
 
 画像生成APIは使用しません。お菓子画像は参加者が各自のAIで作成し、完成画像をアップロードします。
@@ -64,29 +64,25 @@ npm test
 
 ## Cloudflareへ公開
 
-1. D1とR2を作成します。
+1. Cloudflareへログインします。
 
 ```bash
 npx wrangler login
-npx wrangler d1 create trick-or-treat-db
-npx wrangler r2 bucket create trick-or-treat-images
 ```
 
-2. D1作成時に表示されたIDを `wrangler.jsonc` の `database_id` へ設定します。
-3. 管理者キーを登録します。
+2. 管理者キーを登録します。
 
 ```bash
 npx wrangler secret put ADMIN_TOKEN
 ```
 
-4. マイグレーションを適用して公開します。
+3. 公開します。D1とKVは初回デプロイ時に自動作成され、テーブルは最初のAPIアクセス時に初期化されます。
 
 ```bash
-npm run db:migrate:remote
 npm run deploy
 ```
 
-CloudflareのGit連携で自動公開する場合も、先にD1・R2・`ADMIN_TOKEN` の準備が必要です。
+CloudflareのGit連携でも、D1とKVは自動作成されます。公開後にWorkerの設定から `ADMIN_TOKEN` をSecretとして登録してください。
 
 ## 実装済み
 

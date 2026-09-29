@@ -124,7 +124,7 @@ note IDには英数字とアンダースコアのみを許可し、URLでは小�
 | owner_user_id | 店主 |
 | name | 店名 |
 | description | 紹介文 |
-| character_image_key | キャラクター画像のR2キー |
+| character_image_key | キャラクター画像のKVキー |
 | status | draft / pending / published / suspended |
 
 ### treats
@@ -134,7 +134,7 @@ note IDには英数字とアンダースコアのみを許可し、URLでは小�
 | id | お菓子ID |
 | shop_id | 所属店舗 |
 | name | お菓子名 |
-| image_key | お菓子画像のR2キー |
+| image_key | お菓子画像のKVキー |
 | rarity | 通常 / レア / シークレット |
 | weight | 抽選重み |
 | is_active | 抽選対象か |
@@ -156,7 +156,7 @@ note IDには英数字とアンダースコアのみを許可し、URLでは小�
 |---|---|
 | id | 報酬ID |
 | required_shop_count | 必要店舗数 |
-| image_key | 特別画像のR2キー |
+| image_key | 特別画像のKVキー |
 | is_active | 現在の報酬か |
 
 ### user_rewards
