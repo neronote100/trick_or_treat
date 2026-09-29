@@ -22,10 +22,16 @@ boot();
 async function boot() {
   updateAccount();
   if (state.identity) {
-    try {
-      state.me = await api("/api/me");
-    } catch (error) {
-      if (error.code === "AUTH_INVALID" || error.code === "AUTH_REQUIRED") logout(false);
+    if (state.identity.deviceSecret) {
+      try {
+        state.me = await api("/api/me");
+      } catch (error) {
+        if (error.code === "AUTH_INVALID" || error.code === "AUTH_REQUIRED") {
+          state.identity = { noteId: state.identity.noteId };
+          state.me = null;
+          saveIdentity();
+        }
+      }
     }
   }
   if (!location.hash) location.hash = "#/collection";
@@ -52,7 +58,7 @@ async function renderRoute() {
 }
 
 async function renderStudio() {
-  if (!ensureAuth()) return;
+  if (!ensureOwner()) return;
   showLoader();
   state.me = await api("/api/me");
   const { shop, treats } = state.me;
@@ -63,6 +69,7 @@ async function renderStudio() {
       <div class="page-head"><div><p class="eyebrow">MY SHOP</p><h1>お店をひらく</h1></div><span class="status ${status}">${statusLabel}</span></div>
       <form class="panel" data-form="shop">
         <div class="panel-head"><h2>お店</h2></div>
+        <p class="image-hint">キャラクター画像：横4:3推奨（例 1200×900px）・顔や文字は中央へ</p>
         <label class="image-picker">
           ${shop?.characterImageUrl ? `<img data-preview="character" src="${escapeAttr(shop.characterImageUrl)}" alt="キャラクター画像">` : `<span class="image-placeholder" data-preview="character"><b>＋</b>キャラクター画像</span>`}
           <input type="file" name="characterImage" accept="image/png,image/jpeg,image/webp,image/gif" data-preview-target="character">
@@ -75,6 +82,7 @@ async function renderStudio() {
       <form class="panel" data-form="treat">
         <div class="panel-head"><h2>お菓子</h2><span class="status">${treats.length} 個</span></div>
         ${shop ? `
+          <p class="image-hint">お菓子画像：正方形1:1推奨（例 1200×1200px）</p>
           <label class="image-picker">
             <span class="image-placeholder" data-preview="treat"><b>＋</b>お菓子画像</span>
             <input type="file" name="image" required accept="image/png,image/jpeg,image/webp,image/gif" data-preview-target="treat">
@@ -116,7 +124,7 @@ async function renderShop(noteId) {
         <div class="shop-stage-body">
           <p class="eyebrow">@${escapeHtml(shop.noteId)}</p>
           <h1>${escapeHtml(shop.name)}</h1>
-          ${shop.description ? `<p class="subtle">${escapeHtml(shop.description)}</p>` : ""}
+          ${shop.description ? `<p class="subtle preserve-lines">${escapeHtml(shop.description)}</p>` : ""}
           <div class="mystery-row">${Array.from({ length: Math.min(shop.treatCount, 6) }, () => `<span class="mystery">?</span>`).join("")}</div>
           <button class="btn btn-primary draw-button" data-action="draw" data-note-id="${escapeAttr(shop.noteId)}">トリック・オア・トリート！</button>
         </div>
@@ -194,7 +202,7 @@ async function showAdmin(token) {
       </form>
       ${data.shops.length ? data.shops.map((shop) => `<div class="panel">
         <div class="panel-head"><div><h2>${escapeHtml(shop.name)}</h2><p class="subtle">@${escapeHtml(shop.noteId)} ・ ${shop.treatCount} 🍬</p><span class="status ${escapeAttr(shop.status)}">${shopStatusLabel(shop.status)}</span></div>${shop.characterImageUrl ? `<img src="${escapeAttr(shop.characterImageUrl)}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">` : ""}</div>
-        <p class="subtle">${escapeHtml(shop.description || "")}</p>
+        <p class="subtle preserve-lines">${escapeHtml(shop.description || "")}</p>
         <div class="button-row">
           ${shop.status === "published" ? `<a class="btn btn-secondary" href="#/shop/${encodeURIComponent(shop.noteId)}">お店を見る</a><button class="btn btn-secondary" data-action="suspend-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">公開停止</button>` : ""}
           ${["pending", "suspended"].includes(shop.status) ? `<button class="btn btn-primary" data-action="publish-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">再公開する</button>` : ""}
@@ -204,7 +212,7 @@ async function showAdmin(token) {
         <h2>特別画像</h2>
         <label class="field"><span>名前</span><input name="name" maxlength="50" value="10店舗コンプリート"></label>
         <label class="field"><span>必要店舗数</span><input name="requiredShopCount" type="number" min="1" max="100" value="10"></label>
-        <label class="field"><span>画像</span><input name="image" type="file" required accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        <label class="field"><span>画像（正方形1:1推奨・例 1200×1200px）</span><input name="image" type="file" required accept="image/png,image/jpeg,image/webp,image/gif"></label>
         <button class="btn btn-secondary" type="submit">登録する</button>
       </form>
     </section>`;
@@ -312,12 +320,13 @@ async function register(form) {
   const noteId = String(form.get("noteId") || "").trim().toLowerCase();
   const deviceSecret = randomSecret();
   const result = await api("/api/users", { method: "POST", body: JSON.stringify({ noteId, deviceSecret }), auth: false });
-  state.identity = { noteId: result.noteId, deviceSecret };
+  state.identity = result.ownerAccess ? { noteId: result.noteId, deviceSecret } : { noteId: result.noteId };
   saveIdentity();
-  state.me = await api("/api/me");
+  state.me = result.ownerAccess ? await api("/api/me") : null;
   updateAccount();
-  showRecoveryCode(result.recoveryCode);
   await renderRoute();
+  if (result.recoveryCode) showRecoveryCode(result.recoveryCode);
+  else closeOverlay();
 }
 
 async function recover(form) {
@@ -390,13 +399,21 @@ function openAccount() {
   overlay.hidden = false;
   overlay.innerHTML = `<div class="dialog">
     <p class="eyebrow">ACCOUNT</p><h2>@${escapeHtml(state.identity.noteId)}</h2>
-    <div class="dialog-actions"><button class="btn btn-secondary" data-action="close-overlay">閉じる</button><button class="btn btn-danger" data-action="logout">この端末から解除</button></div>
+    ${state.identity.deviceSecret ? "" : `<p class="subtle">IDだけで遊べる訪問モードです。お店の編集には引き継ぎが必要です。</p>`}
+    <div class="dialog-actions">${state.identity.deviceSecret ? "" : `<button class="btn btn-secondary" data-action="show-recover">店舗編集を引き継ぐ</button>`}<button class="btn btn-secondary" data-action="close-overlay">閉じる</button><button class="btn btn-danger" data-action="logout">この端末から解除</button></div>
   </div>`;
 }
 
 function ensureAuth() {
   if (state.identity) return true;
   openJoin();
+  return false;
+}
+
+function ensureOwner() {
+  if (!ensureAuth()) return false;
+  if (state.identity.deviceSecret) return true;
+  openRecover();
   return false;
 }
 

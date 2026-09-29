@@ -74,7 +74,7 @@ async function registerUser(request, env) {
   if (deviceSecret.length < 32) return json({ error: "端末キーを作成できませんでした。" }, 400);
 
   const existing = await env.DB.prepare("SELECT id FROM users WHERE note_id = ?").bind(noteId).first();
-  if (existing) return json({ error: "このIDは登録済みです。引き継ぎを選んでください。", code: "ID_TAKEN" }, 409);
+  if (existing) return json({ noteId, ownerAccess: false });
 
   const recoveryCode = createRecoveryCode();
   await env.DB.prepare(
@@ -83,7 +83,7 @@ async function registerUser(request, env) {
     .bind(crypto.randomUUID(), noteId, await sha256(deviceSecret), await sha256(recoveryCode))
     .run();
 
-  return json({ noteId, recoveryCode }, 201);
+  return json({ noteId, recoveryCode, ownerAccess: true }, 201);
 }
 
 async function recoverUser(request, env) {
@@ -233,7 +233,7 @@ async function getShop(env, noteIdRaw) {
 }
 
 async function drawTreat(request, env, noteIdRaw) {
-  const user = await requireUser(request, env);
+  const user = await requireVisitor(request, env);
   if (user.response) return user.response;
   const noteId = normalizeNoteId(noteIdRaw);
   const shop = await env.DB.prepare(`
@@ -286,7 +286,7 @@ async function drawTreat(request, env, noteIdRaw) {
 }
 
 async function getCollection(request, env) {
-  const user = await requireUser(request, env);
+  const user = await requireVisitor(request, env);
   if (user.response) return user.response;
   const items = await env.DB.prepare(`
     SELECT c.first_obtained_at, c.obtained_count,
@@ -452,6 +452,16 @@ async function requireUser(request, env) {
   return user;
 }
 
+async function requireVisitor(request, env) {
+  const noteId = normalizeNoteId(request.headers.get("x-note-id"));
+  if (!NOTE_ID_PATTERN.test(noteId)) {
+    return { response: json({ error: "参加IDを入力してください。", code: "AUTH_REQUIRED" }, 401) };
+  }
+  const user = await env.DB.prepare("SELECT id, note_id FROM users WHERE note_id = ?").bind(noteId).first();
+  if (!user) return { response: json({ error: "参加IDを確認してください。", code: "AUTH_INVALID" }, 401) };
+  return user;
+}
+
 async function serveImage(path, env) {
   const key = path.slice("/images/".length).split("/").map(decodeURIComponent).join("/");
   const object = await env.IMAGES.getWithMetadata(key, { type: "arrayBuffer" });
@@ -596,7 +606,7 @@ function normalizeRecoveryCode(value) {
 }
 
 function cleanText(value, maxLength) {
-  return String(value || "").trim().slice(0, maxLength);
+  return String(value || "").replace(/\r\n?/g, "\n").trim().slice(0, maxLength);
 }
 
 async function readJson(request) {

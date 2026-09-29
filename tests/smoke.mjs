@@ -22,12 +22,14 @@ try {
     await db.prepare(statement).run();
   }
 
-  await register(shopOwner);
-  await register(visitor);
+  const ownerRegistration = await register(shopOwner);
+  const visitorRegistration = await register(visitor);
+  assert.equal(ownerRegistration.ownerAccess, true);
+  assert.equal(visitorRegistration.ownerAccess, true);
 
   const shopForm = new FormData();
   shopForm.set("name", "月夜のお菓子店");
-  shopForm.set("description", "星明かりの下でどうぞ");
+  shopForm.set("description", "星明かりの下でどうぞ\n何度でも遊びに来てね");
   shopForm.set("characterImage", pngFile("character.png"));
   await okFetch("/api/me/shop", { method: "PUT", body: shopForm }, shopOwner);
 
@@ -69,13 +71,23 @@ try {
   const directShop = await okFetch(`/api/shops/${shopOwner.noteId}`);
   assert.equal(directShop.shop.noteId, shopOwner.noteId);
   assert.equal(directShop.shop.treatCount, 1);
+  assert.equal(directShop.shop.description, "星明かりの下でどうぞ\n何度でも遊びに来てね");
 
-  const draw = await okFetch(`/api/shops/${shopOwner.noteId}/draw`, { method: "POST" }, visitor);
+  const repeatLogin = await register({ noteId: visitor.noteId, secret: "d".repeat(64) });
+  assert.equal(repeatLogin.ownerAccess, false);
+  assert.equal(repeatLogin.recoveryCode, undefined);
+  const visitorOnly = { noteId: visitor.noteId };
+  const ownerOnlyResponse = await mf.dispatchFetch(new Request(`${base}/api/me`, {
+    headers: { "x-note-id": visitorOnly.noteId },
+  }));
+  assert.equal(ownerOnlyResponse.status, 401);
+
+  const draw = await okFetch(`/api/shops/${shopOwner.noteId}/draw`, { method: "POST" }, visitorOnly);
   assert.equal(draw.treat.name, "月のキャンディ");
   assert.equal(draw.isNew, true);
   assert.equal(draw.shopCount, 1);
 
-  const collection = await okFetch("/api/collection", {}, visitor);
+  const collection = await okFetch("/api/collection", {}, visitorOnly);
   assert.equal(collection.items.length, 1);
   assert.equal(collection.items[0].obtainedCount, 1);
   assert.equal(collection.shops.length, 1);
@@ -101,7 +113,7 @@ async function okFetch(path, options = {}, identity) {
   const headers = new Headers(options.headers || {});
   if (identity) {
     headers.set("x-note-id", identity.noteId);
-    headers.set("x-device-secret", identity.secret);
+    if (identity.secret) headers.set("x-device-secret", identity.secret);
   }
   const request = new Request(`${base}${path}`, { ...options, headers });
   const response = await mf.dispatchFetch(request);

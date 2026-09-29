@@ -107,6 +107,7 @@ h1 { margin-bottom: 0; font-size: clamp(26px, 8vw, 38px); line-height: 1.12; let
 h2 { margin-bottom: 14px; font-size: 19px; letter-spacing: -.02em; }
 h3 { margin-bottom: 5px; font-size: 16px; }
 .subtle { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.preserve-lines { white-space: pre-wrap; overflow-wrap: anywhere; }
 .section-label { margin: 28px 2px 13px; color: #d8d0e5; font-size: 13px; font-weight: 800; }
 
 .hero-card {
@@ -147,7 +148,7 @@ h3 { margin-bottom: 5px; font-size: 16px; }
 }
 .shop-card:active { transform: scale(.98); }
 .shop-card:hover { border-color: rgba(255,138,53,.35); }
-.card-image { aspect-ratio: 1 / 1; width: 100%; object-fit: cover; background: linear-gradient(145deg, #302143, #17101f); }
+.card-image { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; background: linear-gradient(145deg, #302143, #17101f); }
 .card-body { padding: 13px; }
 .card-body h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 0; color: var(--muted); font-size: 11px; }
@@ -198,6 +199,7 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
 .image-picker input { position: absolute; inset: 0; height: 100%; opacity: 0; cursor: pointer; }
 .image-placeholder { color: var(--muted); font-size: 12px; text-align: center; }
 .image-placeholder b { display: block; margin-bottom: 4px; color: var(--orange); font-size: 29px; }
+.image-hint { margin: -4px 0 11px; color: var(--gold); font-size: 11px; line-height: 1.5; }
 
 .button-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .btn { display: inline-flex; min-height: 46px; flex: 1 1 auto; align-items: center; justify-content: center; gap: 7px; padding: 0 18px; border: 1px solid transparent; border-radius: 14px; font-weight: 850; cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
