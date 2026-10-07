@@ -53,6 +53,9 @@ async function route(request, env) {
   if (/^\/api\/admin\/shops\/[^/]+\/suspend$/.test(path) && request.method === "POST") {
     return adminSuspendShop(request, env, path.split("/")[4]);
   }
+  if (/^\/api\/admin\/shops\/[^/]+$/.test(path) && request.method === "DELETE") {
+    return adminDeleteShop(request, env, path.split("/")[4]);
+  }
   if (path === "/api/admin/reward" && request.method === "POST") return adminSaveReward(request, env);
 
   if (path.startsWith("/api/")) return json({ error: "見つかりませんでした。" }, 404);
@@ -338,6 +341,35 @@ async function adminSuspendShop(request, env, shopId) {
   ).bind(shopId).run();
   if (!result.meta.changes) return json({ error: "対象のお店が見つかりません。" }, 404);
   return json({ status: "suspended" });
+}
+
+async function adminDeleteShop(request, env, shopId) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+
+  const shop = await env.DB.prepare(
+    "SELECT id, character_image_key FROM shops WHERE id = ?",
+  ).bind(shopId).first();
+  if (!shop) return json({ error: "対象のお店が見つかりません。" }, 404);
+
+  const treats = await env.DB.prepare(
+    "SELECT image_key FROM treats WHERE shop_id = ?",
+  ).bind(shopId).all();
+
+  await env.DB.batch([
+    env.DB.prepare(
+      "DELETE FROM collection_items WHERE treat_id IN (SELECT id FROM treats WHERE shop_id = ?)",
+    ).bind(shopId),
+    env.DB.prepare("DELETE FROM treats WHERE shop_id = ?").bind(shopId),
+    env.DB.prepare("DELETE FROM shops WHERE id = ?").bind(shopId),
+  ]);
+
+  const imageKeys = [
+    shop.character_image_key,
+    ...treats.results.map((treat) => treat.image_key),
+  ].filter(Boolean);
+  await Promise.allSettled(imageKeys.map((key) => env.IMAGES.delete(key)));
+
+  return json({ deleted: true });
 }
 
 async function adminSaveReward(request, env) {
