@@ -55,6 +55,9 @@ try {
   assert.equal(directShop.shop.treatCount, 1);
   assert.equal(directShop.shop.description, "星明かりの下でどうぞ\n何度でも遊びに来てね");
 
+  const ownerMe = await okFetch("/api/me", {}, shopOwner);
+  assert.equal(ownerMe.shop.sharePath, `/shop/${shopOwner.noteId}`);
+
   const repeatLogin = await register({ noteId: visitor.noteId });
   assert.equal(repeatLogin.noteId, visitor.noteId);
   const visitorOnly = { noteId: visitor.noteId };
