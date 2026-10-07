@@ -28,6 +28,13 @@ async function route(request, env) {
 
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: securityHeaders() });
   if (path.startsWith("/images/") && request.method === "GET") return serveImage(path, env);
+
+  const shopPageMatch = path.match(/^\/shop\/([a-z0-9_]{3,32})\/?$/i);
+  if (shopPageMatch && request.method === "GET") {
+    await ensureDatabase(env);
+    return serveShopPage(request, env, shopPageMatch[1]);
+  }
+
   if (path.startsWith("/api/")) await ensureDatabase(env);
 
   if (path === "/api/users" && request.method === "POST") return registerUser(request, env);
@@ -413,7 +420,7 @@ async function loadMe(env, userId) {
       description: shop.description,
       status: shop.status,
       characterImageUrl: imageUrl(shop.character_image_key),
-      sharePath: `/#/shop/${user.note_id}`,
+      sharePath: `/shop/${user.note_id}`,
     } : null,
     treats,
   };
@@ -431,6 +438,71 @@ async function requireVisitor(request, env) {
   const user = await env.DB.prepare("SELECT id, note_id FROM users WHERE note_id = ?").bind(noteId).first();
   if (!user) return { response: json({ error: "参加IDを確認してください。", code: "AUTH_INVALID" }, 401) };
   return user;
+}
+
+async function serveShopPage(request, env, noteIdRaw) {
+  const noteId = normalizeNoteId(noteIdRaw);
+  if (!NOTE_ID_PATTERN.test(noteId)) {
+    return new Response("Not found", { status: 404, headers: securityHeaders() });
+  }
+
+  const shop = await env.DB.prepare(`
+    SELECT s.name, s.description, s.character_image_key, u.note_id
+    FROM shops s JOIN users u ON u.id = s.owner_user_id
+    WHERE u.note_id = ? AND s.status = 'published'
+  `).bind(noteId).first();
+
+  if (!shop) {
+    return new Response("Not found", { status: 404, headers: securityHeaders() });
+  }
+
+  const indexUrl = new URL("/index.html", request.url);
+  const assetResponse = await env.ASSETS.fetch(new Request(indexUrl.toString(), {
+    method: "GET",
+    headers: request.headers,
+  }));
+  if (!assetResponse.ok) return assetResponse;
+
+  const origin = new URL(request.url).origin;
+  const title = `${shop.name} | Trick or Treat Collection`;
+  const description = String(shop.description || `@${shop.note_id}のお菓子屋さんへ遊びに行こう。`)
+    .replace(/\s+/g, " ")
+    .trim();
+  const pageUrl = `${origin}/shop/${encodeURIComponent(shop.note_id)}`;
+  const image = shop.character_image_key
+    ? `${origin}${imageUrl(shop.character_image_key)}`
+    : null;
+
+  const ogTags = [
+    `<meta property="og:site_name" content="Trick or Treat Collection">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:title" content="${escapeHtml(title)}">`,
+    `<meta property="og:description" content="${escapeHtml(description)}">`,
+    `<meta property="og:url" content="${escapeHtml(pageUrl)}">`,
+    image ? `<meta property="og:image" content="${escapeHtml(image)}">` : "",
+    image ? `<meta property="og:image:alt" content="${escapeHtml(shop.name)}">` : "",
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<meta name="twitter:title" content="${escapeHtml(title)}">`,
+    `<meta name="twitter:description" content="${escapeHtml(description)}">`,
+    image ? `<meta name="twitter:image" content="${escapeHtml(image)}">` : "",
+    `<link rel="canonical" href="${escapeHtml(pageUrl)}">`,
+  ].filter(Boolean).join("\n    ");
+
+  let html = await assetResponse.text();
+  html = html
+    .replace(
+      /<meta name="description" content="[^"]*">/,
+      `<meta name="description" content="${escapeHtml(description)}">`,
+    )
+    .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
+    .replace("<!-- SHOP_OGP -->", ogTags);
+
+  const headers = new Headers(assetResponse.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-cache");
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  return new Response(html, { status: 200, headers });
 }
 
 async function serveImage(path, env) {
@@ -566,6 +638,16 @@ function publicReward(reward) {
 function imageUrl(key) {
   if (!key) return null;
   return `/images/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]);
 }
 
 function normalizeNoteId(value) {
