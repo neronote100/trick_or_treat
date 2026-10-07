@@ -30,14 +30,26 @@ async function boot() {
       }
     }
   }
-  if (!location.hash) location.hash = "#/collection";
+  if (!location.hash && !cleanShopPath()) location.hash = "#/collection";
   await renderRoute();
-  const page = location.hash.replace(/^#\/?/, "").split("/")[0];
+  const page = routeParts()[0] || "collection";
   if (!state.identity && page !== "admin") openJoin();
 }
 
+function cleanShopPath() {
+  return location.pathname.match(/^\/shop\/([a-z0-9_]{3,32})\/?$/i);
+}
+
+function routeParts() {
+  const hashParts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  if (hashParts.length) return hashParts;
+  const shopMatch = cleanShopPath();
+  if (shopMatch) return ["shop", shopMatch[1].toLowerCase()];
+  return ["collection"];
+}
+
 async function renderRoute() {
-  const parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  const parts = routeParts();
   const page = parts[0] || "collection";
   setActiveNav(page === "shop" ? "collection" : page);
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -96,7 +108,7 @@ async function renderStudio() {
         </div>
         ${status === "suspended" ? `<p class="subtle">このお店は管理者によって公開停止されています。</p>` : ""}
       </div>` : ""}
-      <a class="admin-link" href="#/admin">管理者はこちら</a>
+      <a class="admin-link" href="/#/admin">管理者はこちら</a>
     </section>`;
 }
 
@@ -114,7 +126,7 @@ async function renderShop(noteId) {
   const shop = data.shop;
   app.innerHTML = `
     <section class="page">
-      <a class="text-button" href="#/collection">← 図鑑へ</a>
+      <a class="text-button" href="/#/collection">← 図鑑へ</a>
       <div class="shop-stage">
         <img class="shop-stage-image" src="${escapeAttr(shop.characterImageUrl)}" alt="${escapeAttr(shop.name)}">
         <div class="shop-stage-body">
@@ -152,7 +164,7 @@ async function renderCollection() {
 }
 
 function visitedShopCard(shop) {
-  return `<a class="shop-card" href="#/shop/${encodeURIComponent(shop.noteId)}">
+  return `<a class="shop-card" href="/shop/${encodeURIComponent(shop.noteId)}">
     ${shop.characterImageUrl ? `<img class="card-image" src="${escapeAttr(shop.characterImageUrl)}" alt="${escapeAttr(shop.name)}">` : `<div class="card-image"></div>`}
     <div class="card-body">
       <h3>${escapeHtml(shop.name)}</h3>
@@ -162,7 +174,7 @@ function visitedShopCard(shop) {
 }
 
 function collectionCard(item) {
-  return `<a class="collection-card" href="#/shop/${encodeURIComponent(item.noteId)}">
+  return `<a class="collection-card" href="/shop/${encodeURIComponent(item.noteId)}">
     <img src="${escapeAttr(item.imageUrl)}" alt="${escapeAttr(item.name)}">
     ${item.obtainedCount > 1 ? `<span class="count-badge">×${item.obtainedCount}</span>` : ""}
     <div class="collection-info"><span class="rarity">${rarityLabel(item.rarity)}</span><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.shopName)}</p></div>
@@ -194,7 +206,7 @@ async function showAdmin(token) {
         <div class="panel-head"><div><h2>${escapeHtml(shop.name)}</h2><p class="subtle">@${escapeHtml(shop.noteId)} ・ ${shop.treatCount} 🍬</p><span class="status ${escapeAttr(shop.status)}">${shopStatusLabel(shop.status)}</span></div>${shop.characterImageUrl ? `<img src="${escapeAttr(shop.characterImageUrl)}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">` : ""}</div>
         <p class="subtle preserve-lines">${escapeHtml(shop.description || "")}</p>
         <div class="button-row">
-          ${shop.status === "published" ? `<a class="btn btn-secondary" href="#/shop/${encodeURIComponent(shop.noteId)}">お店を見る</a><button class="btn btn-secondary" data-action="suspend-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">公開停止</button>` : ""}
+          ${shop.status === "published" ? `<a class="btn btn-secondary" href="/shop/${encodeURIComponent(shop.noteId)}">お店を見る</a><button class="btn btn-secondary" data-action="suspend-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">公開停止</button>` : ""}
           ${["pending", "suspended"].includes(shop.status) ? `<button class="btn btn-primary" data-action="publish-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">再公開する</button>` : ""}
           <button class="btn btn-danger" data-action="delete-shop" data-id="${escapeAttr(shop.id)}" data-name="${escapeAttr(shop.name)}" data-token="${escapeAttr(token)}">削除する</button>
         </div>
@@ -327,7 +339,7 @@ async function draw(noteId) {
     <h2 class="result-title">${escapeHtml(result.treat.name)}</h2>
     <p class="result-meta">${rarityLabel(result.treat.rarity)} ・ ${escapeHtml(result.shop.name)} ${result.obtainedCount > 1 ? `・ ×${result.obtainedCount}` : ""}</p>
     ${reward ? `<div class="reward-card"><img src="${escapeAttr(reward.imageUrl)}" alt="${escapeAttr(reward.name)}"><div class="reward-label">10店舗達成 ✦ ${escapeHtml(reward.name)}</div></div>` : ""}
-    <div class="dialog-actions"><button class="btn btn-secondary" data-action="close-overlay">閉じる</button><a class="btn btn-primary" href="#/collection" data-action="close-overlay">図鑑を見る</a></div>
+    <div class="dialog-actions"><button class="btn btn-secondary" data-action="close-overlay">閉じる</button><a class="btn btn-primary" href="/#/collection" data-action="close-overlay">図鑑を見る</a></div>
   </div>`;
 }
 
