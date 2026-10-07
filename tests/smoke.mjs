@@ -75,7 +75,38 @@ try {
   const image = await mf.dispatchFetch(`${base}${collection.items[0].imageUrl}`);
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");
-  console.log("Smoke test passed: note ID login → publish → admin password → draw → collection");
+
+  const deleted = await okFetch(`/api/admin/shops/${allShops.shops[0].id}`, {
+    method: "DELETE",
+    headers: { "x-admin-token": "test-admin" },
+  });
+  assert.equal(deleted.deleted, true);
+
+  const ownerAfterDelete = await okFetch("/api/me", {}, shopOwner);
+  assert.equal(ownerAfterDelete.shop, null);
+  assert.equal(ownerAfterDelete.treats.length, 0);
+
+  const visitorAfterDelete = await okFetch("/api/collection", {}, visitorOnly);
+  assert.equal(visitorAfterDelete.items.length, 0);
+  assert.equal(visitorAfterDelete.shops.length, 0);
+
+  const deletedShopResponse = await mf.dispatchFetch(
+    new Request(`${base}/api/shops/${shopOwner.noteId}`),
+  );
+  assert.equal(deletedShopResponse.status, 404);
+
+  const rebuiltShopForm = new FormData();
+  rebuiltShopForm.set("name", "新しい月夜のお菓子店");
+  rebuiltShopForm.set("description", "一から作り直しました");
+  rebuiltShopForm.set("characterImage", pngFile("new-character.png"));
+  const rebuilt = await okFetch(
+    "/api/me/shop",
+    { method: "PUT", body: rebuiltShopForm },
+    shopOwner,
+  );
+  assert.equal(rebuilt.shop.name, "新しい月夜のお菓子店");
+
+  console.log("Smoke test passed: note ID login → publish → admin suspend/delete → rebuild");
 } finally {
   await mf.dispose();
 }
