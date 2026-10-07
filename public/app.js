@@ -196,6 +196,7 @@ async function showAdmin(token) {
         <div class="button-row">
           ${shop.status === "published" ? `<a class="btn btn-secondary" href="#/shop/${encodeURIComponent(shop.noteId)}">お店を見る</a><button class="btn btn-secondary" data-action="suspend-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">公開停止</button>` : ""}
           ${["pending", "suspended"].includes(shop.status) ? `<button class="btn btn-primary" data-action="publish-shop" data-id="${escapeAttr(shop.id)}" data-token="${escapeAttr(token)}">再公開する</button>` : ""}
+          <button class="btn btn-danger" data-action="delete-shop" data-id="${escapeAttr(shop.id)}" data-name="${escapeAttr(shop.name)}" data-token="${escapeAttr(token)}">削除する</button>
         </div>
       </div>`).join("") : `<div class="empty-state">お店はまだありません</div>`}
       <form class="panel" data-form="reward" data-token="${escapeAttr(token)}">
@@ -248,7 +249,7 @@ async function handleClick(event) {
   if (action === "logout") return logout();
   if (action === "share") return copyText(new URL(button.dataset.path, location.origin).href, "URLをコピーしました");
 
-  const adminAction = ["publish-shop", "suspend-shop"].includes(action);
+  const adminAction = ["publish-shop", "suspend-shop", "delete-shop"].includes(action);
   if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
@@ -270,9 +271,16 @@ async function handleClick(event) {
       await showAdmin(button.dataset.token);
     }
     if (action === "suspend-shop") {
-      if (!confirm("このお店を公開停止しますか？")) return;
+      if (!confirm("このお店を公開停止しますか？\n再公開するまで利用できなくなります。")) return;
       await api(`/api/admin/shops/${encodeURIComponent(button.dataset.id)}/suspend`, { method: "POST", adminToken: button.dataset.token, auth: false });
       notify("公開を停止しました");
+      await showAdmin(button.dataset.token);
+    }
+    if (action === "delete-shop") {
+      const shopName = button.dataset.name || "このお店";
+      if (!confirm(`${shopName}を削除しますか？\n\nお店・登録したお菓子・画像は削除されます。\n同じnote IDで新しく一からお店を作れます。\nこの操作は元に戻せません。`)) return;
+      await api(`/api/admin/shops/${encodeURIComponent(button.dataset.id)}`, { method: "DELETE", adminToken: button.dataset.token, auth: false });
+      notify("お店を削除しました");
       await showAdmin(button.dataset.token);
     }
   } catch (error) {
