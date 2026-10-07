@@ -348,7 +348,7 @@ function openJoin() {
   overlay.innerHTML = `<div class="dialog">
     <p class="eyebrow">JOIN</p><h2>note IDではじめる</h2>
     <form data-form="join">
-      <label class="field"><span>note ID</span><input name="noteId" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]+" autocomplete="username" placeholder="neronote100"></label>
+      <label class="field"><span>note ID</span><input name="noteId" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]+" autocomplete="username" placeholder="noteID"></label>
       <button class="btn btn-primary" type="submit">このIDではじめる</button>
     </form>
     ${state.identity ? `<div class="dialog-actions"><button class="text-button" data-action="close-overlay">閉じる</button></div>` : ""}
