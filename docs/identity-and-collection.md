@@ -48,8 +48,10 @@ note IDは公開情報なので、この方式は本人確認ではありませ�
 店舗URL:
 
 ```text
-/#/shop/<note-id>
+/shop/<note-id>
 ```
+
+共有URLはCloudflare Workerが動的HTMLを返し、公開中店舗の店名・紹介文・登録キャラクター画像をOGP（`og:title` / `og:description` / `og:image`）へ設定します。noteなどへURLを貼った際に店舗ごとのカードが表示される設計です。
 
 ## 5. 店舗訪問と抽選
 
