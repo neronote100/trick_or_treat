@@ -145,15 +145,34 @@ async function renderCollection() {
   showLoader();
   state.collection = await api("/api/collection");
   const data = state.collection;
-  const percent = Math.min(100, (data.shopCount / data.goal) * 100);
+  const stages = data.stages || [];
+  const currentStage = stages.find((stage) => !stage.isCleared);
+  const target = currentStage?.requiredShopCount || data.goal || 100;
+  const displayedCount = Math.min(data.shopCount, target);
+  const percent = Math.min(100, (displayedCount / target) * 100);
+  const visibleStages = stages.filter((stage) => stage.isRevealed);
+  const hasHiddenStages = stages.some((stage) => !stage.isRevealed);
   app.innerHTML = `
     <section class="page">
-      <div class="page-head"><div><p class="eyebrow">COLLECTION</p><h1>お菓子図鑑</h1></div></div>
+      <div class="page-head"><div><p class="eyebrow">COLLECTION QUEST</p><h1>お菓子図鑑</h1></div></div>
+      <p class="quest-intro">10店舗はゴールじゃない。扉の向こうに、まだ知らないハロウィンの世界が待っている。</p>
       <div class="progress-card">
-        <div class="progress-ring" style="--progress:${percent}%"><strong>${data.shopCount}/${data.goal}</strong></div>
-        <div class="progress-copy"><h2>${data.shopCount >= data.goal ? "コンプリート！" : "あと " + (data.goal - data.shopCount) + " 店"}</h2><p>ちがうお店のお菓子を集めよう</p></div>
+        <div class="progress-ring" style="--progress:${percent}%"><strong>${displayedCount}/${target}</strong></div>
+        <div class="progress-copy">
+          <p class="progress-kicker">🍬 ${Math.min(data.shopCount, data.goal)} / ${data.goal} 店舗の冒険</p>
+          <h2>${currentStage ? `次のゲートまであと ${target - data.shopCount} 店` : "全ステージ制覇！"}</h2>
+          <p>${currentStage ? `次の世界：${escapeHtml(currentStage.name || "？？？")}` : "100店舗の冒険を達成！ おめでとうございます。"}</p>
+        </div>
       </div>
-      ${data.rewards.map(rewardCard).join("")}
+      <p class="section-label">🗝️ ハロウィンのゲート</p>
+      <div class="stage-trail">
+        ${visibleStages.map(stageGateCard).join("")}
+        ${hasHiddenStages ? `<div class="stage-gate stage-gate-mystery">
+          <span class="stage-gate-symbol">✦</span>
+          <div class="stage-gate-body"><p class="stage-gate-kicker">SECRET AREA</p><h3>？？？</h3><p>ゲートを突破すると、新たな世界が現れる……</p></div>
+        </div>` : ""}
+      </div>
+      ${data.rewards.length ? `<p class="section-label">🎁 手に入れた特別報酬</p>${data.rewards.map(rewardCard).join("")}` : ""}
       <p class="section-label">訪れたお店 ${data.shops.length}</p>
       ${data.shops.length ? `<div class="shop-grid">${data.shops.map(visitedShopCard).join("")}</div>` : `
         <div class="empty-state compact"><div><span class="empty-icon">☾</span>お店のURLが届いたら訪ねてみよう</div></div>`}
@@ -161,6 +180,18 @@ async function renderCollection() {
       ${data.items.length ? `<div class="collection-grid">${data.items.map(collectionCard).join("")}</div>` : `
         <div class="empty-state"><div><span class="empty-icon">◇</span>まだ見つけていません</div></div>`}
     </section>`;
+}
+
+function stageGateCard(stage) {
+  const status = stage.isCleared ? "突破！" : "挑戦中";
+  return `<div class="stage-gate ${stage.isCleared ? "stage-gate-cleared" : "stage-gate-current"} ${stage.isSecret ? "stage-gate-secret" : ""}">
+    <span class="stage-gate-symbol">${stage.isCleared ? "✦" : "♜"}</span>
+    <div class="stage-gate-body">
+      <p class="stage-gate-kicker">${stage.isSecret ? "SECRET STAGE" : "HALLOWEEN GATE"} · ${stage.requiredShopCount}店舗</p>
+      <h3>${escapeHtml(stage.name)} <span class="stage-gate-state">${status}</span></h3>
+      <p>${escapeHtml(stage.description)}</p>
+    </div>
+  </div>`;
 }
 
 function visitedShopCard(shop) {
@@ -199,9 +230,37 @@ async function renderAdmin() {
 
 async function showAdmin(token) {
   const data = await api("/api/admin/shops", { adminToken: token, auth: false });
+  const gates = [
+    [10, "最初の城門"], [20, "魔女の森"], [30, "月影の古城"],
+    [50, "秘密の魔法街"], [75, "幻の月夜宮殿"], [100, "王子の秘密宝物庫"],
+  ];
   app.innerHTML = `
     <section class="page">
-      <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>みんなのお店</h1></div><span class="status">${data.shops.length} 店</span></div>
+      <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>管理</h1></div><span class="status">${data.shops.length} 店</span></div>
+      <div class="panel">
+        <h2>🎁 ゲート別・特別報酬</h2>
+        <p class="subtle">10・20・30店舗の先にも隠しステージがあります。各枠に画像を登録すると、到達した参加者へ解放されます。</p>
+        <div class="reward-slot-grid">${gates.map(([count, name]) => {
+          const reward = (data.rewardSlots || []).find((entry) => entry.requiredShopCount === count);
+          return `<div class="reward-slot">
+            ${reward ? `<img src="${escapeAttr(reward.imageUrl)}" alt="${escapeAttr(reward.name)}">` : `<span class="reward-slot-placeholder">🎁</span>`}
+            <div><strong>${count}店舗 · ${escapeHtml(name)}</strong><small>${reward ? `登録済み：${escapeHtml(reward.name)}` : "画像未登録"}</small></div>
+          </div>`;
+        }).join("")}</div>
+      </div>
+      <form class="panel" data-form="reward" data-token="${escapeAttr(token)}">
+        <h2>特別報酬を登録・差し替え</h2>
+        <label class="field"><span>到達店舗数（報酬枠）</span>
+          <select name="requiredShopCount" required>
+            ${gates.map(([count, name]) => `<option value="${count}">${count}店舗：${escapeHtml(name)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field"><span>特別報酬の名前（省略するとステージ名）</span><input name="name" maxlength="50" placeholder="秘密のハロウィンカード"></label>
+        <label class="field"><span>画像（正方形1:1推奨・例 1200×1200px）</span><input name="image" type="file" required accept="image/png,image/jpeg,image/webp,image/gif"></label>
+        <p class="subtle">同じ枠に再登録すると、最新の画像に切り替わります。すでに到達した人も図鑑を開くと受け取れます。</p>
+        <button class="btn btn-secondary" type="submit">この枠に登録する</button>
+      </form>
+      <p class="section-label">みんなのお店 ${data.shops.length}</p>
       ${data.shops.length ? data.shops.map((shop) => `<div class="panel">
         <div class="panel-head"><div><h2>${escapeHtml(shop.name)}</h2><p class="subtle">@${escapeHtml(shop.noteId)} ・ ${shop.treatCount} 🍬</p><span class="status ${escapeAttr(shop.status)}">${shopStatusLabel(shop.status)}</span></div>${shop.characterImageUrl ? `<img src="${escapeAttr(shop.characterImageUrl)}" alt="" style="width:64px;height:64px;border-radius:14px;object-fit:cover">` : ""}</div>
         <p class="subtle preserve-lines">${escapeHtml(shop.description || "")}</p>
@@ -211,13 +270,6 @@ async function showAdmin(token) {
           <button class="btn btn-danger" data-action="delete-shop" data-id="${escapeAttr(shop.id)}" data-name="${escapeAttr(shop.name)}" data-token="${escapeAttr(token)}">削除する</button>
         </div>
       </div>`).join("") : `<div class="empty-state">お店はまだありません</div>`}
-      <form class="panel" data-form="reward" data-token="${escapeAttr(token)}">
-        <h2>特別画像</h2>
-        <label class="field"><span>名前</span><input name="name" maxlength="50" value="10店舗コンプリート"></label>
-        <label class="field"><span>必要店舗数</span><input name="requiredShopCount" type="number" min="1" max="100" value="10"></label>
-        <label class="field"><span>画像（正方形1:1推奨・例 1200×1200px）</span><input name="image" type="file" required accept="image/png,image/jpeg,image/webp,image/gif"></label>
-        <button class="btn btn-secondary" type="submit">登録する</button>
-      </form>
     </section>`;
 }
 
@@ -244,6 +296,7 @@ async function handleSubmit(event) {
     if (kind === "reward") {
       await api("/api/admin/reward", { method: "POST", body: new FormData(form), adminToken: form.dataset.token, auth: false });
       notify("特別画像を登録しました");
+      await showAdmin(form.dataset.token);
     }
   } catch (error) {
     notify(error.message, true);
@@ -331,14 +384,16 @@ async function register(form) {
 
 async function draw(noteId) {
   const result = await api(`/api/shops/${encodeURIComponent(noteId)}/draw`, { method: "POST" });
-  const reward = result.unlocked?.[0];
+  const clearedStages = result.clearedStages || [];
+  const unlocked = result.unlocked || [];
   overlay.hidden = false;
   overlay.innerHTML = `<div class="dialog">
     <p class="sparkle">${result.isNew ? "✦ NEW COLLECTION ✦" : "WELCOME BACK"}</p>
     <img class="result-image" src="${escapeAttr(result.treat.imageUrl)}" alt="${escapeAttr(result.treat.name)}">
     <h2 class="result-title">${escapeHtml(result.treat.name)}</h2>
     <p class="result-meta">${rarityLabel(result.treat.rarity)} ・ ${escapeHtml(result.shop.name)} ${result.obtainedCount > 1 ? `・ ×${result.obtainedCount}` : ""}</p>
-    ${reward ? `<div class="reward-card"><img src="${escapeAttr(reward.imageUrl)}" alt="${escapeAttr(reward.name)}"><div class="reward-label">10店舗達成 ✦ ${escapeHtml(reward.name)}</div></div>` : ""}
+    ${clearedStages.map((stage) => `<div class="gate-celebration"><strong>🗝️ ${stage.requiredShopCount === 100 ? "全ステージ制覇！" : "新しい世界が開いた！"}</strong><span>${stage.requiredShopCount}店舗達成 · ${escapeHtml(stage.name)}</span><p>${escapeHtml(stage.description)}</p></div>`).join("")}
+    ${unlocked.map((reward) => `<div class="reward-card"><img src="${escapeAttr(reward.imageUrl)}" alt="${escapeAttr(reward.name)}"><div class="reward-label">${reward.requiredShopCount}店舗達成 ✦ ${escapeHtml(reward.name)}</div></div>`).join("")}
     <div class="dialog-actions"><button class="btn btn-secondary" data-action="close-overlay">閉じる</button><a class="btn btn-primary" href="/#/collection" data-action="close-overlay">図鑑を見る</a></div>
   </div>`;
 }

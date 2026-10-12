@@ -109,7 +109,8 @@ try {
   );
   assert.equal(rebuilt.shop.name, "新しい月夜のお菓子店");
 
-  console.log("Smoke test passed: note ID login → publish → admin suspend/delete → rebuild");
+  await testHalloweenGates(db, visitorOnly, okFetch, pngFile);
+  console.log("Smoke test passed: note ID login → publish/rebuild → 6 progressive gates → retroactive rewards");
 } finally {
   await mf.dispose();
 }
@@ -137,4 +138,77 @@ async function okFetch(path, options = {}, identity) {
 function pngFile(name) {
   const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
   return new File([bytes], name, { type: "image/png" });
+}
+
+async function testHalloweenGates(db, visitor, okFetch, pngFile) {
+  const thresholds = [10, 20, 30, 50, 75, 100];
+  const seeds = [];
+  for (let n = 1; n <= 100; n++) {
+    const suffix = String(n).padStart(3, "0");
+    seeds.push(
+      db.prepare("INSERT INTO users (id, note_id, credential_hash, recovery_code_hash) VALUES (?, ?, '', '')")
+        .bind(`test_owner_${suffix}`, `stage_shop_${suffix}`),
+      db.prepare("INSERT INTO shops (id, owner_user_id, name, status) VALUES (?, ?, ?, 'published')")
+        .bind(`test_shop_${suffix}`, `test_owner_${suffix}`, `ハロウィン店 ${suffix}`),
+      db.prepare("INSERT INTO treats (id, shop_id, name, image_key) VALUES (?, ?, ?, ?)")
+        .bind(`test_treat_${suffix}`, `test_shop_${suffix}`, `お菓子 ${suffix}`, `treats/test_${suffix}.png`),
+    );
+  }
+  for (let n = 0; n < seeds.length; n += 30) await db.batch(seeds.slice(n, n + 30));
+  const adminHeaders = { "x-admin-token": "test-admin" };
+  const rewardForm = (count, name) => {
+    const form = new FormData();
+    form.set("requiredShopCount", String(count));
+    form.set("name", name);
+    form.set("image", pngFile(`stage_${count}.png`));
+    return form;
+  };
+  for (let n = 1; n <= 100; n++) {
+    const suffix = String(n).padStart(3, "0");
+    if (n === 30) {
+      await okFetch("/api/admin/reward", {
+        method: "POST", headers: adminHeaders, body: rewardForm(30, "古城の記念カード"),
+      });
+    }
+    if (thresholds.includes(n)) {
+      const result = await okFetch(`/api/shops/stage_shop_${suffix}/draw`, { method: "POST" }, visitor);
+      assert.equal(result.shopCount, n);
+      assert.equal(result.goal, 100);
+      assert.deepEqual(result.clearedStages.map((stage) => stage.requiredShopCount), [n]);
+      const atGate = await okFetch("/api/collection", {}, visitor);
+      assert.equal(atGate.shopCount, n);
+      assert.equal(atGate.goal, 100);
+      assert.equal(atGate.stages.find((stage) => stage.requiredShopCount === n).isCleared, true);
+      const next = atGate.stages.find((stage) => stage.requiredShopCount > n);
+      if (next) assert.equal(next.isRevealed, true);
+      if (n === 10 || n === 20) {
+        assert.equal(atGate.stages.find((stage) => stage.requiredShopCount === 50).isRevealed, false);
+      }
+      if (n === 20) {
+        await okFetch("/api/admin/reward", {
+          method: "POST", headers: adminHeaders, body: rewardForm(20, "森の秘密カード"),
+        });
+        const retroactive = await okFetch("/api/collection", {}, visitor);
+        assert.equal(retroactive.rewards.some((reward) => reward.requiredShopCount === 20), true);
+      }
+      if (n === 30) {
+        assert.equal(result.unlocked.some((reward) => reward.requiredShopCount === 30), true);
+      }
+      if (n === 100) assert.equal(atGate.stages.every((stage) => stage.isCleared), true);
+      if (n === 10) {
+        const repeat = await okFetch(`/api/shops/stage_shop_${suffix}/draw`, { method: "POST" }, visitor);
+        assert.equal(repeat.shopCount, 10);
+        assert.equal(repeat.clearedStages.length, 0);
+      }
+    } else {
+      await db.prepare("INSERT INTO collection_items (user_id, treat_id) VALUES ((SELECT id FROM users WHERE note_id = ?), ?)")
+        .bind(visitor.noteId, `test_treat_${suffix}`).run();
+    }
+  }
+  const admin = await okFetch("/api/admin/shops", { headers: adminHeaders });
+  assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 20), true);
+  assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 30), true);
+  const completed = await okFetch("/api/collection", {}, visitor);
+  assert.equal(completed.shopCount, 100);
+  assert.equal(completed.rewards.length, 2);
 }
