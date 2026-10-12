@@ -232,6 +232,44 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
 .progress-copy h2 { margin-bottom: 5px; }
 .progress-copy p { margin: 0; color: var(--muted); font-size: 12px; }
 
+
+/* The path to 100 shops is revealed one gate at a time. */
+.quest-intro { margin: -6px 2px 20px; color: #d9c9eb; font-size: 13px; line-height: 1.75; }
+.progress-kicker { margin: 0 0 6px !important; color: var(--gold) !important; font-size: 11px !important; font-weight: 850; letter-spacing: .02em; }
+.stage-trail { display: grid; gap: 11px; margin-bottom: 22px; }
+.stage-gate {
+  display: flex; align-items: center; gap: 14px; padding: 16px 15px;
+  border: 1px solid rgba(255, 255, 255, .14); border-radius: 20px;
+  background: linear-gradient(125deg, rgba(86, 46, 139, .19), rgba(17, 12, 29, .9));
+}
+.stage-gate-symbol {
+  display: grid; flex: 0 0 49px; width: 49px; height: 54px; place-items: center;
+  border: 1px solid rgba(255, 211, 106, .22); border-radius: 15px;
+  color: var(--gold); background: rgba(255, 211, 106, .075); font-size: 26px;
+}
+.stage-gate-body { min-width: 0; flex: 1; }
+.stage-gate-kicker { margin: 0 0 5px; color: #ddba8c; font-size: 10px; font-weight: 850; letter-spacing: .09em; }
+.stage-gate h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0 0 4px; font-size: 15px; }
+.stage-gate-body > p:last-child { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.stage-gate-state { padding: 3px 7px; border-radius: 999px; color: #ffc988; background: rgba(255, 138, 53, .13); font-size: 10px; }
+.stage-gate-cleared { border-color: rgba(255, 211, 106, .34); background: linear-gradient(120deg, rgba(100, 69, 39, .26), rgba(58, 30, 87, .22)); }
+.stage-gate-cleared .stage-gate-symbol { box-shadow: 0 0 20px rgba(255, 211, 106, .12); }
+.stage-gate-cleared .stage-gate-state { color: #82e6b9; background: rgba(59, 195, 140, .15); }
+.stage-gate-current { border-color: rgba(255, 138, 53, .4); box-shadow: inset 3px 0 rgba(255, 138, 53, .7); }
+.stage-gate-secret { background: linear-gradient(125deg, rgba(72, 32, 114, .35), rgba(14, 10, 29, .94)); }
+.stage-gate-mystery { border-style: dashed; opacity: .8; }
+.stage-gate-mystery .stage-gate-symbol { color: #aba3b9; border-color: var(--line); background: rgba(255,255,255,.035); }
+.stage-gate-mystery .stage-gate-kicker { color: #ba9fd8; }
+.gate-celebration { margin: 14px 0; padding: 18px; border: 1px solid rgba(255, 211, 106, .35); border-radius: 18px; background: linear-gradient(135deg, rgba(255, 138, 53, .16), rgba(139, 92, 246, .2)); text-align: center; }
+.gate-celebration strong { display: block; margin-bottom: 7px; color: var(--gold); font-size: 17px; }
+.gate-celebration span { display: block; font-weight: 850; font-size: 14px; }
+.gate-celebration p { margin: 8px 0 0; color: #d9cee7; font-size: 12px; }
+.reward-slot-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 18px; }
+.reward-slot { display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 16px; background: rgba(0,0,0,.13); }
+.reward-slot img, .reward-slot-placeholder { display: grid; width: 100%; aspect-ratio: 1/1; max-height: 125px; place-items: center; border-radius: 11px; background: rgba(255,255,255,.035); object-fit: contain; font-size: 32px; }
+.reward-slot strong { display: block; color: #f4e7fe; font-size: 11px; line-height: 1.5; }
+.reward-slot small { display: block; margin-top: 3px; overflow-wrap: anywhere; color: var(--muted); font-size: 10px; line-height: 1.4; }
+
 .collection-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 19px; background: var(--panel); }
 .collection-card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; }
 .collection-info { padding: 11px; }
