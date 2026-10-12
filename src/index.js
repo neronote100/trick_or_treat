@@ -6,6 +6,16 @@ const IMAGE_TYPES = new Map([
   ["image/gif", "gif"],
 ]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// The collection's final milestone is 100 unique shops; draws remain unlimited.
+const HALLOWEEN_STAGES = [
+  { requiredShopCount: 10, name: "最初の城門", description: "最初のご褒美を受け取り、次の世界へ！" },
+  { requiredShopCount: 20, name: "魔女の森", description: "森の奥へ続く道が開かれた。" },
+  { requiredShopCount: 30, name: "月影の古城", description: "ここから先には秘密のエリアが……。" },
+  { requiredShopCount: 50, name: "秘密の魔法街", description: "隠された魔法の街を発見！" },
+  { requiredShopCount: 75, name: "幻の月夜宮殿", description: "最後の扉が姿を現す。" },
+  { requiredShopCount: 100, name: "王子の秘密宝物庫", description: "すべての世界をめぐった、最高の冒険者へ！" },
+];
+const FINAL_SHOP_GOAL = 100;
 let schemaReady;
 
 export default {
@@ -222,6 +232,11 @@ async function drawTreat(request, env, noteIdRaw) {
   ).bind(shop.id).all();
   if (!treatRows.results.length) return json({ error: "お菓子は準備中です。" }, 409);
   const treat = weightedPick(treatRows.results);
+  const visitedShopBefore = await env.DB.prepare(`
+    SELECT 1 FROM collection_items c
+    JOIN treats t ON t.id = c.treat_id
+    WHERE c.user_id = ? AND t.shop_id = ? LIMIT 1
+  `).bind(user.id, shop.id).first();
 
   const before = await env.DB.prepare(
     "SELECT obtained_count FROM collection_items WHERE user_id = ? AND treat_id = ?",
@@ -238,6 +253,10 @@ async function drawTreat(request, env, noteIdRaw) {
     WHERE c.user_id = ?
   `).bind(user.id).first();
   const shopCount = Number(countRow?.count || 0);
+  const previousShopCount = shopCount - (visitedShopBefore ? 0 : 1);
+  const clearedStages = HALLOWEEN_STAGES.filter(
+    (stage) => previousShopCount < stage.requiredShopCount && shopCount >= stage.requiredShopCount,
+  );
   const rewards = await env.DB.prepare(
     "SELECT id, name, required_shop_count, image_key FROM rewards WHERE is_active = 1 AND required_shop_count <= ?",
   ).bind(shopCount).all();
@@ -255,6 +274,8 @@ async function drawTreat(request, env, noteIdRaw) {
     isNew: !before,
     obtainedCount: Number(before?.obtained_count || 0) + 1,
     shopCount,
+    goal: FINAL_SHOP_GOAL,
+    clearedStages,
     unlocked,
   });
 }
@@ -273,10 +294,17 @@ async function getCollection(request, env) {
     WHERE c.user_id = ?
     ORDER BY c.first_obtained_at DESC
   `).bind(user.id).all();
+  // Grant active rewards retroactively when the organizer uploads them after a user clears a gate.
+  const shopCount = new Set(items.results.map((item) => item.note_id)).size;
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO user_rewards (user_id, reward_id)
+    SELECT ?, id FROM rewards WHERE is_active = 1 AND required_shop_count <= ?
+  `).bind(user.id, shopCount).run();
   const rewards = await env.DB.prepare(`
     SELECT r.id, r.name, r.required_shop_count, r.image_key, ur.unlocked_at
     FROM user_rewards ur JOIN rewards r ON r.id = ur.reward_id
-    WHERE ur.user_id = ? ORDER BY ur.unlocked_at DESC
+    WHERE ur.user_id = ? AND r.is_active = 1
+    ORDER BY r.required_shop_count ASC
   `).bind(user.id).all();
   const shops = await env.DB.prepare(`
     SELECT s.name, s.character_image_key, u.note_id,
@@ -290,10 +318,10 @@ async function getCollection(request, env) {
     GROUP BY s.id
     ORDER BY last_visited_at DESC
   `).bind(user.id).all();
-  const shopIds = new Set(items.results.map((item) => item.note_id));
   return json({
-    shopCount: shopIds.size,
-    goal: 10,
+    shopCount,
+    goal: FINAL_SHOP_GOAL,
+    stages: visibleStages(shopCount),
     shops: shops.results.map((shop) => ({
       noteId: shop.note_id,
       name: shop.name,
@@ -329,7 +357,13 @@ async function adminListShops(request, env, url) {
   `;
   const statement = env.DB.prepare(sql);
   const rows = status ? await statement.bind(status).all() : await statement.all();
-  return json({ shops: rows.results.map(publicShop) });
+  const rewards = await env.DB.prepare(
+    "SELECT id, name, required_shop_count, image_key FROM rewards WHERE is_active = 1 ORDER BY required_shop_count",
+  ).all();
+  return json({
+    shops: rows.results.map(publicShop),
+    rewardSlots: rewards.results.map(publicReward),
+  });
 }
 
 async function adminApproveShop(request, env, shopId) {
@@ -382,8 +416,10 @@ async function adminDeleteShop(request, env, shopId) {
 async function adminSaveReward(request, env) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const form = await request.formData();
-  const name = cleanText(form.get("name"), 50) || "10店舗コンプリート";
-  const requiredShopCount = Math.max(1, Math.min(100, Number(form.get("requiredShopCount") || 10)));
+  const requiredShopCount = Number(form.get("requiredShopCount"));
+  const stage = HALLOWEEN_STAGES.find((entry) => entry.requiredShopCount === requiredShopCount);
+  if (!stage) return json({ error: "10・20・30・50・75・100店舗のいずれかを選んでください。" }, 400);
+  const name = cleanText(form.get("name"), 50) || stage.name;
   const imageKey = await storeRequiredImage(form.get("image"), env, "rewards");
   await env.DB.prepare("UPDATE rewards SET is_active = 0 WHERE required_shop_count = ?")
     .bind(requiredShopCount).run();
@@ -611,6 +647,20 @@ function weightedPick(items) {
     if (point <= 0) return item;
   }
   return items.at(-1);
+}
+
+function visibleStages(shopCount) {
+  return HALLOWEEN_STAGES.map((stage, index) => {
+    const revealed = index === 0 || shopCount >= HALLOWEEN_STAGES[index - 1].requiredShopCount;
+    return {
+      requiredShopCount: stage.requiredShopCount,
+      name: revealed ? stage.name : null,
+      description: revealed ? stage.description : null,
+      isRevealed: revealed,
+      isCleared: shopCount >= stage.requiredShopCount,
+      isSecret: index >= 3,
+    };
+  });
 }
 
 function publicShop(shop) {
