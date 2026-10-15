@@ -109,7 +109,7 @@ try {
   );
   assert.equal(rebuilt.shop.name, "新しい月夜のお菓子店");
 
-  await testHalloweenGates(db, visitorOnly, okFetch, pngFile);
+  await testHalloweenGates(db, visitorOnly, okFetch, pngFile, mf);
   console.log("Smoke test passed: note ID login → publish/rebuild → 6 progressive gates → retroactive rewards");
 } finally {
   await mf.dispose();
@@ -140,7 +140,7 @@ function pngFile(name) {
   return new File([bytes], name, { type: "image/png" });
 }
 
-async function testHalloweenGates(db, visitor, okFetch, pngFile) {
+async function testHalloweenGates(db, visitor, okFetch, pngFile, mf) {
   const thresholds = [10, 20, 30, 50, 75, 100];
   const seeds = [];
   for (let n = 1; n <= 100; n++) {
@@ -156,6 +156,21 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
   }
   for (let n = 0; n < seeds.length; n += 30) await db.batch(seeds.slice(n, n + 30));
   const adminHeaders = { "x-admin-token": "test-admin" };
+  const rewardForm = (count, name) => {
+    const form = new FormData();
+    form.set("requiredShopCount", String(count));
+    form.set("name", name);
+    form.set("image", pngFile(`stage_${count}.png`));
+    return form;
+  };
+  // Simulate a previously configured independent reward: the triptych
+  // registration must supersede it without deleting historical records.
+  await okFetch("/api/admin/reward", {
+    method: "POST", headers: adminHeaders, body: rewardForm(20, "旧・魔女の森"),
+  });
+  const legacy = await db.prepare(
+    "SELECT id FROM rewards WHERE required_shop_count = 20 AND is_active = 1",
+  ).first();
   const artworkForm = (name) => {
     const form = new FormData();
     form.set("name", name);
@@ -165,23 +180,41 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
     form.set("rightImage", pngFile("right-1x1.png"));
     return form;
   };
-  await okFetch("/api/admin/triptych", {
+  const initialUpload = await okFetch("/api/admin/triptych", {
     method: "POST", headers: adminHeaders, body: artworkForm("王子の秘密パノラマ"),
   });
+  assert.deepEqual(initialUpload.syncedGateCounts, [10, 20, 30]);
+  const firstAdmin = await okFetch("/api/admin/shops", { headers: adminHeaders });
+  for (const [count, field] of [[10, "leftImageUrl"], [20, "rightImageUrl"], [30, "centerImageUrl"]]) {
+    const reward = firstAdmin.rewardSlots.find((entry) => entry.requiredShopCount === count);
+    assert.ok(reward, `Gate ${count} has an automatically synchronized image`);
+    assert.equal(reward.imageUrl, firstAdmin.triptychArtwork[field]);
+  }
+  const oldReward = await db.prepare("SELECT is_active FROM rewards WHERE id = ?").bind(legacy.id).first();
+  assert.equal(oldReward.is_active, 0, "Legacy manual reward is superseded, not deleted");
+  const conflictResponse = await mf.dispatchFetch(new Request(`${base}/api/admin/reward`, {
+    method: "POST", headers: adminHeaders, body: rewardForm(20, "競合する手動登録"),
+  }));
+  assert.equal(conflictResponse.status, 409, "Cannot manually replace an auto-synced triptych reward");
   const beforeGates = await okFetch("/api/collection", {}, visitor);
   assert.equal(beforeGates.triptych.isConfigured, true);
   assert.equal(beforeGates.triptych.fullImageUrl, null, "Do not reveal the full image before 30 shops");
   assert.deepEqual(beforeGates.triptych.panels.map((panel) => panel.requiredShopCount), [10, 30, 20]);
   assert.ok(beforeGates.triptych.panels.every((panel) => !panel.imageUrl));
 
+  // An old 3:1 upload predating this fix had no corresponding reward rows.
+  // A subsequent collection/admin request must repair all three slots.
+  await db.prepare("UPDATE rewards SET is_active = 0 WHERE id IN ('triptych-gate-10', 'triptych-gate-20', 'triptych-gate-30')").run();
+  const repairedAdmin = await okFetch("/api/admin/shops", { headers: adminHeaders });
+  assert.deepEqual(repairedAdmin.rewardSlots.filter((r) => [10, 20, 30].includes(r.requiredShopCount))
+    .map((r) => r.requiredShopCount), [10, 20, 30]);
+  // No duplicate rewards on repeated reconciliation.
+  await okFetch("/api/admin/shops", { headers: adminHeaders });
+  const activeSlots = await db.prepare(
+    "SELECT COUNT(*) AS count FROM rewards WHERE is_active = 1 AND required_shop_count IN (10, 20, 30)",
+  ).first();
+  assert.equal(activeSlots.count, 3);
   let previousCompletedUrl = null;
-  const rewardForm = (count, name) => {
-    const form = new FormData();
-    form.set("requiredShopCount", String(count));
-    form.set("name", name);
-    form.set("image", pngFile(`stage_${count}.png`));
-    return form;
-  };
   for (let n = 1; n <= 100; n++) {
     const suffix = String(n).padStart(3, "0");
     if (n === 40) {
@@ -192,11 +225,11 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
       assert.equal(replaced.triptych.name, "新しい秘密パノラマ");
       assert.ok(replaced.triptych.fullImageUrl);
       assert.notEqual(replaced.triptych.fullImageUrl, previousCompletedUrl);
-    }
-    if (n === 30) {
-      await okFetch("/api/admin/reward", {
-        method: "POST", headers: adminHeaders, body: rewardForm(30, "古城の記念カード"),
-      });
+      const afterReplace = await okFetch("/api/admin/shops", { headers: adminHeaders });
+      const gate20 = afterReplace.rewardSlots.find((r) => r.requiredShopCount === 20);
+      assert.equal(gate20.imageUrl, afterReplace.triptychArtwork.rightImageUrl);
+      const obtained = replaced.rewards.find((r) => r.requiredShopCount === 20);
+      assert.equal(obtained.imageUrl, gate20.imageUrl, "Existing user's reward image updates automatically");
     }
     if (thresholds.includes(n)) {
       const result = await okFetch(`/api/shops/stage_shop_${suffix}/draw`, { method: "POST" }, visitor);
@@ -223,11 +256,9 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
         assert.equal(atGate.stages.find((stage) => stage.requiredShopCount === 50).isRevealed, false);
       }
       if (n === 20) {
-        await okFetch("/api/admin/reward", {
-          method: "POST", headers: adminHeaders, body: rewardForm(20, "森の秘密カード"),
-        });
-        const retroactive = await okFetch("/api/collection", {}, visitor);
-        assert.equal(retroactive.rewards.some((reward) => reward.requiredShopCount === 20), true);
+        assert.equal(atGate.rewards.some((reward) => reward.requiredShopCount === 20), true);
+        const rightReward = atGate.rewards.find((reward) => reward.requiredShopCount === 20);
+        assert.equal(rightReward.imageUrl, atGate.triptych.panels.find((p) => p.position === "right").imageUrl);
       }
       if (n === 30) {
         assert.equal(result.unlocked.some((reward) => reward.requiredShopCount === 30), true);
@@ -252,5 +283,6 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
   assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 30), true);
   const completed = await okFetch("/api/collection", {}, visitor);
   assert.equal(completed.shopCount, 100);
-  assert.equal(completed.rewards.length, 2);
+  assert.equal(completed.rewards.length, 3);
+  assert.deepEqual(completed.rewards.map((reward) => reward.requiredShopCount), [10, 20, 30]);
 }
