@@ -156,6 +156,25 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
   }
   for (let n = 0; n < seeds.length; n += 30) await db.batch(seeds.slice(n, n + 30));
   const adminHeaders = { "x-admin-token": "test-admin" };
+  const artworkForm = (name) => {
+    const form = new FormData();
+    form.set("name", name);
+    form.set("image", pngFile("full-3x1.png"));
+    form.set("leftImage", pngFile("left-1x1.png"));
+    form.set("centerImage", pngFile("center-1x1.png"));
+    form.set("rightImage", pngFile("right-1x1.png"));
+    return form;
+  };
+  await okFetch("/api/admin/triptych", {
+    method: "POST", headers: adminHeaders, body: artworkForm("王子の秘密パノラマ"),
+  });
+  const beforeGates = await okFetch("/api/collection", {}, visitor);
+  assert.equal(beforeGates.triptych.isConfigured, true);
+  assert.equal(beforeGates.triptych.fullImageUrl, null, "Do not reveal the full image before 30 shops");
+  assert.deepEqual(beforeGates.triptych.panels.map((panel) => panel.requiredShopCount), [10, 30, 20]);
+  assert.ok(beforeGates.triptych.panels.every((panel) => !panel.imageUrl));
+
+  let previousCompletedUrl = null;
   const rewardForm = (count, name) => {
     const form = new FormData();
     form.set("requiredShopCount", String(count));
@@ -165,6 +184,15 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
   };
   for (let n = 1; n <= 100; n++) {
     const suffix = String(n).padStart(3, "0");
+    if (n === 40) {
+      await okFetch("/api/admin/triptych", {
+        method: "POST", headers: adminHeaders, body: artworkForm("新しい秘密パノラマ"),
+      });
+      const replaced = await okFetch("/api/collection", {}, visitor);
+      assert.equal(replaced.triptych.name, "新しい秘密パノラマ");
+      assert.ok(replaced.triptych.fullImageUrl);
+      assert.notEqual(replaced.triptych.fullImageUrl, previousCompletedUrl);
+    }
     if (n === 30) {
       await okFetch("/api/admin/reward", {
         method: "POST", headers: adminHeaders, body: rewardForm(30, "古城の記念カード"),
@@ -179,6 +207,16 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
       assert.equal(atGate.shopCount, n);
       assert.equal(atGate.goal, 100);
       assert.equal(atGate.stages.find((stage) => stage.requiredShopCount === n).isCleared, true);
+      assert.deepEqual(atGate.triptych.panels.map((panel) => panel.position), ["left", "center", "right"]);
+      const unlockedPieces = atGate.triptych.panels.filter((panel) => panel.imageUrl).map((panel) => panel.requiredShopCount);
+      if (n === 10) assert.deepEqual(unlockedPieces, [10], "Only left unlocked at 10");
+      if (n === 20) assert.deepEqual(unlockedPieces, [10, 20], "Right unlocked at 20; center remains hidden");
+      if (n === 30) {
+        assert.deepEqual(unlockedPieces, [10, 30, 20], "Center completes the triptych at 30");
+        assert.ok(atGate.triptych.fullImageUrl, "Full panorama unlocked at 30");
+        previousCompletedUrl = atGate.triptych.fullImageUrl;
+        assert.equal(result.triptych.fullImageUrl, previousCompletedUrl);
+      }
       const next = atGate.stages.find((stage) => stage.requiredShopCount > n);
       if (next) assert.equal(next.isRevealed, true);
       if (n === 10 || n === 20) {
@@ -206,6 +244,10 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile) {
     }
   }
   const admin = await okFetch("/api/admin/shops", { headers: adminHeaders });
+  assert.equal(admin.triptychArtwork.name, "新しい秘密パノラマ");
+  assert.ok(admin.triptychArtwork.leftImageUrl);
+  assert.ok(admin.triptychArtwork.centerImageUrl);
+  assert.ok(admin.triptychArtwork.rightImageUrl);
   assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 20), true);
   assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 30), true);
   const completed = await okFetch("/api/collection", {}, visitor);
