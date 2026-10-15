@@ -289,16 +289,16 @@ async function showAdmin(token) {
           <label class="field"><span>完成画像（必須：横3:縦1、5MB以下）</span><input name="image" type="file" required accept="image/png,image/jpeg,image/webp,image/gif"></label>
           <button class="btn btn-primary" type="submit">${data.triptychArtwork ? "完成イラストを差し替える" : "3:1画像を登録して3分割する"}</button>
         </form>
-        <p class="subtle">画像の更新後、すでに条件を達成した人にも最新画像が表示されます。元の報酬画像は残ります。</p>
+        <p class="subtle">登録・差し替えすると、下の10店舗＝左・20店舗＝右・30店舗＝中央の報酬枠へ自動同期します。すでに登録済みの画像もこの管理画面を開くだけで同期されます。</p>
       </div>
       <div class="panel">
         <h2>🎁 ゲート別・特別報酬</h2>
-        <p class="subtle">50・75・100店舗など各ゲートの追加報酬を管理します。10・20・30店舗の欠片は上の3:1画像から自動生成するので、こちらの個別登録は任意です。</p>
+        <p class="subtle">10・20・30店舗の報酬枠は3枚合体イラストから自動同期されます。50・75・100店舗の画像はここで個別に登録できます。</p>
         <div class="reward-slot-grid">${gates.map(([count, name]) => {
           const reward = (data.rewardSlots || []).find((entry) => entry.requiredShopCount === count);
           return `<div class="reward-slot">
             ${reward ? `<img src="${escapeAttr(reward.imageUrl)}" alt="${escapeAttr(reward.name)}">` : `<span class="reward-slot-placeholder">🎁</span>`}
-            <div><strong>${count}店舗 · ${escapeHtml(name)}</strong><small>${reward ? `登録済み：${escapeHtml(reward.name)}` : "画像未登録"}</small></div>
+            <div><strong>${count}店舗 · ${escapeHtml(name)}</strong><small>${reward ? (count <= 30 && data.triptychArtwork ? "合体イラストから自動同期済み" : `登録済み：${escapeHtml(reward.name)}`) : "画像未登録"}</small></div>
           </div>`;
         }).join("")}</div>
       </div>
@@ -306,12 +306,12 @@ async function showAdmin(token) {
         <h2>特別報酬を登録・差し替え</h2>
         <label class="field"><span>到達店舗数（報酬枠）</span>
           <select name="requiredShopCount" required>
-            ${gates.map(([count, name]) => `<option value="${count}">${count}店舗：${escapeHtml(name)}</option>`).join("")}
+            ${gates.filter(([count]) => !data.triptychArtwork || count > 30).map(([count, name]) => `<option value="${count}">${count}店舗：${escapeHtml(name)}</option>`).join("")}
           </select>
         </label>
         <label class="field"><span>特別報酬の名前（省略するとステージ名）</span><input name="name" maxlength="50" placeholder="秘密のハロウィンカード"></label>
         <label class="field"><span>画像（正方形1:1推奨・例 1200×1200px）</span><input name="image" type="file" required accept="image/png,image/jpeg,image/webp,image/gif"></label>
-        <p class="subtle">同じ枠に再登録すると、最新の画像に切り替わります。すでに到達した人も図鑑を開くと受け取れます。</p>
+        <p class="subtle">3:1合体画像の登録後、10・20・30店舗の個別画像は編集できません。50・75・100店舗は引き続き差し替え可能です。</p>
         <button class="btn btn-secondary" type="submit">この枠に登録する</button>
       </form>
       <p class="section-label">みんなのお店 ${data.shops.length}</p>
