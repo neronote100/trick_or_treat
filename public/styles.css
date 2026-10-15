@@ -270,6 +270,41 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
 .reward-slot strong { display: block; color: #f4e7fe; font-size: 11px; line-height: 1.5; }
 .reward-slot small { display: block; margin-top: 3px; overflow-wrap: anywhere; color: var(--muted); font-size: 10px; line-height: 1.4; }
 
+
+/* Three 1:1 puzzle rewards assembled into one 3:1 picture. */
+.triptych-quest { margin: 28px 0 30px; padding: 16px; border: 1px solid rgba(255,211,106,.29); border-radius: 24px; background: linear-gradient(145deg, rgba(95,48,137,.27), rgba(31,21,44,.85)); }
+.triptych-header { margin: 0 0 16px; text-align: center; }
+.triptych-header h2 { margin: 0 0 7px; font-size: clamp(17px,4.9vw,23px); }
+.triptych-header > p:last-child { margin: 0; color: #dbcede; font-size: 12px; line-height: 1.65; }
+.triptych-panel-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; align-items: start; }
+.triptych-panel { min-width: 0; }
+.triptych-panel-image { display: grid; width: 100%; aspect-ratio: 1/1; place-items: center; overflow: hidden; border: 1px solid rgba(255,211,106,.4); border-radius: 10px; background: linear-gradient(160deg,rgba(58,39,77,.9),rgba(14,10,24,.9)); }
+.triptych-panel-image img { display: block; width: 100%; height: 100%; aspect-ratio: 1/1; object-fit: cover; }
+.triptych-panel.locked .triptych-panel-image { filter: grayscale(.8); border-style: dashed; border-color: rgba(255,255,255,.2); }
+.triptych-lock { color: #ada3bc; font-size: clamp(19px,5vw,28px); }
+.triptych-panel-caption { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 7px; text-align: center; }
+.triptych-panel-caption strong { color: var(--gold); font-size: 12px; }
+.triptych-panel-caption span { color: #c8b9d4; font-size: 10px; }
+.triptych-final { margin-top: 20px; }
+.triptych-final > img { display: block; width: 100%; aspect-ratio: 3/1; border: 1px solid rgba(255,211,106,.45); border-radius: 12px; background: #0f0919; object-fit: contain; }
+.triptych-final-caption { margin-top: 9px; color: var(--gold); font-size: 13px; font-weight: 850; text-align: center; }
+.triptych-final-placeholder { display: grid; min-height: 105px; gap: 5px; align-content: center; justify-items: center; padding: 14px; border: 1px dashed rgba(255,211,106,.3); border-radius: 12px; background: rgba(12,8,20,.65); text-align: center; }
+.triptych-final-placeholder span { font-size: 21px; }
+.triptych-final-placeholder strong { font-size: 13px; color: #e8d2ff; }
+.triptych-final-placeholder small { font-size: 11px; color: var(--muted); line-height: 1.55; }
+.triptych-admin-panel h2 { margin-bottom: 8px; }
+.triptych-admin-status { margin: 15px 0 10px; color: var(--gold); font-size: 12px; font-weight: 750; }
+.triptych-admin-composite img { width: 100%; aspect-ratio: 3/1; border-radius: 12px; object-fit: contain; background: rgba(0,0,0,.22); }
+.triptych-admin-slices { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; margin: 10px 0 16px; }
+.triptych-admin-slices img { display: block; width: 100%; aspect-ratio: 1/1; border-radius: 9px; object-fit: cover; }
+.triptych-admin-panel form { margin-top: 16px; }
+.triptych-admin-panel form .btn { width: 100%; }
+.triptych-draw-piece { margin: 16px 0; text-align: center; }
+.triptych-draw-piece img { width: min(100%,200px); aspect-ratio: 1/1; margin: 9px auto 0; border: 2px solid var(--gold); border-radius: 15px; object-fit: contain; }
+.triptych-draw-complete { margin: 15px 0; text-align: center; }
+.triptych-draw-complete p { color: var(--gold); font-weight: 850; }
+.triptych-draw-complete img { display: block; width: 100%; aspect-ratio: 3/1; border: 1px solid var(--gold); border-radius: 12px; object-fit: contain; }
+
 .collection-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 19px; background: var(--panel); }
 .collection-card img { width: 100%; aspect-ratio: 1/1; object-fit: cover; }
 .collection-info { padding: 11px; }
