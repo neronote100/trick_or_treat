@@ -74,6 +74,7 @@ async function route(request, env) {
     return adminDeleteShop(request, env, path.split("/")[4]);
   }
   if (path === "/api/admin/reward" && request.method === "POST") return adminSaveReward(request, env);
+  if (path === "/api/admin/triptych" && request.method === "POST") return adminSaveTriptych(request, env);
 
   if (path.startsWith("/api/")) return json({ error: "見つかりませんでした。" }, 404);
   return env.ASSETS.fetch(request);
@@ -268,7 +269,11 @@ async function drawTreat(request, env, noteIdRaw) {
     if (result.meta.changes) unlocked.push(publicReward(reward));
   }
 
+  const triptychRow = clearedStages.some((stage) => stage.requiredShopCount <= 30)
+    ? await env.DB.prepare("SELECT * FROM triptych_illustrations WHERE id = 1").first()
+    : null;
   return json({
+    ...(triptychRow ? { triptych: publicTriptych(triptychRow, shopCount) } : {}),
     treat: { id: treat.id, name: treat.name, rarity: treat.rarity, imageUrl: imageUrl(treat.image_key) },
     shop: { name: shop.name, noteId: shop.note_id },
     isNew: !before,
@@ -306,6 +311,9 @@ async function getCollection(request, env) {
     WHERE ur.user_id = ? AND r.is_active = 1
     ORDER BY r.required_shop_count ASC
   `).bind(user.id).all();
+  const triptych = await env.DB.prepare(
+    "SELECT * FROM triptych_illustrations WHERE id = 1",
+  ).first();
   const shops = await env.DB.prepare(`
     SELECT s.name, s.character_image_key, u.note_id,
       COUNT(DISTINCT c.treat_id) AS collected_count,
@@ -322,6 +330,7 @@ async function getCollection(request, env) {
     shopCount,
     goal: FINAL_SHOP_GOAL,
     stages: visibleStages(shopCount),
+    triptych: publicTriptych(triptych, shopCount),
     shops: shops.results.map((shop) => ({
       noteId: shop.note_id,
       name: shop.name,
@@ -360,9 +369,20 @@ async function adminListShops(request, env, url) {
   const rewards = await env.DB.prepare(
     "SELECT id, name, required_shop_count, image_key FROM rewards WHERE is_active = 1 ORDER BY required_shop_count",
   ).all();
+  const triptych = await env.DB.prepare(
+    "SELECT name, full_image_key, left_image_key, center_image_key, right_image_key, updated_at FROM triptych_illustrations WHERE id = 1",
+  ).first();
   return json({
     shops: rows.results.map(publicShop),
     rewardSlots: rewards.results.map(publicReward),
+    triptychArtwork: triptych ? {
+      name: triptych.name,
+      fullImageUrl: imageUrl(triptych.full_image_key),
+      leftImageUrl: imageUrl(triptych.left_image_key),
+      centerImageUrl: imageUrl(triptych.center_image_key),
+      rightImageUrl: imageUrl(triptych.right_image_key),
+      updatedAt: triptych.updated_at,
+    } : null,
   });
 }
 
@@ -427,6 +447,71 @@ async function adminSaveReward(request, env) {
     "INSERT INTO rewards (id, name, required_shop_count, image_key) VALUES (?, ?, ?, ?)",
   ).bind(crypto.randomUUID(), name, requiredShopCount, imageKey).run();
   return json({ ok: true }, 201);
+}
+
+// A single 3:1 original is divided by the admin browser into 3 square panels.
+// The Worker stores each slice separately so the full artwork is never sent to
+// a visitor before all three gates have been cleared.
+async function adminSaveTriptych(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const form = await request.formData();
+  const name = cleanText(form.get("name"), 50) || "三つの欠片がそろった！";
+  const uploads = [
+    ["full_image_key", "image"],
+    ["left_image_key", "leftImage"],
+    ["center_image_key", "centerImage"],
+    ["right_image_key", "rightImage"],
+  ];
+  const imageKeys = {};
+  try {
+    for (const [column, field] of uploads) {
+      imageKeys[column] = await storeRequiredImage(form.get(field), env, "triptych");
+    }
+    const old = await env.DB.prepare(
+      "SELECT full_image_key, left_image_key, center_image_key, right_image_key FROM triptych_illustrations WHERE id = 1",
+    ).first();
+    await env.DB.prepare(`
+      INSERT INTO triptych_illustrations (
+        id, name, full_image_key, left_image_key, center_image_key, right_image_key
+      ) VALUES (1, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        full_image_key = excluded.full_image_key,
+        left_image_key = excluded.left_image_key,
+        center_image_key = excluded.center_image_key,
+        right_image_key = excluded.right_image_key,
+        updated_at = CURRENT_TIMESTAMP
+    `).bind(name, imageKeys.full_image_key, imageKeys.left_image_key, imageKeys.center_image_key, imageKeys.right_image_key).run();
+    if (old) {
+      await Promise.allSettled(
+        uploads.map(([column]) => old[column]).filter(Boolean).map((key) => env.IMAGES.delete(key)),
+      );
+    }
+  } catch (error) {
+    await Promise.allSettled(Object.values(imageKeys).map((key) => env.IMAGES.delete(key)));
+    throw error;
+  }
+  return json({ ok: true, name }, 201);
+}
+
+function publicTriptych(art, shopCount) {
+  const panels = [
+    { position: "left", requiredShopCount: 10, imageKey: art?.left_image_key },
+    { position: "center", requiredShopCount: 30, imageKey: art?.center_image_key },
+    { position: "right", requiredShopCount: 20, imageKey: art?.right_image_key },
+  ];
+  return {
+    isConfigured: Boolean(art),
+    name: shopCount >= 30 && art ? art.name : "秘密の完成イラスト",
+    isComplete: shopCount >= 30,
+    fullImageUrl: art && shopCount >= 30 ? imageUrl(art.full_image_key) : null,
+    panels: panels.map((panel) => ({
+      position: panel.position,
+      requiredShopCount: panel.requiredShopCount,
+      isUnlocked: shopCount >= panel.requiredShopCount,
+      imageUrl: art && shopCount >= panel.requiredShopCount ? imageUrl(panel.imageKey) : null,
+    })),
+  };
 }
 
 async function loadMe(env, userId) {
@@ -626,6 +711,15 @@ function ensureDatabase(env) {
         PRIMARY KEY (user_id, reward_id),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS triptych_illustrations (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        name TEXT NOT NULL,
+        full_image_key TEXT NOT NULL,
+        left_image_key TEXT NOT NULL,
+        center_image_key TEXT NOT NULL,
+        right_image_key TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`,
       "CREATE INDEX IF NOT EXISTS idx_shops_status ON shops(status)",
       "CREATE INDEX IF NOT EXISTS idx_treats_shop_active ON treats(shop_id, is_active)",
