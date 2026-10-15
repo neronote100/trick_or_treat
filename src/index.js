@@ -16,6 +16,12 @@ const HALLOWEEN_STAGES = [
   { requiredShopCount: 100, name: "王子の秘密宝物庫", description: "すべての世界をめぐった、最高の冒険者へ！" },
 ];
 const FINAL_SHOP_GOAL = 100;
+// Stable IDs make syncing idempotent: each crop always owns the same reward slot.
+const TRIPTYCH_GATE_REWARDS = [
+  { id: "triptych-gate-10", count: 10, name: "10店舗・左の欠片", imageColumn: "left_image_key" },
+  { id: "triptych-gate-20", count: 20, name: "20店舗・右の欠片", imageColumn: "right_image_key" },
+  { id: "triptych-gate-30", count: 30, name: "30店舗・中央の欠片", imageColumn: "center_image_key" },
+];
 let schemaReady;
 
 export default {
@@ -258,6 +264,7 @@ async function drawTreat(request, env, noteIdRaw) {
   const clearedStages = HALLOWEEN_STAGES.filter(
     (stage) => previousShopCount < stage.requiredShopCount && shopCount >= stage.requiredShopCount,
   );
+  if (shopCount >= 10) await syncTriptychGateRewards(env);
   const rewards = await env.DB.prepare(
     "SELECT id, name, required_shop_count, image_key FROM rewards WHERE is_active = 1 AND required_shop_count <= ?",
   ).bind(shopCount).all();
@@ -299,8 +306,9 @@ async function getCollection(request, env) {
     WHERE c.user_id = ?
     ORDER BY c.first_obtained_at DESC
   `).bind(user.id).all();
-  // Grant active rewards retroactively when the organizer uploads them after a user clears a gate.
+  // Heal pre-existing triptych uploads and retroactively grant gate rewards.
   const shopCount = new Set(items.results.map((item) => item.note_id)).size;
+  if (shopCount >= 10) await syncTriptychGateRewards(env);
   await env.DB.prepare(`
     INSERT OR IGNORE INTO user_rewards (user_id, reward_id)
     SELECT ?, id FROM rewards WHERE is_active = 1 AND required_shop_count <= ?
@@ -366,6 +374,8 @@ async function adminListShops(request, env, url) {
   `;
   const statement = env.DB.prepare(sql);
   const rows = status ? await statement.bind(status).all() : await statement.all();
+  // Opening admin also synchronizes images uploaded before this feature shipped.
+  await syncTriptychGateRewards(env);
   const rewards = await env.DB.prepare(
     "SELECT id, name, required_shop_count, image_key FROM rewards WHERE is_active = 1 ORDER BY required_shop_count",
   ).all();
@@ -439,6 +449,13 @@ async function adminSaveReward(request, env) {
   const requiredShopCount = Number(form.get("requiredShopCount"));
   const stage = HALLOWEEN_STAGES.find((entry) => entry.requiredShopCount === requiredShopCount);
   if (!stage) return json({ error: "10・20・30・50・75・100店舗のいずれかを選んでください。" }, 400);
+  // Triptych crops are the canonical source for these three milestones.
+  if (TRIPTYCH_GATE_REWARDS.some((gate) => gate.count === requiredShopCount)) {
+    const triptych = await env.DB.prepare(
+      "SELECT id FROM triptych_illustrations WHERE id = 1",
+    ).first();
+    if (triptych) return json({ error: "10・20・30店舗の画像は「3枚合体イラスト」から自動同期されます。" }, 409);
+  }
   const name = cleanText(form.get("name"), 50) || stage.name;
   const imageKey = await storeRequiredImage(form.get("image"), env, "rewards");
   await env.DB.prepare("UPDATE rewards SET is_active = 0 WHERE required_shop_count = ?")
@@ -470,18 +487,23 @@ async function adminSaveTriptych(request, env) {
     const old = await env.DB.prepare(
       "SELECT full_image_key, left_image_key, center_image_key, right_image_key FROM triptych_illustrations WHERE id = 1",
     ).first();
-    await env.DB.prepare(`
-      INSERT INTO triptych_illustrations (
-        id, name, full_image_key, left_image_key, center_image_key, right_image_key
-      ) VALUES (1, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        full_image_key = excluded.full_image_key,
-        left_image_key = excluded.left_image_key,
-        center_image_key = excluded.center_image_key,
-        right_image_key = excluded.right_image_key,
-        updated_at = CURRENT_TIMESTAMP
-    `).bind(name, imageKeys.full_image_key, imageKeys.left_image_key, imageKeys.center_image_key, imageKeys.right_image_key).run();
+    // D1 batch is atomic: replace the illustration and all three gate reward
+    // slots together, then (and only then) discard the old KV objects.
+    await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO triptych_illustrations (
+          id, name, full_image_key, left_image_key, center_image_key, right_image_key
+        ) VALUES (1, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          name = excluded.name,
+          full_image_key = excluded.full_image_key,
+          left_image_key = excluded.left_image_key,
+          center_image_key = excluded.center_image_key,
+          right_image_key = excluded.right_image_key,
+          updated_at = CURRENT_TIMESTAMP
+      `).bind(name, imageKeys.full_image_key, imageKeys.left_image_key, imageKeys.center_image_key, imageKeys.right_image_key),
+      ...triptychGateRewardStatements(env, imageKeys),
+    ]);
     if (old) {
       await Promise.allSettled(
         uploads.map(([column]) => old[column]).filter(Boolean).map((key) => env.IMAGES.delete(key)),
@@ -491,7 +513,46 @@ async function adminSaveTriptych(request, env) {
     await Promise.allSettled(Object.values(imageKeys).map((key) => env.IMAGES.delete(key)));
     throw error;
   }
-  return json({ ok: true, name }, 201);
+  return json({ ok: true, name, syncedGateCounts: [10, 20, 30] }, 201);
+}
+
+function triptychGateRewardStatements(env, artwork) {
+  return TRIPTYCH_GATE_REWARDS.flatMap(({ id, count, name, imageColumn }) => [
+    // Old manually registered reward rows remain in DB but become inactive.
+    env.DB.prepare(
+      "UPDATE rewards SET is_active = 0 WHERE required_shop_count = ? AND id <> ? AND is_active = 1",
+    ).bind(count, id),
+    env.DB.prepare(`
+      INSERT INTO rewards (id, name, required_shop_count, image_key, is_active)
+      VALUES (?, ?, ?, ?, 1)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        required_shop_count = excluded.required_shop_count,
+        image_key = excluded.image_key,
+        is_active = 1
+    `).bind(id, name, count, artwork[imageColumn]),
+  ]);
+}
+
+// Reconciles artwork registered before automatic reward synchronization existed.
+// Read-only after initial healing; no extra writes on subsequent page loads.
+async function syncTriptychGateRewards(env) {
+  const artwork = await env.DB.prepare(
+    "SELECT left_image_key, center_image_key, right_image_key FROM triptych_illustrations WHERE id = 1",
+  ).first();
+  if (!artwork) return;
+  const active = await env.DB.prepare(
+    "SELECT id, required_shop_count, image_key FROM rewards WHERE is_active = 1 AND required_shop_count IN (10, 20, 30)",
+  ).all();
+  const correctlySynced = active.results.length === TRIPTYCH_GATE_REWARDS.length
+    && TRIPTYCH_GATE_REWARDS.every(({ id, count, imageColumn }) =>
+      active.results.some((reward) =>
+        reward.id === id && reward.required_shop_count === count && reward.image_key === artwork[imageColumn],
+      ),
+    );
+  if (!correctlySynced) {
+    await env.DB.batch(triptychGateRewardStatements(env, artwork));
+  }
 }
 
 function publicTriptych(art, shopCount) {
