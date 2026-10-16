@@ -459,7 +459,7 @@ async function loadSiteBranding(env) {
   return {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    heroImageUrl: imageUrl(data?.hero_image_key),
+    heroImageUrl: imageUrl(data?.hero_image_key) || "/halo-oka-rally.webp",
     updatedAt: data?.updated_at || null,
   };
 }
