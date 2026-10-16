@@ -646,7 +646,7 @@ async function serveShopPage(request, env, noteIdRaw) {
   if (!assetResponse.ok) return assetResponse;
 
   const origin = new URL(request.url).origin;
-  const title = `${shop.name} | Trick or Treat Collection`;
+  const title = `${shop.name} | ハロハロおかしラリー`;
   const description = String(shop.description || `@${shop.note_id}のお菓子屋さんへ遊びに行こう。`)
     .replace(/\s+/g, " ")
     .trim();
@@ -656,7 +656,7 @@ async function serveShopPage(request, env, noteIdRaw) {
     : null;
 
   const ogTags = [
-    `<meta property="og:site_name" content="Trick or Treat Collection">`,
+    `<meta property="og:site_name" content="ハロハロおかしラリー">`,
     `<meta property="og:type" content="website">`,
     `<meta property="og:title" content="${escapeHtml(title)}">`,
     `<meta property="og:description" content="${escapeHtml(description)}">`,
@@ -677,6 +677,7 @@ async function serveShopPage(request, env, noteIdRaw) {
       `<meta name="description" content="${escapeHtml(description)}">`,
     )
     .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`)
+    .replace(/<!-- SITE_OGP_START -->[\s\S]*?<!-- SITE_OGP_END -->/, "")
     .replace("<!-- SHOP_OGP -->", ogTags);
 
   const headers = new Headers(assetResponse.headers);

@@ -33,7 +33,7 @@ async function boot() {
   if (!location.hash && !cleanShopPath()) location.hash = "#/collection";
   await renderRoute();
   const page = routeParts()[0] || "collection";
-  if (!state.identity && page !== "admin") openJoin();
+  // Visitors can enjoy the event banner first. Registration is required when collecting or opening a shop.
 }
 
 function cleanShopPath() {
@@ -140,8 +140,28 @@ async function renderShop(noteId) {
     </section>`;
 }
 
+function rallyHero() {
+  return `<div class="rally-hero">
+    <img src="/halo-oka-rally-banner.webp" alt="ハロハロおかしラリー。ハロウィンの街を王子と仲間たちが駆け抜けるイラスト" width="1536" height="804" decoding="async" fetchpriority="high">
+  </div>`;
+}
+
+function renderWelcome() {
+  app.innerHTML = `<section class="page rally-welcome">
+    ${rallyHero()}
+    <div class="page-head"><div><p class="eyebrow">HALO HALO CANDY RALLY</p><h1>ハロハロおかしラリー</h1></div></div>
+    <p class="quest-intro">ハロウィンの街のお菓子屋さんを巡って、お菓子図鑑を集めよう。10店舗の先にも、新しい世界が待っているよ！</p>
+    <div class="panel rally-welcome-panel">
+      <h2>🎃 お菓子ラリーに参加しよう！</h2>
+      <p class="subtle">note IDを登録すると、お店巡りの記録や集めたお菓子が図鑑に残ります。</p>
+      <button class="btn btn-primary" type="button" data-action="show-join">note IDではじめる</button>
+      <p class="subtle">登録済みの人は同じnote IDで続きから参加できます。</p>
+    </div>
+  </section>`;
+}
+
 async function renderCollection() {
-  if (!ensureAuth()) return;
+  if (!state.identity) return renderWelcome();
   showLoader();
   state.collection = await api("/api/collection");
   const data = state.collection;
@@ -154,6 +174,7 @@ async function renderCollection() {
   const hasHiddenStages = stages.some((stage) => !stage.isRevealed);
   app.innerHTML = `
     <section class="page">
+      ${rallyHero()}
       <div class="page-head"><div><p class="eyebrow">COLLECTION QUEST</p><h1>お菓子図鑑</h1></div></div>
       <p class="quest-intro">10店舗はゴールじゃない。扉の向こうに、まだ知らないハロウィンの世界が待っている。</p>
       <div class="progress-card">
