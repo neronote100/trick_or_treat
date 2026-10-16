@@ -22,6 +22,42 @@ try {
     await db.prepare(statement).run();
   }
 
+  const siteInitial = await okFetch("/api/site");
+  assert.equal(siteInitial.title, "ハロハロおかしラリー");
+  assert.equal(siteInitial.heroImageUrl, null);
+
+  const unauthorizedCover = await mf.dispatchFetch(new Request(`${base}/api/admin/site`, {
+    method: "POST", body: new FormData(),
+  }));
+  assert.equal(unauthorizedCover.status, 401);
+
+  const coverForm = new FormData();
+  coverForm.set("image", pngFile("rally-cover.png"));
+  const coverUploaded = await okFetch("/api/admin/site", {
+    method: "POST",
+    headers: { "x-admin-token": "test-admin" },
+    body: coverForm,
+  });
+  assert.equal(coverUploaded.title, "ハロハロおかしラリー");
+  assert.ok(coverUploaded.imageUrl.startsWith("/images/branding/"));
+  const publicSite = await okFetch("/api/site");
+  assert.equal(publicSite.heroImageUrl, coverUploaded.imageUrl);
+  const coverResponse = await mf.dispatchFetch(`${base}${publicSite.heroImageUrl}`);
+  assert.equal(coverResponse.status, 200);
+  assert.equal(coverResponse.headers.get("content-type"), "image/png");
+
+  const coverReplacement = new FormData();
+  coverReplacement.set("image", pngFile("new-rally-cover.png"));
+  const changedCover = await okFetch("/api/admin/site", {
+    method: "POST",
+    headers: { "x-admin-token": "test-admin" },
+    body: coverReplacement,
+  });
+  assert.notEqual(changedCover.imageUrl, coverUploaded.imageUrl);
+  assert.equal((await okFetch("/api/site")).heroImageUrl, changedCover.imageUrl);
+  const oldCoverResponse = await mf.dispatchFetch(`${base}${coverUploaded.imageUrl}`);
+  assert.equal(oldCoverResponse.status, 404, "Outdated image is cleaned up");
+
   const ownerRegistration = await register(shopOwner);
   const visitorRegistration = await register(visitor);
   assert.equal(ownerRegistration.noteId, shopOwner.noteId);
@@ -46,6 +82,8 @@ try {
   });
   assert.equal(allShops.shops.length, 1);
   assert.equal(allShops.shops[0].status, "published");
+  assert.equal(allShops.siteBranding.title, "ハロハロおかしラリー");
+  assert.equal(allShops.siteBranding.heroImageUrl, changedCover.imageUrl);
 
   const publicList = await mf.dispatchFetch(new Request(`${base}/api/shops`));
   assert.equal(publicList.status, 404);
