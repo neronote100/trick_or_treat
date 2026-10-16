@@ -38,8 +38,7 @@ async function boot() {
   }
   if (!location.hash && !cleanShopPath()) location.hash = "#/collection";
   await renderRoute();
-  const page = routeParts()[0] || "collection";
-  if (!state.identity && page !== "admin") openJoin();
+  // Let visitors see the event artwork before choosing to register their note ID.
 }
 
 function cleanShopPath() {
@@ -148,7 +147,18 @@ async function renderShop(noteId) {
 }
 
 async function renderCollection() {
-  if (!ensureAuth()) return;
+  if (!state.identity) {
+    app.innerHTML = `<section class="page">
+      ${renderBrandHero()}
+      <div class="hero-card">
+        <p class="eyebrow">HALLOWEEN CANDY QUEST</p>
+        <h1>お菓子の冒険へようこそ！</h1>
+        <p>いろんなお店を巡ってお菓子を集めよう。図鑑はnote IDごとに保存されます。</p>
+        <button class="btn btn-primary" data-action="show-join">note IDで参加する</button>
+      </div>
+    </section>`;
+    return;
+  }
   showLoader();
   state.collection = await api("/api/collection");
   const data = state.collection;
