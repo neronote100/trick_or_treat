@@ -673,7 +673,7 @@ async function requireVisitor(request, env) {
 }
 
 async function serveLandingPage(request, env) {
-  const response = await env.ASSETS.fetch(new Request(new URL("/index.html", request.url), {
+  const response = await env.ASSETS.fetch(new Request(new URL("/index.html", request.url).toString(), {
     headers: request.headers,
   }));
   if (!response.ok) return response;
