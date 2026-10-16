@@ -110,6 +110,15 @@ h3 { margin-bottom: 5px; font-size: 16px; }
 .preserve-lines { white-space: pre-wrap; overflow-wrap: anywhere; }
 .section-label { margin: 28px 2px 13px; color: #d8d0e5; font-size: 13px; font-weight: 800; }
 
+/* Official Halloween event banner: keep the full artwork and lettering visible. */
+.rally-hero { overflow: hidden; margin: 0 0 27px; border: 1px solid rgba(255,175,80,.28); border-radius: 24px; background: rgba(36,20,49,.9); box-shadow: 0 18px 42px rgba(0,0,0,.2); }
+.rally-hero > img { display: block; width: 100%; height: auto; object-fit: contain; background: #170d24; }
+.rally-hero > p { margin: 0; padding: 11px 15px 14px; color: #f2d9ad; font-size: 12px; font-weight: 700; text-align: center; line-height: 1.6; }
+.rally-hero-fallback { display: grid; min-height: 135px; align-content: center; justify-items: center; padding: 22px 12px 13px; background: linear-gradient(140deg,rgba(170,78,51,.4),rgba(92,42,166,.35)); }
+.rally-hero-fallback span { font-size: 26px; }
+.rally-hero-fallback h2 { margin: 9px 0 0; font-size: clamp(22px,6vw,32px); color: #ffdf92; text-align: center; }
+.rally-admin-preview { display: block; width: 100%; max-height: 320px; margin: 14px 0; border-radius: 14px; object-fit: contain; background: #130b1b; }
+
 .hero-card {
   position: relative;
   min-height: 215px;
