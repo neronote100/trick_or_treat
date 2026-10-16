@@ -16,6 +16,10 @@ const shopOwner = { noteId: "moon_shop" };
 const visitor = { noteId: "night_guest" };
 
 try {
+  const banner = await readFile("public/halo-oka-rally.webp");
+  assert.equal(banner.toString("ascii", 0, 4), "RIFF");
+  assert.equal(banner.toString("ascii", 8, 12), "WEBP");
+  assert.ok(banner.length > 100_000, "The full event artwork should be included");
   const db = await mf.getD1Database("DB");
   const migration = await readFile("migrations/0001_initial.sql", "utf8");
   for (const statement of migration.split(";").map((part) => part.trim()).filter(Boolean)) {
