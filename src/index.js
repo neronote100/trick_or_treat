@@ -1,3 +1,5 @@
+const SITE_TITLE = "ハロハロおかしラリー";
+const SITE_DESCRIPTION = "みんなのお菓子屋さんを巡って、ハロウィンのお菓子を集めよう！";
 const NOTE_ID_PATTERN = /^[a-z0-9_]{3,32}$/;
 const IMAGE_TYPES = new Map([
   ["image/jpeg", "jpg"],
@@ -44,6 +46,10 @@ async function route(request, env) {
 
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: securityHeaders() });
   if (path.startsWith("/images/") && request.method === "GET") return serveImage(path, env);
+  if ((path === "/" || path === "/index.html") && request.method === "GET") {
+    await ensureDatabase(env);
+    return serveLandingPage(request, env);
+  }
 
   const shopPageMatch = path.match(/^\/shop\/([a-z0-9_]{3,32})\/?$/i);
   if (shopPageMatch && request.method === "GET") {
@@ -68,6 +74,7 @@ async function route(request, env) {
     return getShop(env, decodeURIComponent(path.split("/")[3]));
   }
   if (path === "/api/collection" && request.method === "GET") return getCollection(request, env);
+  if (path === "/api/site" && request.method === "GET") return getSiteBranding(env);
 
   if (path === "/api/admin/shops" && request.method === "GET") return adminListShops(request, env, url);
   if (/^\/api\/admin\/shops\/[^/]+\/approve$/.test(path) && request.method === "POST") {
@@ -81,6 +88,7 @@ async function route(request, env) {
   }
   if (path === "/api/admin/reward" && request.method === "POST") return adminSaveReward(request, env);
   if (path === "/api/admin/triptych" && request.method === "POST") return adminSaveTriptych(request, env);
+  if (path === "/api/admin/site" && request.method === "POST") return adminSaveSiteBranding(request, env);
 
   if (path.startsWith("/api/")) return json({ error: "見つかりませんでした。" }, 404);
   return env.ASSETS.fetch(request);
@@ -385,6 +393,7 @@ async function adminListShops(request, env, url) {
   return json({
     shops: rows.results.map(publicShop),
     rewardSlots: rewards.results.map(publicReward),
+    siteBranding: await loadSiteBranding(env),
     triptychArtwork: triptych ? {
       name: triptych.name,
       fullImageUrl: imageUrl(triptych.full_image_key),
@@ -441,6 +450,47 @@ async function adminDeleteShop(request, env, shopId) {
   await Promise.allSettled(imageKeys.map((key) => env.IMAGES.delete(key)));
 
   return json({ deleted: true });
+}
+
+async function loadSiteBranding(env) {
+  const data = await env.DB.prepare(
+    "SELECT hero_image_key, updated_at FROM site_branding WHERE id = 1",
+  ).first();
+  return {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    heroImageUrl: imageUrl(data?.hero_image_key),
+    updatedAt: data?.updated_at || null,
+  };
+}
+
+async function getSiteBranding(env) {
+  return json(await loadSiteBranding(env));
+}
+
+async function adminSaveSiteBranding(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const form = await request.formData();
+  const key = await storeRequiredImage(form.get("image"), env, "branding");
+  try {
+    const previous = await env.DB.prepare(
+      "SELECT hero_image_key FROM site_branding WHERE id = 1",
+    ).first();
+    await env.DB.prepare(`
+      INSERT INTO site_branding (id, hero_image_key)
+      VALUES (1, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        hero_image_key = excluded.hero_image_key,
+        updated_at = CURRENT_TIMESTAMP
+    `).bind(key).run();
+    if (previous?.hero_image_key) {
+      await env.IMAGES.delete(previous.hero_image_key).catch((error) => console.warn("Old hero cleanup:", error));
+    }
+  } catch (error) {
+    await env.IMAGES.delete(key).catch(() => {});
+    throw error;
+  }
+  return json({ ok: true, title: SITE_TITLE, imageUrl: imageUrl(key) }, 201);
 }
 
 async function adminSaveReward(request, env) {
@@ -622,6 +672,34 @@ async function requireVisitor(request, env) {
   return user;
 }
 
+async function serveLandingPage(request, env) {
+  const response = await env.ASSETS.fetch(new Request(new URL("/index.html", request.url), {
+    headers: request.headers,
+  }));
+  if (!response.ok) return response;
+  const site = await loadSiteBranding(env);
+  const origin = new URL(request.url).origin;
+  const siteUrl = origin + "/";
+  const hero = site.heroImageUrl ? origin + site.heroImageUrl : null;
+  const social = [
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:site_name" content="${escapeHtml(SITE_TITLE)}">`,
+    `<meta property="og:title" content="${escapeHtml(SITE_TITLE)}">`,
+    `<meta property="og:description" content="${escapeHtml(SITE_DESCRIPTION)}">`,
+    `<meta property="og:url" content="${escapeHtml(siteUrl)}">`,
+    hero ? `<meta property="og:image" content="${escapeHtml(hero)}">` : "",
+    hero ? `<meta property="og:image:alt" content="${escapeHtml(SITE_TITLE)}">` : "",
+    hero ? `<meta name="twitter:image" content="${escapeHtml(hero)}">` : "",
+    `<meta name="twitter:card" content="summary_large_image">`,
+    `<link rel="canonical" href="${escapeHtml(siteUrl)}">`,
+  ].filter(Boolean).join("\n    ");
+  const html = (await response.text()).replace("<!-- SHOP_OGP -->", social);
+  const headers = new Headers(response.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-cache");
+  return new Response(html, { headers });
+}
+
 async function serveShopPage(request, env, noteIdRaw) {
   const noteId = normalizeNoteId(noteIdRaw);
   if (!NOTE_ID_PATTERN.test(noteId)) {
@@ -646,7 +724,7 @@ async function serveShopPage(request, env, noteIdRaw) {
   if (!assetResponse.ok) return assetResponse;
 
   const origin = new URL(request.url).origin;
-  const title = `${shop.name} | Trick or Treat Collection`;
+  const title = `${shop.name} | ${SITE_TITLE}`;
   const description = String(shop.description || `@${shop.note_id}のお菓子屋さんへ遊びに行こう。`)
     .replace(/\s+/g, " ")
     .trim();
@@ -656,7 +734,7 @@ async function serveShopPage(request, env, noteIdRaw) {
     : null;
 
   const ogTags = [
-    `<meta property="og:site_name" content="Trick or Treat Collection">`,
+    `<meta property="og:site_name" content="${escapeHtml(SITE_TITLE)}">`,
     `<meta property="og:type" content="website">`,
     `<meta property="og:title" content="${escapeHtml(title)}">`,
     `<meta property="og:description" content="${escapeHtml(description)}">`,
@@ -772,6 +850,11 @@ function ensureDatabase(env) {
         PRIMARY KEY (user_id, reward_id),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS site_branding (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        hero_image_key TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`,
       `CREATE TABLE IF NOT EXISTS triptych_illustrations (
         id INTEGER PRIMARY KEY CHECK (id = 1),
