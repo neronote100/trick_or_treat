@@ -16,6 +16,16 @@ const shopOwner = { noteId: "moon_shop" };
 const visitor = { noteId: "night_guest" };
 
 try {
+  // The public event entry point and social preview must use the new name/art.
+  const html = await readFile("public/index.html", "utf8");
+  const front = await readFile("public/app.js", "utf8");
+  const banner = await readFile("public/halo-oka-rally-banner.webp");
+  assert.match(html, /<title>ハロハロおかしラリー/);
+  assert.match(html, /<span>ハロハロおかしラリー<\/span>/);
+  assert.match(html, /property="og:image" content="https:\/\/trick-or-treat\.nero-prince\.workers\.dev\/halo-oka-rally-banner\.webp"/);
+  assert.match(front, /function renderWelcome\(\)/);
+  assert.match(front, /rallyHero\(\)/);
+  assert.equal(banner.subarray(0, 4).toString(), "RIFF", "The actual hero image is committed");
   const db = await mf.getD1Database("DB");
   const migration = await readFile("migrations/0001_initial.sql", "utf8");
   for (const statement of migration.split(";").map((part) => part.trim()).filter(Boolean)) {
