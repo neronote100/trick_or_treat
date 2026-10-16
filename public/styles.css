@@ -63,7 +63,13 @@ img { display: block; max-width: 100%; }
   background: linear-gradient(180deg, rgba(13, 9, 21, .98) 45%, rgba(13, 9, 21, 0));
 }
 
-.brand { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 850; letter-spacing: .02em; }
+.brand { display: flex; min-width: 0; align-items: center; gap: 8px; font-size: 14px; font-weight: 850; letter-spacing: -.03em; }
+.brand span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 420px) {
+  .brand { gap: 5px; font-size: 12px; }
+  .brand-mark { width: 30px; height: 30px; flex: 0 0 30px; font-size: 21px; }
+  .account-chip { max-width: 43%; padding-inline: 8px; }
+}
 .brand-mark {
   display: grid;
   width: 34px;
