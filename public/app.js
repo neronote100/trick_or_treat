@@ -8,6 +8,7 @@ const state = {
   identity: loadIdentity(),
   me: null,
   collection: null,
+  site: null,
   busy: false,
 };
 
@@ -21,6 +22,11 @@ boot();
 
 async function boot() {
   updateAccount();
+  try {
+    state.site = await api("/api/site", { auth: false });
+  } catch (error) {
+    console.warn("Site branding unavailable:", error);
+  }
   if (state.identity) {
     try {
       state.me = await api("/api/me");
@@ -32,8 +38,7 @@ async function boot() {
   }
   if (!location.hash && !cleanShopPath()) location.hash = "#/collection";
   await renderRoute();
-  const page = routeParts()[0] || "collection";
-  if (!state.identity && page !== "admin") openJoin();
+  // Let visitors see the event artwork before choosing to register their note ID.
 }
 
 function cleanShopPath() {
@@ -74,6 +79,7 @@ async function renderStudio() {
   const statusLabel = { draft: "準備中", pending: "旧申請", published: "公開中", suspended: "停止中" }[status];
   app.innerHTML = `
     <section class="page">
+      ${renderBrandHero()}
       <div class="page-head"><div><p class="eyebrow">MY SHOP</p><h1>お店をひらく</h1></div><span class="status ${status}">${statusLabel}</span></div>
       <form class="panel" data-form="shop">
         <div class="panel-head"><h2>お店</h2></div>
@@ -141,7 +147,18 @@ async function renderShop(noteId) {
 }
 
 async function renderCollection() {
-  if (!ensureAuth()) return;
+  if (!state.identity) {
+    app.innerHTML = `<section class="page">
+      ${renderBrandHero()}
+      <div class="hero-card">
+        <p class="eyebrow">HALLOWEEN CANDY QUEST</p>
+        <h1>お菓子の冒険へようこそ！</h1>
+        <p>いろんなお店を巡ってお菓子を集めよう。図鑑はnote IDごとに保存されます。</p>
+        <button class="btn btn-primary" data-action="show-join">note IDで参加する</button>
+      </div>
+    </section>`;
+    return;
+  }
   showLoader();
   state.collection = await api("/api/collection");
   const data = state.collection;
@@ -154,6 +171,7 @@ async function renderCollection() {
   const hasHiddenStages = stages.some((stage) => !stage.isRevealed);
   app.innerHTML = `
     <section class="page">
+      ${renderBrandHero()}
       <div class="page-head"><div><p class="eyebrow">COLLECTION QUEST</p><h1>お菓子図鑑</h1></div></div>
       <p class="quest-intro">10店舗はゴールじゃない。扉の向こうに、まだ知らないハロウィンの世界が待っている。</p>
       <div class="progress-card">
@@ -217,6 +235,17 @@ function renderTriptych(triptych) {
   </section>`;
 }
 
+function renderBrandHero() {
+  const site = state.site || {};
+  const title = site.title || "ハロハロおかしラリー";
+  return `<header class="rally-hero" aria-label="${escapeAttr(title)}">
+    ${site.heroImageUrl
+      ? `<img src="${escapeAttr(site.heroImageUrl)}" alt="${escapeAttr(title)}・ハロウィンお菓子ラリーのメインビジュアル">`
+      : `<div class="rally-hero-fallback"><span>🎃 ✦ 🍬</span><h2>${escapeHtml(title)}</h2></div>`}
+    <p>みんなのお菓子屋さんを巡って、お菓子を集めよう！</p>
+  </header>`;
+}
+
 function stageGateCard(stage) {
   const status = stage.isCleared ? "突破！" : "挑戦中";
   return `<div class="stage-gate ${stage.isCleared ? "stage-gate-cleared" : "stage-gate-current"} ${stage.isSecret ? "stage-gate-secret" : ""}">
@@ -272,6 +301,20 @@ async function showAdmin(token) {
   app.innerHTML = `
     <section class="page">
       <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>管理</h1></div><span class="status">${data.shops.length} 店</span></div>
+      <div class="panel">
+        <p class="eyebrow">SITE BRANDING</p>
+        <h2>🎃 ハロハロおかしラリー・トップ画像</h2>
+        <p class="subtle">トップ画像と、note・SNSにサイトURLを貼ったときのカード画像を設定します。横長のイラストを登録してください。</p>
+        ${data.siteBranding?.heroImageUrl
+          ? `<img class="rally-admin-preview" src="${escapeAttr(data.siteBranding.heroImageUrl)}" alt="登録済みのトップ画像">`
+          : `<p class="image-hint">トップ画像はまだ登録されていません。</p>`}
+        <form data-form="site-branding" data-token="${escapeAttr(token)}">
+          <label class="field"><span>トップ画像（横長推奨・5MB以下）</span>
+            <input name="image" type="file" required accept="image/png,image/jpeg,image/webp,image/gif">
+          </label>
+          <button class="btn btn-primary" type="submit">トップ画像を登録・差し替える</button>
+        </form>
+      </div>
       <div class="panel triptych-admin-panel">
         <p class="eyebrow">3-PANEL SECRET ART</p>
         <h2>🖼️ 3枚合体イラスト（3:1）</h2>
@@ -350,6 +393,12 @@ async function handleSubmit(event) {
     if (kind === "reward") {
       await api("/api/admin/reward", { method: "POST", body: new FormData(form), adminToken: form.dataset.token, auth: false });
       notify("特別画像を登録しました");
+      await showAdmin(form.dataset.token);
+    }
+    if (kind === "site-branding") {
+      const response = await api("/api/admin/site", { method: "POST", body: new FormData(form), adminToken: form.dataset.token, auth: false });
+      state.site = { title: response.title, heroImageUrl: response.imageUrl };
+      notify("トップ画像を更新しました");
       await showAdmin(form.dataset.token);
     }
     if (kind === "triptych") {
