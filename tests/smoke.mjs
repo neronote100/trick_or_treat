@@ -24,7 +24,7 @@ try {
 
   const siteInitial = await okFetch("/api/site");
   assert.equal(siteInitial.title, "ハロハロおかしラリー");
-  assert.equal(siteInitial.heroImageUrl, null);
+  assert.equal(siteInitial.heroImageUrl, "/halo-oka-rally.webp");
 
   const unauthorizedCover = await mf.dispatchFetch(new Request(`${base}/api/admin/site`, {
     method: "POST", body: new FormData(),
