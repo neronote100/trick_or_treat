@@ -8,6 +8,8 @@ const state = {
   identity: loadIdentity(),
   me: null,
   collection: null,
+  adminParticipantPage: 1,
+  adminParticipantQuery: "",
   busy: false,
 };
 
@@ -284,8 +286,62 @@ async function renderAdmin() {
     </section>`;
 }
 
-async function showAdmin(token) {
-  const data = await api("/api/admin/shops", { adminToken: token, auth: false });
+function participantCard(person) {
+  const shopStatus = person.shopStatus
+    ? (person.shopStatus === "published" ? "出店中" : shopStatusLabel(person.shopStatus))
+    : "未出店";
+  return `<div class="participant-card">
+    <div class="participant-card-head">
+      <div class="participant-person">
+        <a href="https://note.com/${encodeURIComponent(person.noteId)}" target="_blank" rel="noopener noreferrer">@${escapeHtml(person.noteId)} ↗</a>
+        <small>登録日：${escapeHtml((person.registeredAt || "").slice(0, 10))}</small>
+        <small>${escapeHtml(shopStatus)}${person.shopName ? ` · ${escapeHtml(person.shopName)}` : ""}</small>
+      </div>
+      <span class="participant-stage">${person.shopCount >= 100 ? "100店舗達成" : person.shopCount >= 75 ? "75店舗達成" : person.shopCount >= 50 ? "50店舗達成" : person.shopCount >= 30 ? "30店舗達成" : person.shopCount >= 20 ? "20店舗達成" : person.shopCount >= 10 ? "10店舗達成" : person.shopCount ? "ラリー中" : "これから"}</span>
+    </div>
+    <div class="participant-metrics">
+      <div><strong>${person.shopCount.toLocaleString("ja-JP")}</strong><span>訪問店舗</span></div>
+      <div><strong>${person.treatTypes.toLocaleString("ja-JP")}</strong><span>お菓子の種類</span></div>
+      <div><strong>${person.obtainedTotal.toLocaleString("ja-JP")}</strong><span>取得回数</span></div>
+    </div>
+  </div>`;
+}
+
+function renderAdminParticipants(data, token) {
+  const first = data.matchingCount ? (data.page - 1) * data.pageSize + 1 : 0;
+  const last = data.matchingCount ? first + data.participants.length - 1 : 0;
+  return `<section class="panel admin-participants" id="admin-participants">
+    <h2>🍬 参加者・お菓子収集状況</h2>
+    <p class="subtle">登録されたnote IDの一覧です。未出店・未収集の人も含みます。</p>
+    <div class="participant-summary">
+      <div><strong>${data.totals.registered.toLocaleString("ja-JP")}</strong><span>登録ID数</span></div>
+      <div><strong>${data.totals.collectors.toLocaleString("ja-JP")}</strong><span>収集開始ID数</span></div>
+    </div>
+    <form class="participant-search" data-form="participant-search" data-token="${escapeAttr(token)}">
+      <label class="field"><span>note IDで検索</span><input type="search" name="query" maxlength="33" value="${escapeAttr(data.query)}" placeholder="例：nero_notelover" autocomplete="off"></label>
+      <button class="btn btn-secondary" type="submit">検索</button>
+    </form>
+    <p class="participant-result-count">${data.matchingCount.toLocaleString("ja-JP")} ID中 ${first}〜${last} 件を表示 ・ 訪問店舗数が多い順</p>
+    ${data.participants.length
+      ? `<div class="participant-list">${data.participants.map(participantCard).join("")}</div>`
+      : `<div class="participant-empty">該当するnote IDはありません。</div>`}
+    <div class="participant-pagination">
+      <button class="btn btn-secondary" type="button" data-action="participant-page" data-token="${escapeAttr(token)}" data-page="${data.page - 1}" ${data.page <= 1 ? "disabled" : ""}>← 前へ</button>
+      <span>${data.page} / ${data.totalPages} ページ</span>
+      <button class="btn btn-secondary" type="button" data-action="participant-page" data-token="${escapeAttr(token)}" data-page="${data.page + 1}" ${data.page >= data.totalPages ? "disabled" : ""}>次へ →</button>
+    </div>
+    <p class="subtle participant-note">数値は現在の図鑑に残る記録の集計です。お店やお菓子が削除された場合は減少します。note IDの本人確認は行っていません。</p>
+  </section>`;
+}
+
+async function showAdmin(token, page = state.adminParticipantPage, query = state.adminParticipantQuery) {
+  const requestedQuery = String(query || "").trim().replace(/^@/, "").toLowerCase();
+  const [data, participants] = await Promise.all([
+    api("/api/admin/shops", { adminToken: token, auth: false }),
+    api(`/api/admin/participants?page=${encodeURIComponent(page)}&q=${encodeURIComponent(requestedQuery)}`, { adminToken: token, auth: false }),
+  ]);
+  state.adminParticipantPage = participants.page;
+  state.adminParticipantQuery = participants.query;
   const gates = [
     [10, "最初の城門"], [20, "魔女の森"], [30, "月影の古城"],
     [50, "秘密の魔法街"], [75, "幻の月夜宮殿"], [100, "王子の秘密宝物庫"],
@@ -293,6 +349,7 @@ async function showAdmin(token) {
   app.innerHTML = `
     <section class="page">
       <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>管理</h1></div><span class="status">${data.shops.length} 店</span></div>
+      ${renderAdminParticipants(participants, token)}
       <div class="panel triptych-admin-panel">
         <p class="eyebrow">3-PANEL SECRET ART</p>
         <h2>🖼️ 3枚合体イラスト（3:1）</h2>
@@ -367,7 +424,8 @@ async function handleSubmit(event) {
       notify("お菓子を追加しました");
       await renderStudio();
     }
-    if (kind === "admin-login") await showAdmin(new FormData(form).get("token"));
+    if (kind === "admin-login") await showAdmin(new FormData(form).get("token"), 1, "");
+    if (kind === "participant-search") await showAdmin(form.dataset.token, 1, new FormData(form).get("query"));
     if (kind === "reward") {
       await api("/api/admin/reward", { method: "POST", body: new FormData(form), adminToken: form.dataset.token, auth: false });
       notify("特別画像を登録しました");
@@ -395,10 +453,14 @@ async function handleClick(event) {
   if (action === "logout") return logout();
   if (action === "share") return copyText(new URL(button.dataset.path, location.origin).href, "URLをコピーしました");
 
-  const adminAction = ["publish-shop", "suspend-shop", "delete-shop"].includes(action);
+  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page"].includes(action);
   if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
+    if (action === "participant-page") {
+      await showAdmin(button.dataset.token, Number(button.dataset.page), state.adminParticipantQuery);
+      document.querySelector("#admin-participants")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     if (action === "draw") await draw(button.dataset.noteId);
     if (action === "delete-treat") {
       if (!confirm("このお菓子を削除しますか？")) return;

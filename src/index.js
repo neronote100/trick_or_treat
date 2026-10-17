@@ -70,6 +70,7 @@ async function route(request, env) {
   if (path === "/api/collection" && request.method === "GET") return getCollection(request, env);
 
   if (path === "/api/admin/shops" && request.method === "GET") return adminListShops(request, env, url);
+  if (path === "/api/admin/participants" && request.method === "GET") return adminListParticipants(request, env, url);
   if (/^\/api\/admin\/shops\/[^/]+\/approve$/.test(path) && request.method === "POST") {
     return adminApproveShop(request, env, path.split("/")[4]);
   }
@@ -357,6 +358,80 @@ async function getCollection(request, env) {
       firstObtainedAt: item.first_obtained_at,
     })),
     rewards: rewards.results.map(publicReward),
+  });
+}
+
+// Dashboard data is admin-only. Registration uses a note ID without verification,
+// so this is a list of registered IDs, not a verified list of human identities.
+// Each page is bounded to 25 rows; database-side aggregation prevents an N+1 query.
+async function adminListParticipants(request, env, url) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const pageSize = 25;
+  const rawPage = url.searchParams.get("page") || "1";
+  if (!/^[1-9][0-9]{0,5}$/.test(rawPage)) return json({ error: "ページ番号が正しくありません。" }, 400);
+  const requestedPage = Number(rawPage);
+  const query = String(url.searchParams.get("q") || "").trim().replace(/^@/, "").toLowerCase();
+  if (query.length > 32 || !/^[a-z0-9_]*$/.test(query)) {
+    return json({ error: "note IDは英数字とアンダースコアで検索してください。" }, 400);
+  }
+
+  const [summary, filtered] = await Promise.all([
+    env.DB.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM users) AS registered_count,
+        (SELECT COUNT(DISTINCT user_id) FROM collection_items) AS collector_count
+    `).first(),
+    env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM users WHERE instr(lower(note_id), ?) > 0",
+    ).bind(query).first(),
+  ]);
+  const matchingCount = Number(filtered?.count || 0);
+  const totalPages = Math.max(1, Math.ceil(matchingCount / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const offset = (page - 1) * pageSize;
+  const rows = await env.DB.prepare(`
+    WITH collection_stats AS (
+      SELECT c.user_id,
+        COUNT(*) AS treat_types,
+        COUNT(DISTINCT t.shop_id) AS shop_count,
+        SUM(c.obtained_count) AS obtained_total
+      FROM collection_items c
+      JOIN treats t ON t.id = c.treat_id
+      GROUP BY c.user_id
+    )
+    SELECT u.note_id, u.created_at,
+      s.name AS shop_name, s.status AS shop_status,
+      COALESCE(cs.shop_count, 0) AS shop_count,
+      COALESCE(cs.treat_types, 0) AS treat_types,
+      COALESCE(cs.obtained_total, 0) AS obtained_total
+    FROM users u
+    LEFT JOIN shops s ON s.owner_user_id = u.id
+    LEFT JOIN collection_stats cs ON cs.user_id = u.id
+    WHERE instr(lower(u.note_id), ?) > 0
+    ORDER BY shop_count DESC, treat_types DESC, obtained_total DESC,
+      u.note_id COLLATE NOCASE ASC
+    LIMIT ? OFFSET ?
+  `).bind(query, pageSize, offset).all();
+
+  return json({
+    totals: {
+      registered: Number(summary?.registered_count || 0),
+      collectors: Number(summary?.collector_count || 0),
+    },
+    query,
+    page,
+    pageSize,
+    totalPages,
+    matchingCount,
+    participants: rows.results.map((row) => ({
+      noteId: row.note_id,
+      registeredAt: row.created_at,
+      shopName: row.shop_name || null,
+      shopStatus: row.shop_status || null,
+      shopCount: Number(row.shop_count || 0),
+      treatTypes: Number(row.treat_types || 0),
+      obtainedTotal: Number(row.obtained_total || 0),
+    })),
   });
 }
 
