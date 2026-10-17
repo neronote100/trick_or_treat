@@ -62,7 +62,7 @@ try {
 
   const directShop = await okFetch(`/api/shops/${shopOwner.noteId}`);
   assert.equal(directShop.shop.noteId, shopOwner.noteId);
-  assert.equal(directShop.shop.treatCount, 1);
+  assert.equal(Object.hasOwn(directShop.shop, "treatCount"), false, "Drawing screen hides the total count");
   assert.equal(directShop.shop.description, "星明かりの下でどうぞ\n何度でも遊びに来てね");
 
   const ownerMe = await okFetch("/api/me", {}, shopOwner);
