@@ -91,6 +91,50 @@ try {
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");
 
+  // Private dashboard includes non-collectors and uses persisted draw counts.
+  const noAdmin = await mf.dispatchFetch(new Request(`${base}/api/admin/participants`));
+  assert.equal(noAdmin.status, 401);
+  const badAdmin = await mf.dispatchFetch(new Request(`${base}/api/admin/participants`, {
+    headers: { "x-admin-token": "wrong" },
+  }));
+  assert.equal(badAdmin.status, 401);
+  const participantHeaders = { "x-admin-token": "test-admin" };
+  const firstParticipants = await okFetch("/api/admin/participants", { headers: participantHeaders });
+  assert.deepEqual(firstParticipants.totals, { registered: 2, collectors: 1 });
+  assert.equal(firstParticipants.matchingCount, 2);
+  assert.equal(firstParticipants.totalPages, 1);
+  assert.deepEqual(firstParticipants.participants.map((p) => p.noteId), ["night_guest", "moon_shop"]);
+  assert.deepEqual(
+    [firstParticipants.participants[0].shopCount, firstParticipants.participants[0].treatTypes, firstParticipants.participants[0].obtainedTotal],
+    [1, 1, 1],
+  );
+  assert.deepEqual(
+    [firstParticipants.participants[1].shopCount, firstParticipants.participants[1].treatTypes, firstParticipants.participants[1].obtainedTotal],
+    [0, 0, 0],
+  );
+  assert.equal(firstParticipants.participants[1].shopStatus, "published");
+  const ownerSearch = await okFetch("/api/admin/participants?q=MOON_SHOP", { headers: participantHeaders });
+  assert.equal(ownerSearch.matchingCount, 1);
+  assert.equal(ownerSearch.participants[0].noteId, "moon_shop");
+  const missingSearch = await okFetch("/api/admin/participants?q=not_here", { headers: participantHeaders });
+  assert.equal(missingSearch.matchingCount, 0);
+  assert.equal(missingSearch.page, 1);
+  assert.deepEqual(missingSearch.participants, []);
+  const badPage = await mf.dispatchFetch(new Request(`${base}/api/admin/participants?page=0`, {
+    headers: participantHeaders,
+  }));
+  assert.equal(badPage.status, 400);
+  await db.prepare(
+    "UPDATE collection_items SET obtained_count = 4 WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
+  ).bind(visitorOnly.noteId).run();
+  const duplicate = await okFetch("/api/admin/participants", { headers: participantHeaders });
+  assert.equal(duplicate.participants[0].obtainedTotal, 4);
+  assert.equal(duplicate.participants[0].treatTypes, 1);
+  assert.equal(duplicate.participants[0].shopCount, 1);
+  await db.prepare(
+    "UPDATE collection_items SET obtained_count = 1 WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
+  ).bind(visitorOnly.noteId).run();
+
   // Completion is a persistent achievement, not invalidated by new candies.
   const extraTreat = new FormData();
   extraTreat.set("name", "星屑マカロン");
@@ -139,50 +183,6 @@ try {
   ).bind(newTreat.id, visitorOnly.noteId).run();
   assert.equal((await okFetch("/api/collection", {}, visitorOnly)).shops[0].isComplete, true,
     "Backfill recognizes already-complete existing collection records");
-
-  // Private dashboard includes non-collectors and uses persisted draw counts.
-  const noAdmin = await mf.dispatchFetch(new Request(`${base}/api/admin/participants`));
-  assert.equal(noAdmin.status, 401);
-  const badAdmin = await mf.dispatchFetch(new Request(`${base}/api/admin/participants`, {
-    headers: { "x-admin-token": "wrong" },
-  }));
-  assert.equal(badAdmin.status, 401);
-  const participantHeaders = { "x-admin-token": "test-admin" };
-  const firstParticipants = await okFetch("/api/admin/participants", { headers: participantHeaders });
-  assert.deepEqual(firstParticipants.totals, { registered: 2, collectors: 1 });
-  assert.equal(firstParticipants.matchingCount, 2);
-  assert.equal(firstParticipants.totalPages, 1);
-  assert.deepEqual(firstParticipants.participants.map((p) => p.noteId), ["night_guest", "moon_shop"]);
-  assert.deepEqual(
-    [firstParticipants.participants[0].shopCount, firstParticipants.participants[0].treatTypes, firstParticipants.participants[0].obtainedTotal],
-    [1, 1, 1],
-  );
-  assert.deepEqual(
-    [firstParticipants.participants[1].shopCount, firstParticipants.participants[1].treatTypes, firstParticipants.participants[1].obtainedTotal],
-    [0, 0, 0],
-  );
-  assert.equal(firstParticipants.participants[1].shopStatus, "published");
-  const ownerSearch = await okFetch("/api/admin/participants?q=MOON_SHOP", { headers: participantHeaders });
-  assert.equal(ownerSearch.matchingCount, 1);
-  assert.equal(ownerSearch.participants[0].noteId, "moon_shop");
-  const missingSearch = await okFetch("/api/admin/participants?q=not_here", { headers: participantHeaders });
-  assert.equal(missingSearch.matchingCount, 0);
-  assert.equal(missingSearch.page, 1);
-  assert.deepEqual(missingSearch.participants, []);
-  const badPage = await mf.dispatchFetch(new Request(`${base}/api/admin/participants?page=0`, {
-    headers: participantHeaders,
-  }));
-  assert.equal(badPage.status, 400);
-  await db.prepare(
-    "UPDATE collection_items SET obtained_count = 4 WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
-  ).bind(visitorOnly.noteId).run();
-  const duplicate = await okFetch("/api/admin/participants", { headers: participantHeaders });
-  assert.equal(duplicate.participants[0].obtainedTotal, 4);
-  assert.equal(duplicate.participants[0].treatTypes, 1);
-  assert.equal(duplicate.participants[0].shopCount, 1);
-  await db.prepare(
-    "UPDATE collection_items SET obtained_count = 1 WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
-  ).bind(visitorOnly.noteId).run();
 
   const deleted = await okFetch(`/api/admin/shops/${allShops.shops[0].id}`, {
     method: "DELETE",
