@@ -216,11 +216,15 @@ async function getShop(env, noteIdRaw) {
     WHERE u.note_id = ? AND s.status = 'published'
   `).bind(noteId).first();
   if (!shop) return json({ error: "このお店はまだ開店していません。" }, 404);
-  const treats = await env.DB.prepare(
-    "SELECT id FROM treats WHERE shop_id = ? AND is_active = 1 ORDER BY created_at",
-  ).bind(shop.id).all();
+  // Keep the full candy count a secret on the public drawing screen.
+  // Owner/admin endpoints may still report it for managing their shops.
   return json({
-    shop: publicShop({ ...shop, treat_count: treats.results.length }),
+    shop: {
+      noteId: shop.note_id,
+      name: shop.name,
+      description: shop.description,
+      characterImageUrl: imageUrl(shop.character_image_key),
+    },
   });
 }
 
