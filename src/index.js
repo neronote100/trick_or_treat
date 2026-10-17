@@ -255,6 +255,19 @@ async function drawTreat(request, env, noteIdRaw) {
     ON CONFLICT(user_id, treat_id) DO UPDATE SET obtained_count = obtained_count + 1
   `).bind(user.id, treat.id).run();
 
+  // Once all currently active treats of a shop have been found, record the
+  // achievement permanently. Later new treats do not undo a completion.
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO shop_completions (user_id, shop_id)
+    SELECT ?, ? WHERE NOT EXISTS (
+      SELECT 1 FROM treats t
+      WHERE t.shop_id = ? AND t.is_active = 1
+      AND NOT EXISTS (
+        SELECT 1 FROM collection_items c WHERE c.user_id = ? AND c.treat_id = t.id
+      )
+    )
+  `).bind(user.id, shop.id, shop.id, user.id).run();
+
   const countRow = await env.DB.prepare(`
     SELECT COUNT(DISTINCT t.shop_id) AS count
     FROM collection_items c JOIN treats t ON t.id = c.treat_id
@@ -307,6 +320,19 @@ async function getCollection(request, env) {
     WHERE c.user_id = ?
     ORDER BY c.first_obtained_at DESC
   `).bind(user.id).all();
+  // Backfill achievements for users who already collected every active treat
+  // before the badge existed. Unique (user, shop) keeps this idempotent.
+  await env.DB.prepare(`
+    INSERT OR IGNORE INTO shop_completions (user_id, shop_id)
+    SELECT ?, t.shop_id FROM treats t
+    JOIN collection_items c ON c.treat_id = t.id AND c.user_id = ?
+    WHERE t.is_active = 1
+    GROUP BY t.shop_id
+    HAVING COUNT(*) = (
+      SELECT COUNT(*) FROM treats all_t
+      WHERE all_t.shop_id = t.shop_id AND all_t.is_active = 1
+    )
+  `).bind(user.id, user.id).run();
   // Heal pre-existing triptych uploads and retroactively grant gate rewards.
   const shopCount = new Set(items.results.map((item) => item.note_id)).size;
   if (shopCount >= 10) await syncTriptychGateRewards(env);
@@ -326,7 +352,11 @@ async function getCollection(request, env) {
   const shops = await env.DB.prepare(`
     SELECT s.name, s.character_image_key, u.note_id,
       COUNT(DISTINCT c.treat_id) AS collected_count,
-      MAX(c.first_obtained_at) AS last_visited_at
+      MAX(c.first_obtained_at) AS last_visited_at,
+      EXISTS (
+        SELECT 1 FROM shop_completions sc
+        WHERE sc.shop_id = s.id AND sc.user_id = ?
+      ) AS is_complete
     FROM collection_items c
     JOIN treats t ON t.id = c.treat_id
     JOIN shops s ON s.id = t.shop_id
@@ -334,7 +364,7 @@ async function getCollection(request, env) {
     WHERE c.user_id = ?
     GROUP BY s.id
     ORDER BY last_visited_at DESC
-  `).bind(user.id).all();
+  `).bind(user.id, user.id).all();
   return json({
     shopCount,
     goal: FINAL_SHOP_GOAL,
@@ -345,6 +375,7 @@ async function getCollection(request, env) {
       name: shop.name,
       characterImageUrl: imageUrl(shop.character_image_key),
       collectedCount: Number(shop.collected_count || 0),
+      isComplete: Boolean(shop.is_complete),
       lastVisitedAt: shop.last_visited_at,
     })),
     items: items.results.map((item) => ({
@@ -848,6 +879,14 @@ function ensureDatabase(env) {
         PRIMARY KEY (user_id, reward_id),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS shop_completions (
+        user_id TEXT NOT NULL,
+        shop_id TEXT NOT NULL,
+        completed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, shop_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
       )`,
       `CREATE TABLE IF NOT EXISTS triptych_illustrations (
         id INTEGER PRIMARY KEY CHECK (id = 1),
