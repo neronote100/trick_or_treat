@@ -468,6 +468,18 @@ async function adminListShops(request, env, url) {
   `;
   const statement = env.DB.prepare(sql);
   const rows = status ? await statement.bind(status).all() : await statement.all();
+  // Count every uploaded candy, including draft and suspended shops. A candy
+  // remains stored even when disabled, so it still counts toward capacity.
+  const candyInventory = await env.DB.prepare(`
+    SELECT COUNT(*) AS registered_count,
+      COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) AS active_count,
+      COUNT(DISTINCT shop_id) AS shops_with_candy,
+      (
+        SELECT COALESCE(MAX(candy_count), 0)
+        FROM (SELECT COUNT(*) AS candy_count FROM treats GROUP BY shop_id)
+      ) AS largest_shop_count
+    FROM treats
+  `).first();
   // Opening admin also synchronizes images uploaded before this feature shipped.
   await syncTriptychGateRewards(env);
   const rewards = await env.DB.prepare(
@@ -478,6 +490,12 @@ async function adminListShops(request, env, url) {
   ).first();
   return json({
     shops: rows.results.map(publicShop),
+    candyInventory: {
+      registered: Number(candyInventory?.registered_count || 0),
+      active: Number(candyInventory?.active_count || 0),
+      shopsWithCandy: Number(candyInventory?.shops_with_candy || 0),
+      largestShopCount: Number(candyInventory?.largest_shop_count || 0),
+    },
     rewardSlots: rewards.results.map(publicReward),
     triptychArtwork: triptych ? {
       name: triptych.name,
