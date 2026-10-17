@@ -85,9 +85,60 @@ try {
   assert.equal(collection.shops.length, 1);
   assert.equal(collection.shops[0].noteId, shopOwner.noteId);
   assert.equal(collection.shops[0].collectedCount, 1);
+  assert.equal(collection.shops[0].isComplete, true, "A shop with one treat completes after collecting it");
+  assert.equal(Object.hasOwn(collection.shops[0], "totalTreats"), false, "Never reveal shop treat totals");
   const image = await mf.dispatchFetch(`${base}${collection.items[0].imageUrl}`);
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");
+
+  // Completion is a persistent achievement, not invalidated by new candies.
+  const extraTreat = new FormData();
+  extraTreat.set("name", "星屑マカロン");
+  extraTreat.set("image", pngFile("second-treat.png"));
+  await okFetch("/api/me/treats", { method: "POST", body: extraTreat }, shopOwner);
+  const unchangedAchievement = await okFetch("/api/collection", {}, visitorOnly);
+  assert.equal(unchangedAchievement.shops[0].isComplete, true, "Adding a treat cannot revoke an earned badge");
+  assert.equal(unchangedAchievement.shops[0].collectedCount, 1);
+  const currentTreats = await db.prepare(
+    "SELECT t.id, t.name FROM treats t JOIN shops s ON s.id = t.shop_id JOIN users u ON u.id = s.owner_user_id WHERE u.note_id = ? ORDER BY t.name",
+  ).bind(shopOwner.noteId).all();
+  assert.equal(currentTreats.results.length, 2);
+  const oldTreat = currentTreats.results.find((t) => t.name === "月のキャンディ");
+  const newTreat = currentTreats.results.find((t) => t.name === "星屑マカロン");
+
+  // A different collector has only one of two treats: no completion.
+  await db.prepare(
+    "INSERT INTO collection_items (user_id, treat_id) SELECT id, ? FROM users WHERE note_id = ?",
+  ).bind(oldTreat.id, shopOwner.noteId).run();
+  const partial = await okFetch("/api/collection", {}, shopOwner);
+  assert.equal(partial.shops.length, 1);
+  assert.equal(partial.shops[0].collectedCount, 1);
+  assert.equal(partial.shops[0].isComplete, false, "One of two treats is not complete");
+  await db.prepare(
+    "INSERT INTO collection_items (user_id, treat_id) SELECT id, ? FROM users WHERE note_id = ?",
+  ).bind(newTreat.id, shopOwner.noteId).run();
+  const newlyCompleted = await okFetch("/api/collection", {}, shopOwner);
+  assert.equal(newlyCompleted.shops[0].isComplete, true, "Existing collection is recognized without a new draw");
+  const storedCompletion = await db.prepare(
+    "SELECT COUNT(*) AS count FROM shop_completions WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
+  ).bind(shopOwner.noteId).first();
+  assert.equal(storedCompletion.count, 1);
+  // Reopening the collection doesn't duplicate completion records.
+  await okFetch("/api/collection", {}, shopOwner);
+  assert.equal((await db.prepare(
+    "SELECT COUNT(*) AS count FROM shop_completions WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
+  ).bind(shopOwner.noteId).first()).count, 1);
+  // Prove older users who were already complete are repaired on opening the book.
+  await db.prepare(
+    "DELETE FROM shop_completions WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
+  ).bind(visitorOnly.noteId).run();
+  assert.equal((await okFetch("/api/collection", {}, visitorOnly)).shops[0].isComplete, false,
+    "An old collector remains incomplete when newer treats are still missing");
+  await db.prepare(
+    "INSERT INTO collection_items (user_id, treat_id) SELECT id, ? FROM users WHERE note_id = ?",
+  ).bind(newTreat.id, visitorOnly.noteId).run();
+  assert.equal((await okFetch("/api/collection", {}, visitorOnly)).shops[0].isComplete, true,
+    "Backfill recognizes already-complete existing collection records");
 
   // Private dashboard includes non-collectors and uses persisted draw counts.
   const noAdmin = await mf.dispatchFetch(new Request(`${base}/api/admin/participants`));
