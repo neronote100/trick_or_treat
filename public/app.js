@@ -135,7 +135,7 @@ async function renderShop(noteId) {
           <p class="eyebrow">@${escapeHtml(shop.noteId)}</p>
           <h1>${escapeHtml(shop.name)}</h1>
           ${shop.description ? `<p class="subtle preserve-lines">${escapeHtml(shop.description)}</p>` : ""}
-          <div class="mystery-row">${Array.from({ length: Math.min(shop.treatCount, 6) }, () => `<span class="mystery">?</span>`).join("")}</div>
+          <div class="mystery-row" aria-hidden="true">${Array.from({ length: 3 }, () => `<span class="mystery">?</span>`).join("")}</div>
           <button class="btn btn-primary draw-button" data-action="draw" data-note-id="${escapeAttr(shop.noteId)}">トリック・オア・トリート！</button>
         </div>
       </div>
