@@ -156,6 +156,23 @@ h3 { margin-bottom: 5px; font-size: 16px; }
   box-shadow: 0 13px 30px rgba(0,0,0,.16);
   transition: transform .18s ease, border-color .18s ease;
 }
+.shop-complete-badge {
+  position: absolute;
+  z-index: 2;
+  top: 9px;
+  left: 9px;
+  max-width: calc(100% - 18px);
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 231, 150, .7);
+  border-radius: 999px;
+  color: #2d1706;
+  background: linear-gradient(110deg, #ffe9a1, #ffcd76);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .38);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.3;
+  white-space: nowrap;
+}
 .shop-card:active { transform: scale(.98); }
 .shop-card:hover { border-color: rgba(255,138,53,.35); }
 .card-image { aspect-ratio: 4 / 3; width: 100%; object-fit: cover; background: linear-gradient(145deg, #302143, #17101f); }
