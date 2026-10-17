@@ -255,6 +255,7 @@ function stageGateCard(stage) {
 function visitedShopCard(shop) {
   return `<a class="shop-card" href="/shop/${encodeURIComponent(shop.noteId)}">
     ${shop.characterImageUrl ? `<img class="card-image" src="${escapeAttr(shop.characterImageUrl)}" alt="${escapeAttr(shop.name)}">` : `<div class="card-image"></div>`}
+    ${shop.isComplete ? `<span class="shop-complete-badge" aria-label="このお店のお菓子をコンプリート">✦ コンプリート！</span>` : ""}
     <div class="card-body">
       <h3>${escapeHtml(shop.name)}</h3>
       <p class="card-meta"><span>@${escapeHtml(shop.noteId)}</span><b class="candy-count">${shop.collectedCount} 🍬</b></p>
