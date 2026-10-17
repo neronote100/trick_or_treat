@@ -259,19 +259,6 @@ async function drawTreat(request, env, noteIdRaw) {
     ON CONFLICT(user_id, treat_id) DO UPDATE SET obtained_count = obtained_count + 1
   `).bind(user.id, treat.id).run();
 
-  // Once all currently active treats of a shop have been found, record the
-  // achievement permanently. Later new treats do not undo a completion.
-  await env.DB.prepare(`
-    INSERT OR IGNORE INTO shop_completions (user_id, shop_id)
-    SELECT ?, ? WHERE NOT EXISTS (
-      SELECT 1 FROM treats t
-      WHERE t.shop_id = ? AND t.is_active = 1
-      AND NOT EXISTS (
-        SELECT 1 FROM collection_items c WHERE c.user_id = ? AND c.treat_id = t.id
-      )
-    )
-  `).bind(user.id, shop.id, shop.id, user.id).run();
-
   const countRow = await env.DB.prepare(`
     SELECT COUNT(DISTINCT t.shop_id) AS count
     FROM collection_items c JOIN treats t ON t.id = c.treat_id
@@ -324,19 +311,6 @@ async function getCollection(request, env) {
     WHERE c.user_id = ?
     ORDER BY c.first_obtained_at DESC
   `).bind(user.id).all();
-  // Backfill achievements for users who already collected every active treat
-  // before the badge existed. Unique (user, shop) keeps this idempotent.
-  await env.DB.prepare(`
-    INSERT OR IGNORE INTO shop_completions (user_id, shop_id)
-    SELECT ?, t.shop_id FROM treats t
-    JOIN collection_items c ON c.treat_id = t.id AND c.user_id = ?
-    WHERE t.is_active = 1
-    GROUP BY t.shop_id
-    HAVING COUNT(*) = (
-      SELECT COUNT(*) FROM treats all_t
-      WHERE all_t.shop_id = t.shop_id AND all_t.is_active = 1
-    )
-  `).bind(user.id, user.id).run();
   // Heal pre-existing triptych uploads and retroactively grant gate rewards.
   const shopCount = new Set(items.results.map((item) => item.note_id)).size;
   if (shopCount >= 10) await syncTriptychGateRewards(env);
@@ -357,9 +331,19 @@ async function getCollection(request, env) {
     SELECT s.name, s.character_image_key, u.note_id,
       COUNT(DISTINCT c.treat_id) AS collected_count,
       MAX(c.first_obtained_at) AS last_visited_at,
-      EXISTS (
-        SELECT 1 FROM shop_completions sc
-        WHERE sc.shop_id = s.id AND sc.user_id = ?
+      (
+        EXISTS (
+          SELECT 1 FROM treats active_t
+          WHERE active_t.shop_id = s.id AND active_t.is_active = 1
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM treats missing_t
+          WHERE missing_t.shop_id = s.id AND missing_t.is_active = 1
+          AND NOT EXISTS (
+            SELECT 1 FROM collection_items owned_c
+            WHERE owned_c.user_id = ? AND owned_c.treat_id = missing_t.id
+          )
+        )
       ) AS is_complete
     FROM collection_items c
     JOIN treats t ON t.id = c.treat_id
