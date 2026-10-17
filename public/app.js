@@ -351,6 +351,16 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
     <section class="page">
       <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>管理</h1></div><span class="status">${data.shops.length} 店</span></div>
       ${renderAdminParticipants(participants, token)}
+      <section class="panel admin-inventory" aria-label="管理者専用お菓子登録数">
+        <h2>🍬 登録済みのお菓子</h2>
+        <p class="subtle">全店舗・全公開状態の登録数です。参加者向け画面には表示されません。</p>
+        <div class="inventory-metrics">
+          <div><strong>${data.candyInventory.registered.toLocaleString("ja-JP")}</strong><span>登録総数</span></div>
+          <div><strong>${data.candyInventory.active.toLocaleString("ja-JP")}</strong><span>有効なお菓子</span></div>
+          <div><strong>${data.candyInventory.largestShopCount.toLocaleString("ja-JP")}</strong><span>1店舗の最多</span></div>
+        </div>
+        <p class="subtle">登録のある店舗：${data.candyInventory.shopsWithCandy.toLocaleString("ja-JP")}店。各店舗の登録数は下の「みんなのお店」で確認できます。</p>
+      </section>
       <div class="panel triptych-admin-panel">
         <p class="eyebrow">3-PANEL SECRET ART</p>
         <h2>🖼️ 3枚合体イラスト（3:1）</h2>

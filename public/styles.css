@@ -333,6 +333,12 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
 .triptych-draw-complete img { display: block; width: 100%; aspect-ratio: 3/1; border: 1px solid var(--gold); border-radius: 12px; object-fit: contain; }
 
 
+/* Private overview: inventory counts are deliberately absent from public shop pages. */
+.inventory-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 16px 0 12px; }
+.inventory-metrics > div { min-width: 0; padding: 13px 6px; border: 1px solid rgba(255,211,106,.18); border-radius: 14px; background: rgba(255,211,106,.05); text-align: center; }
+.inventory-metrics strong { display: block; font-size: clamp(20px, 5vw, 27px); color: var(--gold); font-variant-numeric: tabular-nums; }
+.inventory-metrics span { display: block; margin-top: 3px; font-size: 10px; line-height: 1.4; color: var(--muted); }
+
 /* Admin-only progress dashboard: dense on desktop, readable on mobile. */
 .admin-participants { scroll-margin-top: 92px; }
 .admin-participants h2 { margin-bottom: 7px; }

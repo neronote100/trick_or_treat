@@ -56,6 +56,12 @@ try {
   });
   assert.equal(allShops.shops.length, 1);
   assert.equal(allShops.shops[0].status, "published");
+  assert.equal(allShops.shops[0].treatCount, 1);
+  assert.deepEqual(allShops.candyInventory, {
+    registered: 1, active: 1, shopsWithCandy: 1, largestShopCount: 1,
+  });
+  const noAdminShopList = await mf.dispatchFetch(new Request(`${base}/api/admin/shops`));
+  assert.equal(noAdminShopList.status, 401, "Candy inventory is only available to admins");
 
   const publicList = await mf.dispatchFetch(new Request(`${base}/api/shops`));
   assert.equal(publicList.status, 404);
@@ -145,6 +151,13 @@ try {
   extraTreat.set("name", "星屑マカロン");
   extraTreat.set("image", pngFile("second-treat.png"));
   await okFetch("/api/me/treats", { method: "POST", body: extraTreat }, shopOwner);
+  const afterSecondCandyInventory = await okFetch("/api/admin/shops", {
+    headers: { "x-admin-token": "test-admin" },
+  });
+  assert.equal(afterSecondCandyInventory.candyInventory.registered, 2);
+  assert.equal(afterSecondCandyInventory.candyInventory.active, 2);
+  assert.equal(afterSecondCandyInventory.candyInventory.largestShopCount, 2);
+  assert.equal(afterSecondCandyInventory.shops[0].treatCount, 2);
   const afterNewCandy = await okFetch("/api/collection", {}, visitorOnly);
   assert.equal(afterNewCandy.shops[0].isComplete, false,
     "A new uncollected candy immediately removes completion, even with an old achievement row");
@@ -192,6 +205,13 @@ try {
 
   // If a new candy is disabled, only the currently active assortment matters.
   await db.prepare("UPDATE treats SET is_active = 0 WHERE id = ?").bind(third.id).run();
+  const disabledCandyInventory = await okFetch("/api/admin/shops", {
+    headers: { "x-admin-token": "test-admin" },
+  });
+  assert.equal(disabledCandyInventory.candyInventory.registered, 3,
+    "Disabled candies still consume storage and must be counted");
+  assert.equal(disabledCandyInventory.candyInventory.active, 2);
+  assert.equal(disabledCandyInventory.candyInventory.largestShopCount, 3);
   assert.equal((await okFetch("/api/collection", {}, shopOwner)).shops[0].isComplete, true,
     "An inactive treat is not required for completion");
   await db.prepare("UPDATE treats SET is_active = 1 WHERE id = ?").bind(third.id).run();
@@ -202,7 +222,12 @@ try {
     headers: { "x-admin-token": "test-admin" },
   });
   assert.equal(deleted.deleted, true);
-
+  const afterDeleteInventory = await okFetch("/api/admin/shops", {
+    headers: { "x-admin-token": "test-admin" },
+  });
+  assert.deepEqual(afterDeleteInventory.candyInventory, {
+    registered: 0, active: 0, shopsWithCandy: 0, largestShopCount: 0,
+  });
   const ownerAfterDelete = await okFetch("/api/me", {}, shopOwner);
   assert.equal(ownerAfterDelete.shop, null);
   assert.equal(ownerAfterDelete.treats.length, 0);
@@ -424,6 +449,10 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile, mf) {
   const pageClamped = await okFetch("/api/admin/participants?q=stage_shop_&page=5", { headers: adminHeaders });
   assert.equal(pageClamped.page, 4);
   assert.equal(pageClamped.participants.length, 25);
+  const hundredShopInventory = await okFetch("/api/admin/shops", { headers: adminHeaders });
+  assert.deepEqual(hundredShopInventory.candyInventory, {
+    registered: 100, active: 100, shopsWithCandy: 100, largestShopCount: 1,
+  });
   const completed = await okFetch("/api/collection", {}, visitor);
   assert.equal(completed.shopCount, 100);
   assert.equal(completed.rewards.length, 3);
