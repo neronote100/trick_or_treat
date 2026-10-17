@@ -89,6 +89,50 @@ try {
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");
 
+  // Private dashboard includes non-collectors and uses persisted draw counts.
+  const noAdmin = await mf.dispatchFetch(new Request(`${base}/api/admin/participants`));
+  assert.equal(noAdmin.status, 401);
+  const badAdmin = await mf.dispatchFetch(new Request(`${base}/api/admin/participants`, {
+    headers: { "x-admin-token": "wrong" },
+  }));
+  assert.equal(badAdmin.status, 401);
+  const participantHeaders = { "x-admin-token": "test-admin" };
+  const firstParticipants = await okFetch("/api/admin/participants", { headers: participantHeaders });
+  assert.deepEqual(firstParticipants.totals, { registered: 2, collectors: 1 });
+  assert.equal(firstParticipants.matchingCount, 2);
+  assert.equal(firstParticipants.totalPages, 1);
+  assert.deepEqual(firstParticipants.participants.map((p) => p.noteId), ["night_guest", "moon_shop"]);
+  assert.deepEqual(
+    [firstParticipants.participants[0].shopCount, firstParticipants.participants[0].treatTypes, firstParticipants.participants[0].obtainedTotal],
+    [1, 1, 1],
+  );
+  assert.deepEqual(
+    [firstParticipants.participants[1].shopCount, firstParticipants.participants[1].treatTypes, firstParticipants.participants[1].obtainedTotal],
+    [0, 0, 0],
+  );
+  assert.equal(firstParticipants.participants[1].shopStatus, "published");
+  const ownerSearch = await okFetch("/api/admin/participants?q=MOON_SHOP", { headers: participantHeaders });
+  assert.equal(ownerSearch.matchingCount, 1);
+  assert.equal(ownerSearch.participants[0].noteId, "moon_shop");
+  const missingSearch = await okFetch("/api/admin/participants?q=not_here", { headers: participantHeaders });
+  assert.equal(missingSearch.matchingCount, 0);
+  assert.equal(missingSearch.page, 1);
+  assert.deepEqual(missingSearch.participants, []);
+  const badPage = await mf.dispatchFetch(new Request(`${base}/api/admin/participants?page=0`, {
+    headers: participantHeaders,
+  }));
+  assert.equal(badPage.status, 400);
+  await db.prepare(
+    "UPDATE collection_items SET obtained_count = 4 WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
+  ).bind(visitorOnly.noteId).run();
+  const duplicate = await okFetch("/api/admin/participants", { headers: participantHeaders });
+  assert.equal(duplicate.participants[0].obtainedTotal, 4);
+  assert.equal(duplicate.participants[0].treatTypes, 1);
+  assert.equal(duplicate.participants[0].shopCount, 1);
+  await db.prepare(
+    "UPDATE collection_items SET obtained_count = 1 WHERE user_id = (SELECT id FROM users WHERE note_id = ?)",
+  ).bind(visitorOnly.noteId).run();
+
   const deleted = await okFetch(`/api/admin/shops/${allShops.shops[0].id}`, {
     method: "DELETE",
     headers: { "x-admin-token": "test-admin" },
@@ -102,6 +146,10 @@ try {
   const visitorAfterDelete = await okFetch("/api/collection", {}, visitorOnly);
   assert.equal(visitorAfterDelete.items.length, 0);
   assert.equal(visitorAfterDelete.shops.length, 0);
+  const afterShopDeletion = await okFetch("/api/admin/participants", { headers: participantHeaders });
+  assert.equal(afterShopDeletion.totals.registered, 2);
+  assert.equal(afterShopDeletion.totals.collectors, 0);
+  assert.equal(afterShopDeletion.participants.find((p) => p.noteId === visitorOnly.noteId).treatTypes, 0);
 
   const deletedShopResponse = await mf.dispatchFetch(
     new Request(`${base}/api/shops/${shopOwner.noteId}`),
@@ -291,6 +339,27 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile, mf) {
   assert.ok(admin.triptychArtwork.rightImageUrl);
   assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 20), true);
   assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 30), true);
+  // With 100 new owners, a page returns at most 25 rows and search stays admin-only.
+  const allParticipants = await okFetch("/api/admin/participants", { headers: adminHeaders });
+  assert.equal(allParticipants.totals.registered, 102);
+  assert.equal(allParticipants.totals.collectors, 1);
+  assert.equal(allParticipants.matchingCount, 102);
+  assert.equal(allParticipants.pageSize, 25);
+  assert.equal(allParticipants.totalPages, 5);
+  assert.equal(allParticipants.participants.length, 25);
+  assert.equal(allParticipants.participants[0].noteId, visitor.noteId);
+  assert.equal(allParticipants.participants[0].shopCount, 100);
+  assert.equal(allParticipants.participants[0].treatTypes, 100);
+  assert.equal(allParticipants.participants[0].obtainedTotal, 101);
+  const searchedOwners = await okFetch("/api/admin/participants?q=stage_shop_&page=4", { headers: adminHeaders });
+  assert.equal(searchedOwners.matchingCount, 100);
+  assert.equal(searchedOwners.totalPages, 4);
+  assert.equal(searchedOwners.page, 4);
+  assert.equal(searchedOwners.participants.length, 25);
+  assert.equal(searchedOwners.participants[0].shopCount, 0);
+  const pageClamped = await okFetch("/api/admin/participants?q=stage_shop_&page=5", { headers: adminHeaders });
+  assert.equal(pageClamped.page, 4);
+  assert.equal(pageClamped.participants.length, 25);
   const completed = await okFetch("/api/collection", {}, visitor);
   assert.equal(completed.shopCount, 100);
   assert.equal(completed.rewards.length, 3);
