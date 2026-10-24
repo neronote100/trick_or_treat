@@ -341,6 +341,14 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
 
 /* Admin-only progress dashboard: dense on desktop, readable on mobile. */
 .webp-admin-panel .btn { width: 100%; margin: 10px 0; }
+.webp-backups { margin-top: 17px; border-top: 1px solid var(--line); padding-top: 15px; }
+.webp-backups h3 { margin: 0 0 7px; font-size: 15px; }
+.webp-backup-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 9px 0; padding: 10px; border: 1px solid var(--line); border-radius: 11px; }
+.webp-backup-item span { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
+.webp-backup-item strong { font-size: 11px; overflow-wrap: anywhere; }
+.webp-backup-item small { color: var(--muted); font-size: 10px; }
+.webp-backup-item .btn { width: auto; min-width: 84px; flex: 0 0 auto; padding: 8px; margin: 0; font-size: 11px; }
+
 .webp-pending-count { margin: 10px 0 2px; font-size: 13px; color: var(--gold); }
 .webp-pending-count strong { font-size: 21px; font-variant-numeric: tabular-nums; }
 .admin-participants { scroll-margin-top: 92px; }
