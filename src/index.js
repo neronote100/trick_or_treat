@@ -521,9 +521,16 @@ const IMAGE_REFERENCES = [
   ["triptych_illustrations", "center_image_key"],
   ["triptych_illustrations", "right_image_key"],
 ];
-const ALL_IMAGE_KEYS_SQL = IMAGE_REFERENCES.map(
-  ([table, column]) => `SELECT ${column} AS image_key FROM ${table}`,
-).join(" UNION ");
+// SQLite/D1 sets a low maximum for compound SELECT clauses. Use four UNION
+// branches (one per table) and expand the four triptych columns via JSON1.
+const ALL_IMAGE_KEYS_SQL = `
+  SELECT character_image_key AS image_key FROM shops
+  UNION SELECT image_key FROM treats
+  UNION SELECT image_key FROM rewards
+  UNION SELECT slot.value AS image_key
+  FROM triptych_illustrations t,
+    json_each(json_array(t.full_image_key, t.left_image_key, t.center_image_key, t.right_image_key)) slot
+`;
 const MIGRATABLE_IMAGES_SQL = `FROM (${ALL_IMAGE_KEYS_SQL}) refs
   WHERE (lower(image_key) LIKE '%.png' OR lower(image_key) LIKE '%.jpg' OR lower(image_key) LIKE '%.jpeg')`;
 
