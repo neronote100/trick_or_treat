@@ -337,9 +337,10 @@ function renderAdminParticipants(data, token) {
 
 async function showAdmin(token, page = state.adminParticipantPage, query = state.adminParticipantQuery) {
   const requestedQuery = String(query || "").trim().replace(/^@/, "").toLowerCase();
-  const [data, participants] = await Promise.all([
+  const [data, participants, migration] = await Promise.all([
     api("/api/admin/shops", { adminToken: token, auth: false }),
     api(`/api/admin/participants?page=${encodeURIComponent(page)}&q=${encodeURIComponent(requestedQuery)}`, { adminToken: token, auth: false }),
+    api("/api/admin/image-migration", { adminToken: token, auth: false }),
   ]);
   state.adminParticipantPage = participants.page;
   state.adminParticipantQuery = participants.query;
@@ -366,8 +367,9 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
         <h2>🖼️ 既存画像のWebP軽量化</h2>
         <p class="subtle">PNG・JPEGの登録済み画像をWebPに変換して置き換えます。お菓子、店舗キャラクター、特別報酬が対象。GIF・既存WebPはそのままです。</p>
         <p class="subtle">図鑑の記録と画像の関連付けは維持します。処理できた画像だけ新しいキーに切り替え、元画像はその後で削除します。</p>
-        <button class="btn btn-secondary" data-action="migrate-webp" data-token="${escapeAttr(token)}" type="button">既存画像を20枚まで軽量化する</button>
-        <p class="subtle" id="webp-migration-status" role="status">無料枠への負担を抑えるため、1回20枚まで・順番に処理します。</p>
+        <p class="webp-pending-count">WebP化の対象：<strong>${migration.pending.toLocaleString("ja-JP")}枚</strong></p>
+        <button class="btn btn-secondary" data-action="migrate-webp" data-token="${escapeAttr(token)}" type="button" ${migration.pending ? "" : "disabled"}>既存画像を20枚まで軽量化する</button>
+        <p class="subtle" id="webp-migration-status" role="status">無料枠への負担を抑えるため、1回20枚まで・順番に処理します。元画像より大きくなる場合は変換しません。</p>
       </section>
       <div class="panel triptych-admin-panel">
         <p class="eyebrow">3-PANEL SECRET ART</p>
