@@ -82,6 +82,8 @@ async function route(request, env) {
   }
   if (path === "/api/admin/reward" && request.method === "POST") return adminSaveReward(request, env);
   if (path === "/api/admin/triptych" && request.method === "POST") return adminSaveTriptych(request, env);
+  if (path === "/api/admin/image-migration" && request.method === "GET") return adminListImageMigration(request, env, url);
+  if (path === "/api/admin/image-migration" && request.method === "POST") return adminMigrateImage(request, env);
 
   if (path.startsWith("/api/")) return json({ error: "見つかりませんでした。" }, 404);
   return env.ASSETS.fetch(request);
@@ -505,6 +507,90 @@ async function adminListShops(request, env, url) {
       rightImageUrl: imageUrl(triptych.right_image_key),
       updatedAt: triptych.updated_at,
     } : null,
+  });
+}
+
+// Keep source keys in one place. These columns are never provided by the client,
+// and updating all of them also keeps triptych reward references in sync.
+const IMAGE_REFERENCES = [
+  ["shops", "character_image_key"],
+  ["treats", "image_key"],
+  ["rewards", "image_key"],
+  ["triptych_illustrations", "full_image_key"],
+  ["triptych_illustrations", "left_image_key"],
+  ["triptych_illustrations", "center_image_key"],
+  ["triptych_illustrations", "right_image_key"],
+];
+const ALL_IMAGE_KEYS_SQL = IMAGE_REFERENCES.map(
+  ([table, column]) => `SELECT ${column} AS image_key FROM ${table}`,
+).join(" UNION ");
+const MIGRATABLE_IMAGES_SQL = `FROM (${ALL_IMAGE_KEYS_SQL}) refs
+  WHERE (lower(image_key) LIKE '%.png' OR lower(image_key) LIKE '%.jpg' OR lower(image_key) LIKE '%.jpeg')`;
+
+async function adminListImageMigration(request, env, url) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const after = url.searchParams.get("after") || "";
+  if (after.length > 255) return json({ error: "画像キーが不正です。" }, 400);
+  const [pending, rows] = await Promise.all([
+    env.DB.prepare(`SELECT COUNT(*) AS count ${MIGRATABLE_IMAGES_SQL}`).first(),
+    env.DB.prepare(`SELECT image_key ${MIGRATABLE_IMAGES_SQL}
+      AND image_key > ? ORDER BY image_key LIMIT 20`).bind(after).all(),
+  ]);
+  return json({
+    pending: Number(pending?.count || 0),
+    images: rows.results.map((item) => ({
+      key: item.image_key,
+      imageUrl: imageUrl(item.image_key),
+    })),
+  });
+}
+
+async function adminMigrateImage(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const form = await request.formData();
+  const sourceKey = String(form.get("sourceKey") || "");
+  if (!/^(characters|treats|rewards|triptych)\/[a-zA-Z0-9-]+\.(png|jpg|jpeg)$/i.test(sourceKey)) {
+    return json({ error: "変換対象の画像キーが不正です。" }, 400);
+  }
+  const active = await env.DB.prepare(
+    `SELECT image_key FROM (${ALL_IMAGE_KEYS_SQL}) WHERE image_key = ? LIMIT 1`,
+  ).bind(sourceKey).first();
+  if (!active) return json({ error: "この画像は既に移行済み、または削除されています。" }, 409);
+  const file = form.get("image");
+  if (!file || file.type !== "image/webp" || !file.size || file.size > MAX_IMAGE_BYTES) {
+    return json({ error: "5MB以下のWebP画像を指定してください。" }, 400);
+  }
+  const bytes = await file.arrayBuffer();
+  const header = new Uint8Array(bytes.slice(0, 12));
+  const isWebp = String.fromCharCode(...header.slice(0, 4)) === "RIFF"
+    && String.fromCharCode(...header.slice(8, 12)) === "WEBP";
+  if (!isWebp) return json({ error: "WebP画像として読み込めません。" }, 400);
+
+  const old = await env.IMAGES.getWithMetadata(sourceKey, { type: "arrayBuffer" });
+  if (!old.value) return json({ error: "元画像が見つかりません。" }, 404);
+  const beforeBytes = old.value.byteLength;
+  if (bytes.byteLength >= beforeBytes) {
+    return json({ error: "変換後の画像が元画像より大きいため、元画像を維持します。" }, 422);
+  }
+
+  const folder = sourceKey.split("/")[0];
+  const newKey = `${folder}/${crypto.randomUUID()}.webp`;
+  await env.IMAGES.put(newKey, bytes, { metadata: { contentType: "image/webp" } });
+  try {
+    await env.DB.batch(IMAGE_REFERENCES.map(([table, column]) =>
+      env.DB.prepare(`UPDATE ${table} SET ${column} = ? WHERE ${column} = ?`).bind(newKey, sourceKey),
+    ));
+  } catch (error) {
+    await env.IMAGES.delete(newKey).catch(() => {});
+    throw error;
+  }
+  // If deleting the old object fails, the DB still points to a valid WebP.
+  // Retaining an orphan is safer than deleting the new image or breaking the gallery.
+  let cleanedUp = true;
+  try { await env.IMAGES.delete(sourceKey); } catch { cleanedUp = false; }
+  return json({
+    ok: true, beforeBytes, afterBytes: bytes.byteLength,
+    savedBytes: beforeBytes - bytes.byteLength, cleanedUp,
   });
 }
 
