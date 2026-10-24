@@ -540,7 +540,7 @@ async function adminListImageMigration(request, env, url) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const after = url.searchParams.get("after") || "";
   if (after.length > 255) return json({ error: "画像キーが不正です。" }, 400);
-  const [pending, rows, backups] = await Promise.all([
+  const [pending, rows, backups, recentBackups] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS count ${MIGRATABLE_IMAGES_SQL}`).first(),
     env.DB.prepare(`SELECT image_key ${MIGRATABLE_IMAGES_SQL}
       AND image_key > ? ORDER BY image_key LIMIT 20`).bind(after).all(),
@@ -549,6 +549,8 @@ async function adminListImageMigration(request, env, url) {
       COALESCE(SUM(before_bytes), 0) AS retained_bytes,
       COALESCE(SUM(CASE WHEN migrated_at <= datetime('now', '-24 hours') THEN 1 ELSE 0 END), 0) AS ready
       FROM image_migration_backups`).first(),
+    env.DB.prepare(`SELECT source_key, webp_key, before_bytes, after_bytes, migrated_at
+      FROM image_migration_backups ORDER BY migrated_at DESC, source_key DESC LIMIT 10`).all(),
   ]);
   return json({
     pending: Number(pending?.count || 0),
@@ -556,6 +558,13 @@ async function adminListImageMigration(request, env, url) {
       retained: Number(backups?.retained || 0),
       retainedBytes: Number(backups?.retained_bytes || 0),
       readyToCleanup: Number(backups?.ready || 0),
+      recent: recentBackups.results.map((row) => ({
+        sourceKey: row.source_key,
+        webpKey: row.webp_key,
+        beforeBytes: Number(row.before_bytes),
+        afterBytes: Number(row.after_bytes),
+        migratedAt: row.migrated_at,
+      })),
     },
     images: rows.results.map((item) => ({
       key: item.image_key,
