@@ -10,6 +10,7 @@ const state = {
   collection: null,
   adminParticipantPage: 1,
   adminParticipantQuery: "",
+  webpCursor: "",
   busy: false,
 };
 
@@ -337,9 +338,10 @@ function renderAdminParticipants(data, token) {
 
 async function showAdmin(token, page = state.adminParticipantPage, query = state.adminParticipantQuery) {
   const requestedQuery = String(query || "").trim().replace(/^@/, "").toLowerCase();
-  const [data, participants] = await Promise.all([
+  const [data, participants, migration] = await Promise.all([
     api("/api/admin/shops", { adminToken: token, auth: false }),
     api(`/api/admin/participants?page=${encodeURIComponent(page)}&q=${encodeURIComponent(requestedQuery)}`, { adminToken: token, auth: false }),
+    api("/api/admin/image-migration", { adminToken: token, auth: false }),
   ]);
   state.adminParticipantPage = participants.page;
   state.adminParticipantQuery = participants.query;
@@ -360,6 +362,15 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
           <div><strong>${data.candyInventory.largestShopCount.toLocaleString("ja-JP")}</strong><span>1店舗の最多</span></div>
         </div>
         <p class="subtle">登録のある店舗：${data.candyInventory.shopsWithCandy.toLocaleString("ja-JP")}店。各店舗の登録数は下の「みんなのお店」で確認できます。</p>
+      </section>
+      <section class="panel webp-admin-panel" id="webp-migration">
+        <p class="eyebrow">STORAGE OPTIMIZATION</p>
+        <h2>🖼️ 既存画像のWebP軽量化</h2>
+        <p class="subtle">PNG・JPEGの登録済み画像をWebPに変換して置き換えます。お菓子、店舗キャラクター、特別報酬が対象。GIF・既存WebPはそのままです。</p>
+        <p class="subtle">図鑑の記録と画像の関連付けは維持します。処理できた画像だけ新しいキーに切り替え、元画像はその後で削除します。</p>
+        <p class="webp-pending-count">WebP化の対象：<strong>${migration.pending.toLocaleString("ja-JP")}枚</strong></p>
+        <button class="btn btn-secondary" data-action="migrate-webp" data-token="${escapeAttr(token)}" type="button" ${migration.pending ? "" : "disabled"}>既存画像を20枚まで軽量化する</button>
+        <p class="subtle" id="webp-migration-status" role="status">無料枠への負担を抑えるため、1回20枚まで・順番に処理します。元画像より大きくなる場合は変換しません。</p>
       </section>
       <div class="panel triptych-admin-panel">
         <p class="eyebrow">3-PANEL SECRET ART</p>
@@ -426,19 +437,25 @@ async function handleSubmit(event) {
   try {
     if (kind === "join") await register(new FormData(form));
     if (kind === "shop") {
-      state.me = await api("/api/me/shop", { method: "PUT", body: new FormData(form) });
+      const body = new FormData(form);
+      await optimizeImageField(body, "characterImage", 1600);
+      state.me = await api("/api/me/shop", { method: "PUT", body });
       notify("保存しました");
       await renderStudio();
     }
     if (kind === "treat") {
-      state.me = await api("/api/me/treats", { method: "POST", body: new FormData(form) });
+      const body = new FormData(form);
+      await optimizeImageField(body, "image", 1400);
+      state.me = await api("/api/me/treats", { method: "POST", body });
       notify("お菓子を追加しました");
       await renderStudio();
     }
     if (kind === "admin-login") await showAdmin(new FormData(form).get("token"), 1, "");
     if (kind === "participant-search") await showAdmin(form.dataset.token, 1, new FormData(form).get("query"));
     if (kind === "reward") {
-      await api("/api/admin/reward", { method: "POST", body: new FormData(form), adminToken: form.dataset.token, auth: false });
+      const body = new FormData(form);
+      await optimizeImageField(body, "image", 1600);
+      await api("/api/admin/reward", { method: "POST", body, adminToken: form.dataset.token, auth: false });
       notify("特別画像を登録しました");
       await showAdmin(form.dataset.token);
     }
@@ -464,10 +481,11 @@ async function handleClick(event) {
   if (action === "logout") return logout();
   if (action === "share") return copyText(new URL(button.dataset.path, location.origin).href, "URLをコピーしました");
 
-  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page"].includes(action);
+  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp"].includes(action);
   if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
+    if (action === "migrate-webp") await runImageMigration(button.dataset.token);
     if (action === "participant-page") {
       await showAdmin(button.dataset.token, Number(button.dataset.page), state.adminParticipantQuery);
       document.querySelector("#admin-participants")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -568,10 +586,97 @@ async function prepareTriptychUpload(form) {
       const field = position + "Image";
       body.set(field, new File([blob], position + (blob.type === "image/webp" ? ".webp" : ".png"), { type: blob.type || "image/png" }));
     }
+    await optimizeImageField(body, "image", 3000);
     return body;
   } finally {
     bitmap.close?.();
   }
+}
+
+// Canvas conversion runs before upload, keeping Cloudflare transform charges at
+// zero and retaining transparent pixels. Animated GIFs are left unchanged.
+async function optimizedWebpFile(file, maxDimension = 1400, quality = 0.82) {
+  if (!file || !file.size || file.type === "image/gif" || file.type === "image/webp") return file;
+  if (!["image/png", "image/jpeg"].includes(file.type)) return file;
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvasが利用できません。");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve, reject) =>
+      canvas.toBlob((result) => result ? resolve(result) : reject(new Error("変換に失敗しました。")), "image/webp", quality),
+    );
+    if (blob.type !== "image/webp" || blob.size >= file.size) return file;
+    const fileName = (file.name || "image").replace(/\.[^.]+$/, "") + ".webp";
+    return new File([blob], fileName, { type: "image/webp" });
+  } finally {
+    bitmap?.close?.();
+  }
+}
+
+async function optimizeImageField(body, field, maxDimension) {
+  const original = body.get(field);
+  if (!original || !original.size) return;
+  const output = await optimizedWebpFile(original, maxDimension);
+  if (output !== original) body.set(field, output);
+}
+
+async function runImageMigration(token) {
+  const status = document.querySelector("#webp-migration-status");
+  const progress = (message) => { if (status) status.textContent = message; };
+  let converted = 0, skipped = 0, attempted = 0, saved = 0, after = state.webpCursor;
+  progress("変換対象の画像を確認しています…");
+  while (attempted < 20) {
+    const next = await api(`/api/admin/image-migration?after=${encodeURIComponent(after)}`, {
+      adminToken: token, auth: false,
+    });
+    if (!next.images?.length) {
+      state.webpCursor = "";
+      if (!attempted) progress(next.pending ? "一巡しました。圧縮できない画像が残っています。" : "すべての対象画像を確認済みです。");
+      break;
+    }
+    for (const image of next.images) {
+      if (attempted >= 20) break;
+      after = image.key;
+      state.webpCursor = after;
+      attempted++;
+      progress(`${attempted}/20枚を確認中：${converted}枚変換、${skipped}枚スキップ`);
+      try {
+        const res = await fetch(image.imageUrl, { cache: "no-store" });
+        if (!res.ok) throw new Error("元画像を読み込めませんでした");
+        const source = await res.blob();
+        const file = new File([source], "original" + (image.key.split(".").pop() === "png" ? ".png" : ".jpg"), { type: source.type });
+        const maxDimension = image.key.startsWith("triptych/") ? 3000 : image.key.startsWith("characters/") ? 1600 : 1400;
+        const optimized = await optimizedWebpFile(file, maxDimension);
+        if (optimized.type !== "image/webp") { skipped++; continue; }
+        const body = new FormData();
+        body.set("sourceKey", image.key);
+        body.set("image", optimized);
+        const result = await api("/api/admin/image-migration", {
+          method: "POST", body, adminToken: token, auth: false,
+        });
+        converted++;
+        saved += result.savedBytes;
+      } catch (error) {
+        skipped++;
+        progress(`${attempted}/20枚：${escapeMigrationStatus(error.message)}（処理を続行します）`);
+      }
+    }
+    if (next.images.length < 20) { state.webpCursor = ""; break; }
+  }
+  const savedMB = (saved / 1024 / 1024).toFixed(2);
+  progress(`今回：${converted}枚をWebP化、${skipped}枚スキップ／失敗。削減見込み ${savedMB}MB。残りも再度ボタンを押して変換できます。`);
+  // We intentionally keep the page and results visible rather than refreshing
+  // or claiming that images have been migrated without an admin-initiated run.
+}
+
+function escapeMigrationStatus(message) {
+  return String(message || "変換をスキップしました").slice(0, 90);
 }
 
 async function draw(noteId) {

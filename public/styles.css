@@ -340,6 +340,9 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
 .inventory-metrics span { display: block; margin-top: 3px; font-size: 10px; line-height: 1.4; color: var(--muted); }
 
 /* Admin-only progress dashboard: dense on desktop, readable on mobile. */
+.webp-admin-panel .btn { width: 100%; margin: 10px 0; }
+.webp-pending-count { margin: 10px 0 2px; font-size: 13px; color: var(--gold); }
+.webp-pending-count strong { font-size: 21px; font-variant-numeric: tabular-nums; }
 .admin-participants { scroll-margin-top: 92px; }
 .admin-participants h2 { margin-bottom: 7px; }
 .participant-summary { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin: 17px 0; }
