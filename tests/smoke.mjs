@@ -283,7 +283,8 @@ async function okFetch(path, options = {}, identity) {
 }
 
 function pngFile(name) {
-  const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const bytes = new Uint8Array(256);
+  bytes.set([137, 80, 78, 71, 13, 10, 26, 10]);
   return new File([bytes], name, { type: "image/png" });
 }
 
