@@ -10,6 +10,7 @@ const state = {
   collection: null,
   adminParticipantPage: 1,
   adminParticipantQuery: "",
+  webpCursor: "",
   busy: false,
 };
 
@@ -628,19 +629,21 @@ async function optimizeImageField(body, field, maxDimension) {
 async function runImageMigration(token) {
   const status = document.querySelector("#webp-migration-status");
   const progress = (message) => { if (status) status.textContent = message; };
-  let converted = 0, skipped = 0, attempted = 0, saved = 0, after = "";
+  let converted = 0, skipped = 0, attempted = 0, saved = 0, after = state.webpCursor;
   progress("変換対象の画像を確認しています…");
   while (attempted < 20) {
     const next = await api(`/api/admin/image-migration?after=${encodeURIComponent(after)}`, {
       adminToken: token, auth: false,
     });
     if (!next.images?.length) {
-      if (!attempted) progress("変換対象のPNG・JPEG画像はありません。");
+      state.webpCursor = "";
+      if (!attempted) progress(next.pending ? "一巡しました。圧縮できない画像が残っています。" : "すべての対象画像を確認済みです。");
       break;
     }
     for (const image of next.images) {
       if (attempted >= 20) break;
       after = image.key;
+      state.webpCursor = after;
       attempted++;
       progress(`${attempted}/20枚を確認中：${converted}枚変換、${skipped}枚スキップ`);
       try {
@@ -664,10 +667,10 @@ async function runImageMigration(token) {
         progress(`${attempted}/20枚：${escapeMigrationStatus(error.message)}（処理を続行します）`);
       }
     }
-    if (next.images.length < 20) break;
+    if (next.images.length < 20) { state.webpCursor = ""; break; }
   }
   const savedMB = (saved / 1024 / 1024).toFixed(2);
-  progress(`今回：${converted}枚をWebP化、${skipped}枚スキップ／失敗。削減見込み ${savedMB}MB。残りも次の操作で変換できます。`);
+  progress(`今回：${converted}枚をWebP化、${skipped}枚スキップ／失敗。削減見込み ${savedMB}MB。残りも再度ボタンを押して変換できます。`);
   // We intentionally keep the page and results visible rather than refreshing
   // or claiming that images have been migrated without an admin-initiated run.
 }
