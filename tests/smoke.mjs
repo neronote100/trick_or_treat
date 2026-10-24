@@ -96,6 +96,29 @@ try {
   const image = await mf.dispatchFetch(`${base}${collection.items[0].imageUrl}`);
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("content-type"), "image/png");
+  // Check a private conversion and preserve the collector's data.
+  const migrationHeaders = { "x-admin-token": "test-admin" };
+  const pendingImages = await okFetch("/api/admin/image-migration", { headers: migrationHeaders });
+  assert.equal(pendingImages.pending, 2);
+  const candySource = pendingImages.images.find((item) => item.key.startsWith("treats/"));
+  const convertedForm = new FormData();
+  convertedForm.set("sourceKey", candySource.key);
+  convertedForm.set("image", webpFile("candy.webp"));
+  const converted = await okFetch("/api/admin/image-migration", {
+    method: "POST", headers: migrationHeaders, body: convertedForm,
+  });
+  assert.ok(converted.savedBytes > 0);
+  const afterConversion = await okFetch("/api/collection", {}, visitorOnly);
+  assert.equal(afterConversion.items[0].id, collection.items[0].id);
+  assert.equal(afterConversion.items[0].obtainedCount, 1);
+  assert.ok(afterConversion.items[0].imageUrl.endsWith(".webp"));
+  const movedImage = await mf.dispatchFetch(`${base}${afterConversion.items[0].imageUrl}`);
+  assert.equal(movedImage.status, 200);
+  assert.equal(movedImage.headers.get("content-type"), "image/webp");
+  assert.equal((await okFetch("/api/admin/image-migration", {
+    headers: migrationHeaders,
+  })).pending, 1);
+
 
   // Private dashboard includes non-collectors and uses persisted draw counts.
   const noAdmin = await mf.dispatchFetch(new Request(`${base}/api/admin/participants`));
@@ -286,6 +309,11 @@ function pngFile(name) {
   const bytes = new Uint8Array(256);
   bytes.set([137, 80, 78, 71, 13, 10, 26, 10]);
   return new File([bytes], name, { type: "image/png" });
+}
+
+function webpFile(name) {
+  const bytes = Buffer.from("UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA", "base64");
+  return new File([bytes], name, { type: "image/webp" });
 }
 
 async function testHalloweenGates(db, visitor, okFetch, pngFile, mf) {
