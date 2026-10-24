@@ -84,6 +84,8 @@ async function route(request, env) {
   if (path === "/api/admin/triptych" && request.method === "POST") return adminSaveTriptych(request, env);
   if (path === "/api/admin/image-migration" && request.method === "GET") return adminListImageMigration(request, env, url);
   if (path === "/api/admin/image-migration" && request.method === "POST") return adminMigrateImage(request, env);
+  if (path === "/api/admin/image-migration/restore" && request.method === "POST") return adminRestoreMigratedImage(request, env);
+  if (path === "/api/admin/image-migration/cleanup" && request.method === "POST") return adminCleanupImageBackups(request, env);
 
   if (path.startsWith("/api/")) return json({ error: "見つかりませんでした。" }, 404);
   return env.ASSETS.fetch(request);
@@ -538,13 +540,32 @@ async function adminListImageMigration(request, env, url) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const after = url.searchParams.get("after") || "";
   if (after.length > 255) return json({ error: "画像キーが不正です。" }, 400);
-  const [pending, rows] = await Promise.all([
+  const [pending, rows, backups, recentBackups] = await Promise.all([
     env.DB.prepare(`SELECT COUNT(*) AS count ${MIGRATABLE_IMAGES_SQL}`).first(),
     env.DB.prepare(`SELECT image_key ${MIGRATABLE_IMAGES_SQL}
       AND image_key > ? ORDER BY image_key LIMIT 20`).bind(after).all(),
+    env.DB.prepare(`SELECT
+      COUNT(*) AS retained,
+      COALESCE(SUM(before_bytes), 0) AS retained_bytes,
+      COALESCE(SUM(CASE WHEN migrated_at <= datetime('now', '-24 hours') THEN 1 ELSE 0 END), 0) AS ready
+      FROM image_migration_backups`).first(),
+    env.DB.prepare(`SELECT source_key, webp_key, before_bytes, after_bytes, migrated_at
+      FROM image_migration_backups ORDER BY migrated_at DESC, source_key DESC LIMIT 10`).all(),
   ]);
   return json({
     pending: Number(pending?.count || 0),
+    backups: {
+      retained: Number(backups?.retained || 0),
+      retainedBytes: Number(backups?.retained_bytes || 0),
+      readyToCleanup: Number(backups?.ready || 0),
+      recent: recentBackups.results.map((row) => ({
+        sourceKey: row.source_key,
+        webpKey: row.webp_key,
+        beforeBytes: Number(row.before_bytes),
+        afterBytes: Number(row.after_bytes),
+        migratedAt: row.migrated_at,
+      })),
+    },
     images: rows.results.map((item) => ({
       key: item.image_key,
       imageUrl: imageUrl(item.image_key),
@@ -584,21 +605,77 @@ async function adminMigrateImage(request, env) {
   const newKey = `${folder}/${crypto.randomUUID()}.webp`;
   await env.IMAGES.put(newKey, bytes, { metadata: { contentType: "image/webp" } });
   try {
-    await env.DB.batch(IMAGE_REFERENCES.map(([table, column]) =>
-      env.DB.prepare(`UPDATE ${table} SET ${column} = ? WHERE ${column} = ?`).bind(newKey, sourceKey),
-    ));
+    // D1 operations are atomic. Log the recovery path in the same batch as
+    // every reference change; keep the original KV object for at least 24h.
+    await env.DB.batch([
+      ...IMAGE_REFERENCES.map(([table, column]) =>
+        env.DB.prepare(`UPDATE ${table} SET ${column} = ? WHERE ${column} = ?`).bind(newKey, sourceKey),
+      ),
+      env.DB.prepare(`INSERT INTO image_migration_backups
+        (source_key, webp_key, before_bytes, after_bytes) VALUES (?, ?, ?, ?)`)
+        .bind(sourceKey, newKey, beforeBytes, bytes.byteLength),
+    ]);
   } catch (error) {
     await env.IMAGES.delete(newKey).catch(() => {});
     throw error;
   }
-  // If deleting the old object fails, the DB still points to a valid WebP.
-  // Retaining an orphan is safer than deleting the new image or breaking the gallery.
-  let cleanedUp = true;
-  try { await env.IMAGES.delete(sourceKey); } catch { cleanedUp = false; }
   return json({
     ok: true, beforeBytes, afterBytes: bytes.byteLength,
-    savedBytes: beforeBytes - bytes.byteLength, cleanedUp,
+    savedBytes: beforeBytes - bytes.byteLength,
+    backupRetained: true,
   });
+}
+
+// Undo an image migration while its original KV image is retained.
+// Only a server-recorded pair can be restored: the client cannot select keys.
+async function adminRestoreMigratedImage(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const input = await readJson(request);
+  const sourceKey = String(input.sourceKey || "");
+  const backup = await env.DB.prepare(
+    "SELECT source_key, webp_key FROM image_migration_backups WHERE source_key = ?",
+  ).bind(sourceKey).first();
+  if (!backup) return json({ error: "復元可能な元画像がありません。" }, 404);
+  const [original, current] = await Promise.all([
+    env.IMAGES.get(backup.source_key, "arrayBuffer"),
+    env.DB.prepare(`SELECT image_key FROM (${ALL_IMAGE_KEYS_SQL}) WHERE image_key = ? LIMIT 1`)
+      .bind(backup.webp_key).first(),
+  ]);
+  if (!original) return json({ error: "元画像のバックアップが見つかりません。" }, 409);
+  if (!current) return json({ error: "元の画像を参照しているデータがありません。" }, 409);
+  await env.DB.batch([
+    ...IMAGE_REFERENCES.map(([table, column]) =>
+      env.DB.prepare(`UPDATE ${table} SET ${column} = ? WHERE ${column} = ?`)
+        .bind(backup.source_key, backup.webp_key),
+    ),
+    env.DB.prepare("DELETE FROM image_migration_backups WHERE source_key = ?").bind(sourceKey),
+  ]);
+  // Keep the new WebP as a harmless orphan rather than deleting something
+  // clients may still be requesting during KV's eventual-consistency window.
+  return json({ ok: true, restored: sourceKey });
+}
+
+// Backups are removed only after the propagation grace period, and only if no
+// live DB reference points to the original. One operation handles one image.
+async function adminCleanupImageBackups(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const candidate = await env.DB.prepare(`
+    SELECT source_key, webp_key FROM image_migration_backups
+    WHERE migrated_at <= datetime('now', '-24 hours')
+    ORDER BY migrated_at, source_key LIMIT 1
+  `).first();
+  if (!candidate) return json({ cleaned: 0, message: "24時間を経過したバックアップはありません。" });
+  const referenced = await env.DB.prepare(
+    `SELECT image_key FROM (${ALL_IMAGE_KEYS_SQL}) WHERE image_key = ? LIMIT 1`,
+  ).bind(candidate.source_key).first();
+  if (referenced) return json({ error: "元画像がまだ使用中のため削除できません。" }, 409);
+  // New WebP must still exist before removing the only original.
+  const newImage = await env.IMAGES.get(candidate.webp_key, "arrayBuffer");
+  if (!newImage) return json({ error: "変換済み画像を確認できないため元画像を保持します。" }, 409);
+  await env.IMAGES.delete(candidate.source_key);
+  await env.DB.prepare("DELETE FROM image_migration_backups WHERE source_key = ?")
+    .bind(candidate.source_key).run();
+  return json({ cleaned: 1, oldKey: candidate.source_key });
 }
 
 async function adminApproveShop(request, env, shopId) {
@@ -895,7 +972,17 @@ async function serveShopPage(request, env, noteIdRaw) {
 
 async function serveImage(path, env) {
   const key = path.slice("/images/".length).split("/").map(decodeURIComponent).join("/");
-  const object = await env.IMAGES.getWithMetadata(key, { type: "arrayBuffer" });
+  let object = await env.IMAGES.getWithMetadata(key, { type: "arrayBuffer" });
+  if (!object.value && key.endsWith(".webp")) {
+    // KV keys may take 60s+ to reach every edge. During this propagation
+    // window the retained original can still satisfy the image request.
+    const migration = await env.DB.prepare(
+      "SELECT source_key FROM image_migration_backups WHERE webp_key = ?",
+    ).bind(key).first();
+    if (migration) {
+      object = await env.IMAGES.getWithMetadata(migration.source_key, { type: "arrayBuffer" });
+    }
+  }
   if (!object.value) return new Response("Not found", { status: 404, headers: securityHeaders() });
   const headers = securityHeaders();
   headers.set("content-type", object.metadata?.contentType || "application/octet-stream");
@@ -995,6 +1082,13 @@ function ensureDatabase(env) {
         center_image_key TEXT NOT NULL,
         right_image_key TEXT NOT NULL,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS image_migration_backups (
+        source_key TEXT PRIMARY KEY,
+        webp_key TEXT NOT NULL UNIQUE,
+        before_bytes INTEGER NOT NULL,
+        after_bytes INTEGER NOT NULL,
+        migrated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`,
       "CREATE INDEX IF NOT EXISTS idx_shops_status ON shops(status)",
       "CREATE INDEX IF NOT EXISTS idx_treats_shop_active ON treats(shop_id, is_active)",

@@ -115,9 +115,64 @@ try {
   const movedImage = await mf.dispatchFetch(`${base}${afterConversion.items[0].imageUrl}`);
   assert.equal(movedImage.status, 200);
   assert.equal(movedImage.headers.get("content-type"), "image/webp");
+  const backupOverview = await okFetch("/api/admin/image-migration", {
+    headers: migrationHeaders,
+  });
+  assert.equal(backupOverview.pending, 1);
+  assert.equal(backupOverview.backups.retained, 1);
+  assert.equal(backupOverview.backups.readyToCleanup, 0);
+  assert.equal(converted.backupRetained, true);
+  const originalStillExists = await mf.dispatchFetch(`${base}${candySource.imageUrl}`);
+  assert.equal(originalStillExists.status, 200, "Original image remains during the recovery window");
+  const unauthorizedRestore = await mf.dispatchFetch(new Request(`${base}/api/admin/image-migration/restore`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ sourceKey: candySource.key }),
+  }));
+  assert.equal(unauthorizedRestore.status, 401);
+  const unauthorizedCleanup = await mf.dispatchFetch(new Request(`${base}/api/admin/image-migration/cleanup`, {
+    method: "POST",
+  }));
+  assert.equal(unauthorizedCleanup.status, 401);
+  const cannotCleanupYet = await okFetch("/api/admin/image-migration/cleanup", {
+    method: "POST", headers: migrationHeaders,
+  });
+  assert.equal(cannotCleanupYet.cleaned, 0, "Cleanup must wait 24h");
+  const restored = await okFetch("/api/admin/image-migration/restore", {
+    method: "POST", headers: {
+      ...migrationHeaders,
+      "content-type": "application/json",
+    }, body: JSON.stringify({ sourceKey: candySource.key }),
+  });
+  assert.equal(restored.ok, true);
+  assert.equal((await okFetch("/api/collection", {}, visitorOnly)).items[0].imageUrl, collection.items[0].imageUrl);
   assert.equal((await okFetch("/api/admin/image-migration", {
     headers: migrationHeaders,
-  })).pending, 1);
+  })).backups.retained, 0);
+  // Restoring a second time is harmlessly rejected.
+  const secondRestore = await mf.dispatchFetch(new Request(`${base}/api/admin/image-migration/restore`, {
+    method: "POST", headers: { ...migrationHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ sourceKey: candySource.key }),
+  }));
+  assert.equal(secondRestore.status, 404);
+  // Migrate again and test deliberate cleanup after the grace period.
+  await okFetch("/api/admin/image-migration", {
+    method: "POST", headers: migrationHeaders, body: convertedForm,
+  });
+  await db.prepare(
+    "UPDATE image_migration_backups SET migrated_at = datetime('now', '-25 hours') WHERE source_key = ?",
+  ).bind(candySource.key).run();
+  const purged = await okFetch("/api/admin/image-migration/cleanup", {
+    method: "POST", headers: migrationHeaders,
+  });
+  assert.equal(purged.cleaned, 1);
+  const originalAfterPurge = await mf.dispatchFetch(`${base}${candySource.imageUrl}`);
+  assert.equal(originalAfterPurge.status, 404);
+  const finalCandy = await okFetch("/api/collection", {}, visitorOnly);
+  assert.ok(finalCandy.items[0].imageUrl.endsWith(".webp"));
+  assert.equal((await mf.dispatchFetch(`${base}${finalCandy.items[0].imageUrl}`)).status, 200);
+  assert.equal((await okFetch("/api/admin/image-migration", {
+    headers: migrationHeaders,
+  })).backups.retained, 0);
 
 
   // Private dashboard includes non-collectors and uses persisted draw counts.
