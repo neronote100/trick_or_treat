@@ -455,6 +455,20 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile, mf) {
   assert.ok(admin.triptychArtwork.leftImageUrl);
   assert.ok(admin.triptychArtwork.centerImageUrl);
   assert.ok(admin.triptychArtwork.rightImageUrl);
+  // A secret panel also powers a gate reward: migrate both references.
+  const possiblePieces = await okFetch("/api/admin/image-migration", { headers: adminHeaders });
+  const piece = possiblePieces.images.find((entry) => entry.imageUrl === admin.triptychArtwork.leftImageUrl);
+  assert.ok(piece, "Triptych panel is eligible");
+  const pieceForm = new FormData();
+  pieceForm.set("sourceKey", piece.key);
+  pieceForm.set("image", webpFile("panel.webp"));
+  await okFetch("/api/admin/image-migration", { method: "POST", body: pieceForm, headers: adminHeaders });
+  const afterPanelConversion = await okFetch("/api/admin/shops", { headers: adminHeaders });
+  assert.ok(afterPanelConversion.triptychArtwork.leftImageUrl.endsWith(".webp"));
+  assert.equal(afterPanelConversion.triptychArtwork.leftImageUrl,
+    afterPanelConversion.rewardSlots.find((entry) => entry.requiredShopCount === 10).imageUrl,
+    "Reward image and triptych panel stay in sync");
+
   assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 20), true);
   assert.equal(admin.rewardSlots.some((reward) => reward.requiredShopCount === 30), true);
   // With 100 new owners, a page returns at most 25 rows and search stays admin-only.
