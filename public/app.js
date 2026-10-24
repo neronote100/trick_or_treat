@@ -371,6 +371,16 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
         <p class="webp-pending-count">WebP化の対象：<strong>${migration.pending.toLocaleString("ja-JP")}枚</strong></p>
         <button class="btn btn-secondary" data-action="migrate-webp" data-token="${escapeAttr(token)}" type="button" ${migration.pending ? "" : "disabled"}>既存画像を20枚まで軽量化する</button>
         <p class="subtle" id="webp-migration-status" role="status">無料枠への負担を抑えるため、1回20枚まで・順番に処理します。元画像より大きくなる場合は変換しません。</p>
+        <div class="webp-backups">
+          <h3>元画像のバックアップ</h3>
+          <p class="subtle">一時保存中：${migration.backups.retained}枚（${(migration.backups.retainedBytes / 1024 / 1024).toFixed(1)}MB）。元画像は変換後24時間以上保持し、手動で整理するまで削除しません。</p>
+          ${migration.backups.recent.map((backup) => `<div class="webp-backup-item">
+            <span><strong>${escapeHtml(backup.sourceKey)}</strong><small>${escapeHtml(backup.migratedAt)} · ${(backup.beforeBytes / 1024 / 1024).toFixed(2)}MB → ${(backup.afterBytes / 1024 / 1024).toFixed(2)}MB</small></span>
+            <button class="btn btn-secondary" data-action="restore-webp" data-token="${escapeAttr(token)}" data-source-key="${escapeAttr(backup.sourceKey)}" type="button">元に戻す</button>
+          </div>`).join("")}
+          <button class="btn btn-secondary" data-action="cleanup-webp" data-token="${escapeAttr(token)}" type="button" ${migration.backups.readyToCleanup ? "" : "disabled"}>24時間以上経過したバックアップを1枚整理</button>
+          <p class="subtle">整理可能：${migration.backups.readyToCleanup}枚。先にWebP画像が保存されていることと、元画像が使用されていないことを確認します。</p>
+        </div>
       </section>
       <div class="panel triptych-admin-panel">
         <p class="eyebrow">3-PANEL SECRET ART</p>
@@ -481,11 +491,29 @@ async function handleClick(event) {
   if (action === "logout") return logout();
   if (action === "share") return copyText(new URL(button.dataset.path, location.origin).href, "URLをコピーしました");
 
-  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp"].includes(action);
+  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "restore-webp", "cleanup-webp"].includes(action);
   if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
     if (action === "migrate-webp") await runImageMigration(button.dataset.token);
+    if (action === "restore-webp") {
+      if (!confirm("この画像を元のPNG/JPEGへ戻しますか？")) return;
+      await api("/api/admin/image-migration/restore", {
+        method: "POST", body: JSON.stringify({ sourceKey: button.dataset.sourceKey }),
+        headers: { "content-type": "application/json" },
+        adminToken: button.dataset.token, auth: false,
+      });
+      notify("元画像へ戻しました");
+      await showAdmin(button.dataset.token);
+    }
+    if (action === "cleanup-webp") {
+      if (!confirm("24時間以上経過し、WebPが正常に表示されるバックアップを1枚削除します。よろしいですか？")) return;
+      const result = await api("/api/admin/image-migration/cleanup", {
+        method: "POST", adminToken: button.dataset.token, auth: false,
+      });
+      notify(result.cleaned ? "古い画像を1枚整理しました" : "整理対象がありません");
+      await showAdmin(button.dataset.token);
+    }
     if (action === "participant-page") {
       await showAdmin(button.dataset.token, Number(button.dataset.page), state.adminParticipantQuery);
       document.querySelector("#admin-participants")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -670,7 +698,7 @@ async function runImageMigration(token) {
     if (next.images.length < 20) { state.webpCursor = ""; break; }
   }
   const savedMB = (saved / 1024 / 1024).toFixed(2);
-  progress(`今回：${converted}枚をWebP化、${skipped}枚スキップ／失敗。削減見込み ${savedMB}MB。残りも再度ボタンを押して変換できます。`);
+  progress(`今回：${converted}枚をWebP化、${skipped}枚スキップ／失敗。軽量化分 ${savedMB}MB。元画像はバックアップとして保持中で、実際の保存容量の削減は整理後です。`);
   // We intentionally keep the page and results visible rather than refreshing
   // or claiming that images have been migrated without an admin-initiated run.
 }
