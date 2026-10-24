@@ -972,7 +972,17 @@ async function serveShopPage(request, env, noteIdRaw) {
 
 async function serveImage(path, env) {
   const key = path.slice("/images/".length).split("/").map(decodeURIComponent).join("/");
-  const object = await env.IMAGES.getWithMetadata(key, { type: "arrayBuffer" });
+  let object = await env.IMAGES.getWithMetadata(key, { type: "arrayBuffer" });
+  if (!object.value && key.endsWith(".webp")) {
+    // KV keys may take 60s+ to reach every edge. During this propagation
+    // window the retained original can still satisfy the image request.
+    const migration = await env.DB.prepare(
+      "SELECT source_key FROM image_migration_backups WHERE webp_key = ?",
+    ).bind(key).first();
+    if (migration) {
+      object = await env.IMAGES.getWithMetadata(migration.source_key, { type: "arrayBuffer" });
+    }
+  }
   if (!object.value) return new Response("Not found", { status: 404, headers: securityHeaders() });
   const headers = securityHeaders();
   headers.set("content-type", object.metadata?.contentType || "application/octet-stream");
