@@ -456,7 +456,7 @@ async function testHalloweenGates(db, visitor, okFetch, pngFile, mf) {
   assert.ok(admin.triptychArtwork.centerImageUrl);
   assert.ok(admin.triptychArtwork.rightImageUrl);
   // A secret panel also powers a gate reward: migrate both references.
-  const possiblePieces = await okFetch("/api/admin/image-migration", { headers: adminHeaders });
+  const possiblePieces = await okFetch("/api/admin/image-migration?after=triptych%2F", { headers: adminHeaders });
   const piece = possiblePieces.images.find((entry) => entry.imageUrl === admin.triptychArtwork.leftImageUrl);
   assert.ok(piece, "Triptych panel is eligible");
   const pieceForm = new FormData();
