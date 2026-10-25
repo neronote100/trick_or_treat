@@ -1,3 +1,5 @@
+import { processWebpMigration, WEBP_BULK_SAFETY_LIMIT } from "./webp-bulk.js";
+
 const app = document.querySelector("#app");
 const overlay = document.querySelector("#overlay");
 const toast = document.querySelector("#toast");
@@ -10,7 +12,8 @@ const state = {
   collection: null,
   adminParticipantPage: 1,
   adminParticipantQuery: "",
-  webpCursor: "",
+  webpMigrationRunning: false,
+  webpStopRequested: false,
   busy: false,
 };
 
@@ -367,10 +370,16 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
         <p class="eyebrow">STORAGE OPTIMIZATION</p>
         <h2>🖼️ 既存画像のWebP軽量化</h2>
         <p class="subtle">PNG・JPEGの登録済み画像をWebPに変換して置き換えます。お菓子、店舗キャラクター、特別報酬が対象。GIF・既存WebPはそのままです。</p>
-        <p class="subtle">図鑑の記録と画像の関連付けは維持します。処理できた画像だけ新しいキーに切り替え、元画像はその後で削除します。</p>
+        <p class="subtle">図鑑の記録と画像の関連付けは維持します。変換後の画像へ参照先を切り替え、元画像は24時間以上バックアップとして保持します。</p>
         <p class="webp-pending-count">WebP化の対象：<strong>${migration.pending.toLocaleString("ja-JP")}枚</strong></p>
-        <button class="btn btn-secondary" data-action="migrate-webp" data-token="${escapeAttr(token)}" type="button" ${migration.pending ? "" : "disabled"}>既存画像を20枚まで軽量化する</button>
-        <p class="subtle" id="webp-migration-status" role="status">無料枠への負担を抑えるため、1回20枚まで・順番に処理します。元画像より大きくなる場合は変換しません。</p>
+        <button class="btn btn-primary" data-action="migrate-webp-all" data-token="${escapeAttr(token)}" type="button" ${migration.pending ? "" : "disabled"}>残りをまとめてWebP化する</button>
+        <p class="subtle">1回の操作で最大${WEBP_BULK_SAFETY_LIMIT}枚を自動処理します。Cloudflare無料枠を守るため上限で安全停止します。PNGより重くなる画像やGIFは変換しません。</p>
+        <div class="webp-migration-actions">
+          <button class="btn btn-secondary" data-action="migrate-webp" data-token="${escapeAttr(token)}" type="button" ${migration.pending ? "" : "disabled"}>20枚だけ試す</button>
+          <button class="btn btn-secondary" data-action="stop-webp" type="button" disabled>途中停止</button>
+        </div>
+        <progress class="webp-bulk-progress" id="webp-progress" max="${Math.max(1, Math.min(migration.pending, WEBP_BULK_SAFETY_LIMIT))}" value="0" aria-label="WebP変換の進行状況" hidden></progress>
+        <p class="subtle" id="webp-migration-status" role="status">スマホの場合も、この画面を開いた状態で変換してください。画像を1枚ずつ安全に更新します。</p>
         <div class="webp-backups">
           <h3>元画像のバックアップ</h3>
           <p class="subtle">一時保存中：${migration.backups.retained}枚（${(migration.backups.retainedBytes / 1024 / 1024).toFixed(1)}MB）。元画像は変換後24時間以上保持し、手動で整理するまで削除しません。</p>
@@ -491,11 +500,20 @@ async function handleClick(event) {
   if (action === "logout") return logout();
   if (action === "share") return copyText(new URL(button.dataset.path, location.origin).href, "URLをコピーしました");
 
-  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "restore-webp", "cleanup-webp"].includes(action);
+  if (action === "stop-webp") {
+    state.webpStopRequested = true;
+    button.disabled = true;
+    return;
+  }
+  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "migrate-webp-all", "restore-webp", "cleanup-webp"].includes(action);
   if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
-    if (action === "migrate-webp") await runImageMigration(button.dataset.token);
+    if (action === "migrate-webp") await runImageMigration(button.dataset.token, false);
+    if (action === "migrate-webp-all") {
+      if (!confirm("残りの画像を最大300枚まで連続してWebP化します。元画像は24時間以上保管されます。変換中は管理画面を開いておいてください。開始しますか？")) return;
+      await runImageMigration(button.dataset.token, true);
+    }
     if (action === "restore-webp") {
       if (!confirm("この画像を元のPNG/JPEGへ戻しますか？")) return;
       await api("/api/admin/image-migration/restore", {
@@ -654,53 +672,84 @@ async function optimizeImageField(body, field, maxDimension) {
   if (output !== original) body.set(field, output);
 }
 
-async function runImageMigration(token) {
+async function runImageMigration(token, all = false) {
+  if (state.webpMigrationRunning) return;
+  state.webpMigrationRunning = true;
+  state.webpStopRequested = false;
   const status = document.querySelector("#webp-migration-status");
-  const progress = (message) => { if (status) status.textContent = message; };
-  let converted = 0, skipped = 0, attempted = 0, saved = 0, after = state.webpCursor;
-  progress("変換対象の画像を確認しています…");
-  while (attempted < 20) {
-    const next = await api(`/api/admin/image-migration?after=${encodeURIComponent(after)}`, {
-      adminToken: token, auth: false,
-    });
-    if (!next.images?.length) {
-      state.webpCursor = "";
-      if (!attempted) progress(next.pending ? "一巡しました。圧縮できない画像が残っています。" : "すべての対象画像を確認済みです。");
-      break;
-    }
-    for (const image of next.images) {
-      if (attempted >= 20) break;
-      after = image.key;
-      state.webpCursor = after;
-      attempted++;
-      progress(`${attempted}/20枚を確認中：${converted}枚変換、${skipped}枚スキップ`);
-      try {
-        const res = await fetch(image.imageUrl, { cache: "no-store" });
-        if (!res.ok) throw new Error("元画像を読み込めませんでした");
-        const source = await res.blob();
-        const file = new File([source], "original" + (image.key.split(".").pop() === "png" ? ".png" : ".jpg"), { type: source.type });
-        const maxDimension = image.key.startsWith("triptych/") ? 3000 : image.key.startsWith("characters/") ? 1600 : 1400;
-        const optimized = await optimizedWebpFile(file, maxDimension);
-        if (optimized.type !== "image/webp") { skipped++; continue; }
-        const body = new FormData();
-        body.set("sourceKey", image.key);
-        body.set("image", optimized);
-        const result = await api("/api/admin/image-migration", {
-          method: "POST", body, adminToken: token, auth: false,
-        });
-        converted++;
-        saved += result.savedBytes;
-      } catch (error) {
-        skipped++;
-        progress(`${attempted}/20枚：${escapeMigrationStatus(error.message)}（処理を続行します）`);
-      }
-    }
-    if (next.images.length < 20) { state.webpCursor = ""; break; }
+  const bar = document.querySelector("#webp-progress");
+  const allButtons = document.querySelectorAll('[data-action="migrate-webp"], [data-action="migrate-webp-all"]');
+  const stopButton = document.querySelector('[data-action="stop-webp"]');
+  const progressText = (message) => {
+    if (status?.isConnected) status.textContent = message;
+  };
+  allButtons.forEach((button) => { button.disabled = true; });
+  if (stopButton) stopButton.disabled = false;
+  if (bar) {
+    bar.hidden = false;
+    bar.value = 0;
   }
-  const savedMB = (saved / 1024 / 1024).toFixed(2);
-  progress(`今回：${converted}枚をWebP化、${skipped}枚スキップ／失敗。軽量化分 ${savedMB}MB。元画像はバックアップとして保持中で、実際の保存容量の削減は整理後です。`);
-  // We intentionally keep the page and results visible rather than refreshing
-  // or claiming that images have been migrated without an admin-initiated run.
+  try {
+    progressText("既存画像を確認しています…");
+    const result = await processWebpMigration({
+      maxAttempts: all ? WEBP_BULK_SAFETY_LIMIT : 20,
+      shouldStop: () => state.webpStopRequested,
+      listImages: (after) => api(`/api/admin/image-migration?after=${encodeURIComponent(after)}`, {
+        adminToken: token, auth: false,
+      }),
+      migrateOne: async (image) => {
+        const response = await fetch(image.imageUrl, { cache: "no-store" });
+        if (!response.ok) {
+          const error = new Error("元画像を読み込めませんでした");
+          error.status = response.status;
+          throw error;
+        }
+        const original = await response.blob();
+        const filename = "original" + (image.key.toLowerCase().endsWith(".png") ? ".png" : ".jpg");
+        const file = new File([original], filename, { type: original.type });
+        const maxDimension = image.key.startsWith("triptych/") ? 3000
+          : image.key.startsWith("characters/") ? 1600 : 1400;
+        const webp = await optimizedWebpFile(file, maxDimension);
+        if (webp.type !== "image/webp") {
+          return { migrated: false, reason: "WebPでは元画像より小さくならない画像をスキップ" };
+        }
+        const form = new FormData();
+        form.set("sourceKey", image.key);
+        form.set("image", webp);
+        try {
+          const outcome = await api("/api/admin/image-migration", {
+            method: "POST", body: form, adminToken: token, auth: false,
+          });
+          return { migrated: true, savedBytes: outcome.savedBytes || 0 };
+        } catch (error) {
+          if ([409, 422].includes(error.status)) {
+            return { migrated: false, reason: error.message };
+          }
+          throw error;
+        }
+      },
+      onProgress: ({ attempted, converted, skipped, failed, savedBytes, initialPending, maxAttempts }) => {
+        if (bar?.isConnected) {
+          bar.max = Math.max(1, Math.min(initialPending || maxAttempts, maxAttempts));
+          bar.value = attempted;
+        }
+        progressText(`${attempted}/${Math.min(initialPending || maxAttempts, maxAttempts)}枚を確認 ・ WebP化${converted}枚 ・ スキップ${skipped}枚 ・ エラー${failed}枚 ・ 軽量化分${(savedBytes / 1024 / 1024).toFixed(2)}MB`);
+      },
+    });
+    const remainingText = result.remaining === null ? "不明" : result.remaining + "枚";
+    const reason = result.stoppedReason === "paused" ? "途中停止しました"
+      : result.stoppedReason === "server-error" ? "サーバー側の制限またはエラーを検知し、安全停止しました"
+      : result.stoppedReason === "safety-limit" ? "無料枠保護のため1回の安全上限に達しました"
+      : "候補画像を一通り確認しました";
+    progressText(`${reason}。WebP化${result.converted}枚、スキップ${result.skipped}枚、エラー${result.failed}枚。容量差${(result.savedBytes / 1024 / 1024).toFixed(2)}MB。未変換${remainingText}。元画像はバックアップ保持中です。${result.issues.length ? " 詳細：" + result.issues.slice(0, 2).join("／") : ""}`);
+    const count = document.querySelector(".webp-pending-count strong");
+    if (count?.isConnected && result.remaining !== null) count.textContent = result.remaining.toLocaleString("ja-JP") + "枚";
+  } finally {
+    state.webpMigrationRunning = false;
+    state.webpStopRequested = false;
+    if (stopButton?.isConnected) stopButton.disabled = true;
+    allButtons.forEach((button) => { if (button.isConnected) button.disabled = false; });
+  }
 }
 
 function escapeMigrationStatus(message) {
@@ -785,6 +834,7 @@ async function api(path, options = {}) {
   if (!response.ok) {
     const error = new Error(data.error || "処理に失敗しました。");
     error.code = data.code;
+    error.status = response.status;
     throw error;
   }
   return data;
