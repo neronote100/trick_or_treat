@@ -18,6 +18,11 @@ const state = {
 };
 
 window.addEventListener("hashchange", renderRoute);
+window.addEventListener("beforeunload", (event) => {
+  if (!state.webpMigrationRunning) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 document.querySelector("#account-button").addEventListener("click", openAccount);
 document.addEventListener("submit", handleSubmit);
 document.addEventListener("click", handleClick);
@@ -387,8 +392,8 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
             <span><strong>${escapeHtml(backup.sourceKey)}</strong><small>${escapeHtml(backup.migratedAt)} · ${(backup.beforeBytes / 1024 / 1024).toFixed(2)}MB → ${(backup.afterBytes / 1024 / 1024).toFixed(2)}MB</small></span>
             <button class="btn btn-secondary" data-action="restore-webp" data-token="${escapeAttr(token)}" data-source-key="${escapeAttr(backup.sourceKey)}" type="button">元に戻す</button>
           </div>`).join("")}
-          <button class="btn btn-secondary" data-action="cleanup-webp" data-token="${escapeAttr(token)}" type="button" ${migration.backups.readyToCleanup ? "" : "disabled"}>24時間以上経過したバックアップを1枚整理</button>
-          <p class="subtle">整理可能：${migration.backups.readyToCleanup}枚。先にWebP画像が保存されていることと、元画像が使用されていないことを確認します。</p>
+          <button class="btn btn-secondary" data-action="cleanup-webp-all" data-token="${escapeAttr(token)}" type="button" ${migration.backups.readyToCleanup ? "" : "disabled"}>24時間以上経過した元画像をまとめて整理する</button>
+          <p class="subtle" id="webp-cleanup-status" role="status">整理可能：${migration.backups.readyToCleanup}枚。1回最大300枚、元画像が使われていないことを検証してから削除します。</p>
         </div>
       </section>
       <div class="panel triptych-admin-panel">
@@ -505,7 +510,7 @@ async function handleClick(event) {
     button.disabled = true;
     return;
   }
-  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "migrate-webp-all", "restore-webp", "cleanup-webp"].includes(action);
+  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "migrate-webp-all", "restore-webp", "cleanup-webp-all"].includes(action);
   if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
@@ -524,13 +529,9 @@ async function handleClick(event) {
       notify("元画像へ戻しました");
       await showAdmin(button.dataset.token);
     }
-    if (action === "cleanup-webp") {
-      if (!confirm("24時間以上経過し、WebPが正常に表示されるバックアップを1枚削除します。よろしいですか？")) return;
-      const result = await api("/api/admin/image-migration/cleanup", {
-        method: "POST", adminToken: button.dataset.token, auth: false,
-      });
-      notify(result.cleaned ? "古い画像を1枚整理しました" : "整理対象がありません");
-      await showAdmin(button.dataset.token);
+    if (action === "cleanup-webp-all") {
+      if (!confirm("WebP移行後24時間以上経過した元画像を、最大300枚まで一括整理します。元画像は削除すると復元できません。画像が表示できていることを確認済みですか？")) return;
+      await runBulkBackupCleanup(button.dataset.token);
     }
     if (action === "participant-page") {
       await showAdmin(button.dataset.token, Number(button.dataset.page), state.adminParticipantQuery);
@@ -749,6 +750,38 @@ async function runImageMigration(token, all = false) {
     state.webpStopRequested = false;
     if (stopButton?.isConnected) stopButton.disabled = true;
     allButtons.forEach((button) => { if (button.isConnected) button.disabled = false; });
+  }
+}
+
+async function runBulkBackupCleanup(token) {
+  if (state.webpMigrationRunning) return;
+  state.webpMigrationRunning = true;
+  state.webpStopRequested = false;
+  const status = document.querySelector("#webp-cleanup-status");
+  const allButtons = document.querySelectorAll('[data-action="migrate-webp"], [data-action="migrate-webp-all"], [data-action="cleanup-webp-all"]');
+  const stopButton = document.querySelector('[data-action="stop-webp"]');
+  allButtons.forEach((button) => { button.disabled = true; });
+  if (stopButton) stopButton.disabled = false;
+  let cleaned = 0, finalMessage = "";
+  try {
+    for (; cleaned < WEBP_BULK_SAFETY_LIMIT && !state.webpStopRequested;) {
+      const result = await api("/api/admin/image-migration/cleanup", {
+        method: "POST", adminToken: token, auth: false,
+      });
+      if (!result.cleaned) break;
+      cleaned++;
+      if (status?.isConnected) status.textContent = `古い画像を${cleaned}枚整理しました。削除前にWebPの存在とDB参照を確認しています。`;
+    }
+    finalMessage = state.webpStopRequested ? "途中停止しました" :
+      cleaned >= WEBP_BULK_SAFETY_LIMIT ? "安全上限に達して停止しました" : "整理可能な元画像をすべて確認しました";
+  } catch (error) {
+    finalMessage = "安全のため停止しました：" + String(error.message || "エラー").slice(0, 90);
+  } finally {
+    state.webpMigrationRunning = false;
+    state.webpStopRequested = false;
+    if (stopButton?.isConnected) stopButton.disabled = true;
+    allButtons.forEach((button) => { if (button.isConnected) button.disabled = false; });
+    if (status?.isConnected) status.textContent = `${finalMessage}。今回の削除：${cleaned}枚。残り件数は管理画面の再表示で更新されます。`;
   }
 }
 
