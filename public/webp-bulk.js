@@ -64,11 +64,13 @@ export async function processWebpMigration({
     if (stoppedReason !== "completed") break;
     if (images.length < pageSize) break;
   }
-  if (stoppedReason === "completed" && attempted >= maxAttempts) stoppedReason = "safety-limit";
   // Re-query to report the actual remaining total including uncompressible
   // images, without suggesting that all PNGs have been transformed.
   let remaining = null;
   try { remaining = Number((await listImages("")).pending || 0); } catch { /* retain the task result */ }
+  if (stoppedReason === "completed" && attempted >= maxAttempts && remaining !== 0) {
+    stoppedReason = "safety-limit";
+  }
   return {
     attempted, converted, skipped, failed, savedBytes, initialPending,
     remaining, stoppedReason, issues,
