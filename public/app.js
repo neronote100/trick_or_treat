@@ -360,9 +360,9 @@ function lastLetterBoard(card, reveal, preview = false) {
         ${image}
       </div>
       <div class="last-letter-face last-letter-back">
-        <span class="last-letter-number">MEMORY ${String(card.slot).padStart(2, "0")}</span>
-        <strong>${LAST_LETTER_REVERSE[card.slot - 1]}</strong>
-        <span class="last-letter-back-mark">✦ THANK YOU ✦</span>
+        ${found && card.backImageUrl
+          ? `<img class="last-letter-finished-art" src="${escapeAttr(card.backImageUrl)}" loading="lazy" alt="${escapeAttr(creator)}の裏面イラスト">`
+          : `<div class="last-letter-reverse-placeholder">裏面イラスト<br>準備中</div>`}
       </div>
     </div>
     <div class="last-letter-creator">${escapeHtml(creator)}</div>
@@ -378,10 +378,10 @@ function lastLetterStage(cards, isComplete, preview = false, finale = null) {
   const specialArt = finale?.imageUrl
     ? `<div class="last-letter-final-frame">
         <img class="last-letter-final-art" src="${escapeAttr(finale.imageUrl)}" loading="eager" alt="ハロハロ・ラストレターの特別な最後のイラスト">
-        <div class="last-letter-final-overlay">
-          <h2>${escapeHtml(finale.headline || "遊んでくれてありがとう✨")}</h2>
-          ${finale.subMessage ? `<p>${escapeHtml(finale.subMessage)}</p>` : ""}
-        </div>
+      </div>
+      <div class="last-letter-final-message">
+        <h2>${escapeHtml(finale.headline || "遊んでくれてありがとう✨")}</h2>
+        ${finale.subMessage ? `<p>${escapeHtml(finale.subMessage)}</p>` : ""}
       </div>`
     : `<div class="last-letter-final-missing">最後の特別イラストは準備中です🌙</div>`;
   return `<div id="last-letter-stage" class="last-letter-stage ${isComplete ? "is-complete" : ""}">
@@ -393,7 +393,6 @@ function lastLetterStage(cards, isComplete, preview = false, finale = null) {
         <div class="last-letter-final-sparkles" aria-hidden="true">✦ ✧ ✨ 🍬 ✨ ✧ ✦</div>
         <div class="last-letter-final-content">
           ${specialArt}
-          <p class="last-letter-final-thanks">7人の想いと、あなたの冒険がひとつになりました。ありがとう！ 🎃🌙</p>
         </div>
       </div>
     </div>` : ""}
@@ -407,7 +406,7 @@ function renderLastLetterAdmin(data, token) {
     <p class="subtle">7人がそれぞれ「みんなの思い出」の1文字を持つ、ハロウィンの最後の企画。7文字を集めた人だけが、ボード裏の「ありがとう」に出会えます。</p>
     <p class="last-letter-admin-status">${data.published ? "🟢 公開中" : "🌙 準備中・参加者には非公開"}　・　文字を集めた参加者 ${data.participants} ID</p>
     ${!data.initialized ? `<button class="btn btn-primary" type="button" data-action="init-last-letter" data-token="${escapeAttr(token)}">7人分の専用URLを発行する</button>` : `
-      <p class="subtle">7人の担当文字とURLは固定です。キャラクターが1文字入りの正方形ボードを持っている<strong>完成イラスト</strong>を、1人につき1枚登録してください。収集ページでは画像全体をそのまま表示します。</p>
+      <p class="subtle">7人の担当文字とURLは固定です。1人につき<strong>表面と裏面それぞれ1枚（合計14枚）</strong>の正方形WebPを登録してください。最後の1枚だけ4:5です。画像は切り抜かずそのまま表示します。</p>
       <div class="last-letter-admin-slots">${data.slots.map((slot) => `
         <form class="last-letter-slot-form" data-form="last-letter-slot" data-token="${escapeAttr(token)}">
           <input type="hidden" name="slot" value="${slot.slot}">
@@ -415,12 +414,22 @@ function renderLastLetterAdmin(data, token) {
             <span class="last-letter-slot-letter">${escapeHtml(slot.letter)}</span>
             <div><strong>${slot.slot}人目のクリエイター</strong><small>「${escapeHtml(slot.letter)}」のボードを持った完成イラスト</small></div>
           </div>
-          ${slot.characterImageUrl ? `<img class="last-letter-admin-image" src="${escapeAttr(slot.characterImageUrl)}" alt="登録済みの完成ボードイラスト">` : `<div class="last-letter-admin-empty">完成イラスト未登録</div>`}
+          <div class="last-letter-admin-pair">
+            <div class="last-letter-admin-side">
+              <strong>表面（1:1）</strong>
+              ${slot.characterImageUrl ? `<img class="last-letter-admin-image" src="${escapeAttr(slot.characterImageUrl)}" alt="${slot.slot}人目の登録済み表面イラスト">` : `<div class="last-letter-admin-empty">表面未登録</div>`}
+            </div>
+            <div class="last-letter-admin-side">
+              <strong>裏面（1:1）</strong>
+              ${slot.backImageUrl ? `<img class="last-letter-admin-image" src="${escapeAttr(slot.backImageUrl)}" alt="${slot.slot}人目の登録済み裏面イラスト">` : `<div class="last-letter-admin-empty">裏面未登録</div>`}
+            </div>
+          </div>
           <label class="field"><span>表示する名前</span><input name="creatorName" required maxlength="50" value="${escapeAttr(slot.creatorName)}" placeholder="例：ネロ王子"></label>
           <label class="field"><span>note ID（任意）</span><input name="creatorNoteId" maxlength="32" value="${escapeAttr(slot.creatorNoteId)}" placeholder="nero_notelover"></label>
-          <label class="field"><span>完成イラスト・WebP（5MBまで）</span><input name="image" type="file" accept="image/webp,.webp"></label>
-          <p class="subtle last-letter-upload-hint">推奨：1024×1024px／正方形。イラスト内に「${escapeHtml(slot.letter)}」を入れてください。画像は切り抜かずそのまま表示します。</p>
-          <button class="btn btn-secondary" type="submit">この完成イラストを登録・保存</button>
+          <label class="field"><span>表面の完成イラスト・WebP（1:1／5MBまで）</span><input name="image" type="file" accept="image/webp,.webp"></label>
+          <label class="field"><span>裏面の完成イラスト・WebP（1:1／5MBまで）</span><input name="backImage" type="file" accept="image/webp,.webp"></label>
+          <p class="subtle last-letter-upload-hint">表面・裏面とも推奨1024×1024px。どちらか一方だけ差し替えることもできます。保存済みのもう一方は維持されます。</p>
+          <button class="btn btn-secondary" type="submit">表面・裏面を登録・保存</button>
           <div class="last-letter-url">
             <small>記事に貼る専用URL</small>
             <input readonly aria-label="${slot.slot}人目の専用URL" value="${escapeAttr(new URL(slot.path, location.origin).href)}">
@@ -434,9 +443,9 @@ function renderLastLetterAdmin(data, token) {
         <form data-form="last-letter-finale" data-token="${escapeAttr(token)}">
           ${data.finale?.imageUrl ? `<img class="last-letter-finale-admin-preview" src="${escapeAttr(data.finale.imageUrl)}" alt="登録済みの特別イラスト">` : `<div class="last-letter-admin-empty">最後の特別イラストは未登録</div>`}
           <label class="field"><span>特別イラスト・WebP（推奨1000×1250px／最大5MB）</span><input type="file" name="image" accept="image/webp,.webp"></label>
-          <label class="field"><span>画像に重ねるメッセージ（自由に変更できます）</span><input type="text" name="headline" maxlength="80" required value="${escapeAttr(data.finale?.headline || "遊んでくれてありがとう✨")}"></label>
+          <label class="field"><span>画像の下に添えるメッセージ（自由に変更できます）</span><input type="text" name="headline" maxlength="80" required value="${escapeAttr(data.finale?.headline || "遊んでくれてありがとう✨")}"></label>
           <label class="field"><span>添える文章（任意）</span><textarea name="subMessage" maxlength="240" rows="3">${escapeHtml(data.finale?.subMessage || "")}</textarea></label>
-          <p class="subtle">文字は画像の下側に重ねて表示します。後から文字だけ変更する場合、画像の選び直しは不要です。文字が隠れないよう、イラスト下部に少し余白を設けるのがおすすめです。</p>
+          <p class="subtle">画像は加工せず4:5の比率で全体をそのまま表示します。メッセージは画像の外（下側）に独立して添えます。文字だけ変更する場合、画像の選び直しは不要です。</p>
           <button class="btn btn-primary" type="submit">特別イラストとメッセージを保存</button>
         </form>
       </section>
@@ -444,11 +453,12 @@ function renderLastLetterAdmin(data, token) {
         <a class="btn btn-secondary" href="/#/last-letter">収集ページを確認</a>
         <button class="btn ${data.published ? "btn-danger" : "btn-primary"}" type="button" data-action="visibility-last-letter" data-token="${escapeAttr(token)}" data-published="${!data.published}">${data.published ? "非公開に戻す" : "7人の準備ができたら公開する"}</button>
       </div>
-      <p class="subtle">公開には7人全員の名前と表面画像、および最後の特別イラストが必要です。既存のURLと獲得記録は保持します。</p>
+      <p class="subtle">公開には7人全員の名前・表面7枚・裏面7枚・最後の4:5イラスト、合計15枚が必要です。既存のURLと獲得記録は保持します。</p>
       <h3 class="last-letter-preview-title">✨ 完成イメージ（管理者プレビュー）</h3>
       ${lastLetterStage(data.slots.map((slot) => ({
         slot: slot.slot, letter: slot.letter, creatorName: slot.creatorName || "クリエイター",
         characterImageUrl: slot.characterImageUrl,
+        backImageUrl: slot.backImageUrl,
       })), true, true, data.finale)}
     `}
   </section>`;
@@ -670,14 +680,16 @@ async function handleSubmit(event) {
     if (kind === "last-letter-slot") {
       const body = new FormData(form);
       const image = body.get("image");
+      const backImage = body.get("backImage");
       if (image?.size && image.type !== "image/webp") {
         throw new Error("完成イラストはWebP（.webp）を選んでください。");
       }
       if (image?.size) await validateLastLetterArtwork(image, 1, 1);
+      if (backImage?.size) await validateLastLetterArtwork(backImage, 1, 1);
       await api("/api/admin/last-letter/slot", {
         method: "POST", body, adminToken: form.dataset.token, auth: false,
       });
-      notify("完成イラスト（WebP）を登録しました");
+      notify("表面・裏面のWebPイラストを保存しました");
       await showAdmin(form.dataset.token);
     }
     if (kind === "reward") {
