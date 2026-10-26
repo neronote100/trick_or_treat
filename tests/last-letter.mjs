@@ -311,7 +311,7 @@ try {
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[ch]);
   const build = new Function("escapeHtml", "escapeAttr", "location",
-    boardCode + "\\nreturn { lastLetterBoard, lastLetterStage };");
+    boardCode + "\nreturn { lastLetterBoard, lastLetterStage };");
   const { lastLetterBoard, lastLetterStage } = build(escape, escape, { origin: origin });
 
   const rows = Array.from({ length: 7 }, (_, idx) => ({
@@ -366,10 +366,10 @@ try {
   assert.ok(completedMarkup.includes("last-letter-candy-rain"));
 
   const styles = await readFile("public/styles.css", "utf8");
-  assert.match(styles, /\\.last-letter-stage \\.last-letter-grid\\s*\\{[\\s\\S]*?grid-template-columns:\\s*minmax\\(0,\\s*1fr\\)/,
+  assert.match(styles, /\.last-letter-stage \.last-letter-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/,
     "Collection and admin preview must use a single-column grid even on desktop");
-  assert.match(styles, /\\.last-letter-stage \\.last-letter-tile\\s*\\{[\\s\\S]*?grid-template-columns:/);
-  assert.match(styles, /\\.last-letter-admin \\.last-letter-admin-slots\\s*\\{[\\s\\S]*?grid-template-columns:\\s*minmax\\(0,\\s*1fr\\)/);
+  assert.match(styles, /\.last-letter-stage \.last-letter-tile\s*\{[\s\S]*?grid-template-columns:/);
+  assert.match(styles, /\.last-letter-admin \.last-letter-admin-slots\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 
   assert.match(rendered, /last-letter-admin/);
   console.log("Last Letter smoke tests passed: seven private links, publish gate, seven claims, flip, reopening.");
