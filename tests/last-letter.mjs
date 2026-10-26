@@ -16,7 +16,7 @@ const visitor = { "x-note-id": "last_letter_visitor" };
 const secondVisitor = { "x-note-id": "second_reader" };
 
 async function api(path, method = "GET", headers = {}, body = null) {
-  const request = new Request(origin + path, { method, headers, ...(body ? { body } : {}) });
+  const request = new Request(origin + path, { method, headers, redirect: "manual", ...(body ? { body } : {}) });
   return mf.dispatchFetch(request);
 }
 async function ok(path, method, headers, body) {
