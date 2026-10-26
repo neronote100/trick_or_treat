@@ -355,14 +355,14 @@ function lastLetterBoard(card, reveal, preview = false) {
   const creator = found ? (card.creatorName || "クリエイター未登録") : "まだ見つかっていない仲間";
   const frontArt = found && card.characterImageUrl
     ? `<img class="last-letter-finished-art" src="${escapeAttr(card.characterImageUrl)}" loading="lazy" alt="${escapeAttr(creator)}の表面イラスト">`
-    : `<div class="last-letter-mystery" role="img" aria-label="${preview ? "表面イラスト未登録" : "未発見の文字"}">${preview ? "表面未登録" : "？"}</div>`;
+    : `<div class="last-letter-mystery" role="img" aria-label="${preview ? "表面イラスト未登録" : "未発見のカード"}">${preview ? "表面未登録" : "？"}</div>`;
   // Public visitors only receive creatorNoteId for already discovered cards.
   // The private claim URL is used only inside the admin preview.
   const creatorUrl = preview && card.path
     ? new URL(card.path, location.origin).href
     : found && card.creatorNoteId
       ? `https://note.com/${encodeURIComponent(card.creatorNoteId)}` : "";
-  const linkName = preview ? "文字の専用URLを開く" : "クリエイターのnoteへ";
+  const linkName = preview ? "専用URLを開く" : "クリエイターのnoteへ";
   return `<div class="last-letter-tile ${found ? "is-found" : "is-locked"}" style="--letter-delay:${(card.slot - 1) * 85}ms">
     <div class="last-letter-tile-info">
       <span class="last-letter-slot-index">CARD ${String(card.slot).padStart(2, "0")}</span>
@@ -509,7 +509,7 @@ async function renderLastLetter(token = "") {
     }
   }
   renderLastLetterBook(collection, null, token && !state.identity && collection.published
-    ? "この文字を受け取るには、note IDで参加してください。"
+    ? "このカードを受け取るには、note IDで参加してください。"
     : "");
   if (token && !state.identity && collection.published) openJoin();
 }
