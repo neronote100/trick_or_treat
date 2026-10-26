@@ -9,7 +9,7 @@
     "db:migrate:local": "wrangler d1 migrations apply trick-or-treat-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply trick-or-treat-db --remote",
     "check": "node --check src/index.js && node --check public/app.js && node --check public/webp-bulk.js && node --check tests/smoke.mjs && node --check tests/webp-bulk.mjs",
-    "test": "node tests/smoke.mjs && node tests/webp-bulk.mjs"
+    "test": "node tests/smoke.mjs && node tests/webp-bulk.mjs && node tests/last-letter.mjs"
   },
   "devDependencies": {
     "miniflare": "^4.20250917.0",

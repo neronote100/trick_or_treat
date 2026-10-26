@@ -16,6 +16,10 @@ const HALLOWEEN_STAGES = [
   { requiredShopCount: 100, name: "王子の秘密宝物庫", description: "すべての世界をめぐった、最高の冒険者へ！" },
 ];
 const FINAL_SHOP_GOAL = 100;
+// Seven characters, seven independently claimable boards. The answer is kept
+// on the Worker, never embedded in public JavaScript or unclaimed API records.
+const LAST_LETTER_CHARS = ["み", "ん", "な", "の", "思", "い", "出"];
+const LAST_LETTER_BACK = ["あ", "つ", "ま", "っ", "た", "ね", "🎃"];
 // Stable IDs make syncing idempotent: each crop always owns the same reward slot.
 const TRIPTYCH_GATE_REWARDS = [
   { id: "triptych-gate-10", count: 10, name: "10店舗・左の欠片", imageColumn: "left_image_key" },
@@ -51,6 +55,12 @@ async function route(request, env) {
     return serveShopPage(request, env, shopPageMatch[1]);
   }
 
+  const letterPageMatch = path.match(/^\/letter\/([a-f0-9]{32})\/?$/i);
+  if (letterPageMatch && request.method === "GET") {
+    const destination = new URL("/#/last-letter/" + letterPageMatch[1].toLowerCase(), request.url);
+    return Response.redirect(destination.toString(), 302);
+  }
+
   if (path.startsWith("/api/")) await ensureDatabase(env);
 
   if (path === "/api/users" && request.method === "POST") return registerUser(request, env);
@@ -68,6 +78,12 @@ async function route(request, env) {
     return getShop(env, decodeURIComponent(path.split("/")[3]));
   }
   if (path === "/api/collection" && request.method === "GET") return getCollection(request, env);
+  if (path === "/api/last-letter" && request.method === "GET") return getLastLetterCollection(request, env);
+  if (path === "/api/last-letter/claim" && request.method === "POST") return claimLastLetter(request, env);
+  if (path === "/api/admin/last-letter" && request.method === "GET") return adminGetLastLetter(request, env);
+  if (path === "/api/admin/last-letter/initialize" && request.method === "POST") return adminInitializeLastLetter(request, env);
+  if (path === "/api/admin/last-letter/slot" && request.method === "POST") return adminSaveLastLetterSlot(request, env);
+  if (path === "/api/admin/last-letter/visibility" && request.method === "POST") return adminSetLastLetterVisibility(request, env);
 
   if (path === "/api/admin/shops" && request.method === "GET") return adminListShops(request, env, url);
   if (path === "/api/admin/participants" && request.method === "GET") return adminListParticipants(request, env, url);
@@ -387,6 +403,163 @@ async function getCollection(request, env) {
 // Dashboard data is admin-only. Registration uses a note ID without verification,
 // so this is a list of registered IDs, not a verified list of human identities.
 // Each page is bounded to 25 rows; database-side aggregation prevents an N+1 query.
+
+async function adminGetLastLetter(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const [settings, slots, totalClaims] = await Promise.all([
+    env.DB.prepare("SELECT is_published FROM last_letter_settings WHERE id = 1").first(),
+    env.DB.prepare("SELECT slot, letter, claim_token, creator_name, creator_note_id, character_image_key FROM last_letter_slots ORDER BY slot").all(),
+    env.DB.prepare("SELECT COUNT(DISTINCT user_id) AS participants FROM last_letter_claims").first(),
+  ]);
+  return json({
+    initialized: slots.results.length === 7,
+    published: Boolean(settings?.is_published),
+    slots: slots.results.map((row) => ({
+      slot: row.slot,
+      letter: row.letter,
+      token: row.claim_token,
+      creatorName: row.creator_name,
+      creatorNoteId: row.creator_note_id,
+      characterImageUrl: imageUrl(row.character_image_key),
+      path: `/letter/${row.claim_token}`,
+    })),
+    participants: Number(totalClaims?.participants || 0),
+  });
+}
+
+async function adminInitializeLastLetter(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  // Idempotent: calling twice must never invalidate an already shared link.
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO last_letter_settings (id, is_published) VALUES (1, 0)"),
+    ...LAST_LETTER_CHARS.map((letter, index) => env.DB.prepare(
+      "INSERT OR IGNORE INTO last_letter_slots (slot, letter, claim_token) VALUES (?, ?, ?)",
+    ).bind(index + 1, letter, crypto.randomUUID().replace(/-/g, ""))),
+  ]);
+  return adminGetLastLetter(request, env);
+}
+
+async function adminSaveLastLetterSlot(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const form = await request.formData();
+  const slot = Number(form.get("slot"));
+  if (!Number.isInteger(slot) || slot < 1 || slot > 7) {
+    return json({ error: "ボード番号は1〜7を指定してください。" }, 400);
+  }
+  const creatorName = cleanText(form.get("creatorName"), 50);
+  const creatorNoteId = normalizeNoteId(form.get("creatorNoteId"));
+  if (!creatorName) return json({ error: "クリエイター名を入力してください。" }, 400);
+  if (creatorNoteId && !NOTE_ID_PATTERN.test(creatorNoteId)) {
+    return json({ error: "note IDは英数字・アンダースコア3〜32文字です。" }, 400);
+  }
+  const existing = await env.DB.prepare(
+    "SELECT character_image_key FROM last_letter_slots WHERE slot = ?",
+  ).bind(slot).first();
+  if (!existing) return json({ error: "先に7つのURLを発行してください。" }, 409);
+  const nextImage = await storeImageIfPresent(form.get("image"), env, "letters");
+  try {
+    await env.DB.prepare(`UPDATE last_letter_slots
+      SET creator_name = ?, creator_note_id = ?, character_image_key = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE slot = ?`).bind(creatorName, creatorNoteId, nextImage || existing.character_image_key, slot).run();
+  } catch (error) {
+    if (nextImage) await env.IMAGES.delete(nextImage).catch(() => {});
+    throw error;
+  }
+  // Do not remove the old image immediately: links may be cached at the edge.
+  return json({ saved: true, slot });
+}
+
+async function adminSetLastLetterVisibility(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const input = await readJson(request);
+  if (typeof input.published !== "boolean") return json({ error: "公開設定が不正です。" }, 400);
+  const slots = await env.DB.prepare(
+    "SELECT slot, creator_name, character_image_key FROM last_letter_slots ORDER BY slot",
+  ).all();
+  if (input.published && (slots.results.length !== 7 ||
+    slots.results.some((card) => !card.creator_name || !card.character_image_key))) {
+    return json({ error: "7人全員の名前とキャラクター画像を登録してから公開してください。" }, 409);
+  }
+  await env.DB.prepare("INSERT INTO last_letter_settings (id, is_published) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET is_published = excluded.is_published")
+    .bind(Number(input.published)).run();
+  return json({ published: input.published });
+}
+
+async function getLastLetterCollection(request, env) {
+  const published = await env.DB.prepare(
+    "SELECT is_published FROM last_letter_settings WHERE id = 1",
+  ).first();
+  const isPublished = Boolean(published?.is_published);
+  const userNoteId = normalizeNoteId(request.headers.get("x-note-id"));
+  let user = null;
+  if (isPublished && NOTE_ID_PATTERN.test(userNoteId)) {
+    user = await env.DB.prepare("SELECT id FROM users WHERE note_id = ?").bind(userNoteId).first();
+  }
+  // Draft campaign reveals no creator names, images, claim tokens, or message.
+  const rows = isPublished ? await env.DB.prepare(`
+    SELECT l.slot, l.creator_name, l.creator_note_id, l.character_image_key,
+      CASE WHEN c.slot IS NULL THEN NULL ELSE l.letter END AS found_letter,
+      c.claimed_at
+    FROM last_letter_slots l
+    LEFT JOIN last_letter_claims c ON c.slot = l.slot AND c.user_id = ?
+    ORDER BY l.slot
+  `).bind(user?.id || "").all() : { results: [] };
+  const cards = Array.from({ length: 7 }, (_, index) => {
+    const card = rows.results[index];
+    const isFound = Boolean(card?.found_letter);
+    return {
+      slot: index + 1,
+      found: isFound,
+      letter: isFound ? card.found_letter : null,
+      creatorName: isFound ? card.creator_name : null,
+      creatorNoteId: isFound ? card.creator_note_id : null,
+      characterImageUrl: isFound ? imageUrl(card.character_image_key) : null,
+      claimedAt: isFound ? card.claimed_at : null,
+    };
+  });
+  const count = cards.filter((card) => card.found).length;
+  return json({
+    published: isPublished,
+    count,
+    total: 7,
+    isComplete: isPublished && count === 7,
+    cards,
+    ...(isPublished && count === 7
+      ? { message: LAST_LETTER_CHARS.join(""), backMessage: LAST_LETTER_BACK.join(""), thanks: "みんなで集めてくれて、ありがとう。あなたと過ごしたハロハロウィーンの思い出は、王子の宝物です🌙" }
+      : {}),
+  });
+}
+
+async function claimLastLetter(request, env) {
+  const user = await requireVisitor(request, env);
+  if (user.response) return user.response;
+  const settings = await env.DB.prepare(
+    "SELECT is_published FROM last_letter_settings WHERE id = 1",
+  ).first();
+  if (!settings?.is_published) return json({ error: "ラストレターはまだ準備中です。" }, 403);
+  const input = await readJson(request);
+  const token = String(input.token || "").toLowerCase();
+  if (!/^[a-f0-9]{32}$/.test(token)) return json({ error: "文字のURLを確認してください。" }, 404);
+  const item = await env.DB.prepare(
+    "SELECT slot, letter, creator_name, creator_note_id, character_image_key FROM last_letter_slots WHERE claim_token = ?",
+  ).bind(token).first();
+  if (!item) return json({ error: "この文字は見つかりません。" }, 404);
+  if (!item.creator_name || !item.character_image_key) {
+    return json({ error: "この文字はまだ準備中です。" }, 409);
+  }
+  const outcome = await env.DB.prepare(
+    "INSERT OR IGNORE INTO last_letter_claims (user_id, slot) VALUES (?, ?)",
+  ).bind(user.id, item.slot).run();
+  return json({
+    slot: item.slot,
+    letter: item.letter,
+    creatorName: item.creator_name,
+    creatorNoteId: item.creator_note_id,
+    characterImageUrl: imageUrl(item.character_image_key),
+    newlyCollected: Boolean(outcome.meta.changes),
+  });
+}
+
 async function adminListParticipants(request, env, url) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const pageSize = 25;
@@ -515,6 +688,7 @@ async function adminListShops(request, env, url) {
 // Keep source keys in one place. These columns are never provided by the client,
 // and updating all of them also keeps triptych reward references in sync.
 const IMAGE_REFERENCES = [
+  ["last_letter_slots", "character_image_key"],
   ["shops", "character_image_key"],
   ["treats", "image_key"],
   ["rewards", "image_key"],
@@ -527,6 +701,7 @@ const IMAGE_REFERENCES = [
 // branches (one per table) and expand the four triptych columns via JSON1.
 const ALL_IMAGE_KEYS_SQL = `
   SELECT character_image_key AS image_key FROM shops
+  UNION SELECT character_image_key FROM last_letter_slots
   UNION SELECT image_key FROM treats
   UNION SELECT image_key FROM rewards
   UNION SELECT slot.value AS image_key
@@ -577,7 +752,7 @@ async function adminMigrateImage(request, env) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const form = await request.formData();
   const sourceKey = String(form.get("sourceKey") || "");
-  if (!/^(characters|treats|rewards|triptych)\/[a-zA-Z0-9-]+\.(png|jpg|jpeg)$/i.test(sourceKey)) {
+  if (!/^(characters|treats|rewards|triptych|letters)\/[a-zA-Z0-9-]+\.(png|jpg|jpeg)$/i.test(sourceKey)) {
     return json({ error: "変換対象の画像キーが不正です。" }, 400);
   }
   const active = await env.DB.prepare(
@@ -1073,6 +1248,27 @@ function ensureDatabase(env) {
         PRIMARY KEY (user_id, shop_id),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS last_letter_slots (
+        slot INTEGER PRIMARY KEY CHECK (slot BETWEEN 1 AND 7),
+        letter TEXT NOT NULL,
+        claim_token TEXT NOT NULL UNIQUE,
+        creator_name TEXT NOT NULL DEFAULT '',
+        creator_note_id TEXT NOT NULL DEFAULT '',
+        character_image_key TEXT,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS last_letter_claims (
+        user_id TEXT NOT NULL,
+        slot INTEGER NOT NULL,
+        claimed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, slot),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (slot) REFERENCES last_letter_slots(slot) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS last_letter_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        is_published INTEGER NOT NULL DEFAULT 0 CHECK (is_published IN (0, 1))
       )`,
       `CREATE TABLE IF NOT EXISTS triptych_illustrations (
         id INTEGER PRIMARY KEY CHECK (id = 1),
