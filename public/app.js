@@ -653,7 +653,7 @@ async function handleClick(event) {
     button.disabled = true;
     return;
   }
-  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "migrate-webp-all", "restore-webp", "cleanup-webp-all", "init-last-letter", "visibility-last-letter", "copy-last-letter"].includes(action);
+  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "migrate-webp-all", "restore-webp", "cleanup-webp-all", "init-last-letter", "visibility-last-letter", "copy-last-letter", "flip-last-letter"].includes(action);
   if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
