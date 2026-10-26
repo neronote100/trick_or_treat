@@ -102,6 +102,19 @@ try {
     assert.equal(new URL(redirect.headers.get("location")).hash, `#/last-letter/${card.token}`);
   }
 
+  // New launches must require all seven reverse images (15 images total).
+  await db.prepare("DELETE FROM last_letter_backs WHERE slot = 7").run();
+  const missingBackPublish = await api("/api/admin/last-letter/visibility", "POST",
+    { ...admin, "content-type": "application/json" }, json({ published: true }));
+  assert.equal(missingBackPublish.status, 409,
+    "Seven front images and a finale must not be sufficient without all backs");
+  const backRestore = new FormData();
+  backRestore.set("slot", "7");
+  backRestore.set("creatorName", "クリエイター7");
+  backRestore.set("creatorNoteId", "nero_notelover");
+  backRestore.set("backImage", webp());
+  await ok("/api/admin/last-letter/slot", "POST", admin, backRestore);
+
   const configured = await ok("/api/admin/last-letter", "GET", admin);
   assert.equal(configured.slots.length, 7);
   assert.ok(configured.slots.every((c) => c.characterImageUrl?.endsWith(".webp")
