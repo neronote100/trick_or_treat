@@ -409,7 +409,10 @@ async function adminGetLastLetter(request, env) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const [settings, slots, totalClaims, finale] = await Promise.all([
     env.DB.prepare("SELECT is_published FROM last_letter_settings WHERE id = 1").first(),
-    env.DB.prepare("SELECT slot, letter, claim_token, creator_name, creator_note_id, character_image_key FROM last_letter_slots ORDER BY slot").all(),
+    env.DB.prepare(`SELECT l.slot, l.letter, l.claim_token, l.creator_name, l.creator_note_id,
+      l.character_image_key, b.image_key AS back_image_key
+      FROM last_letter_slots l LEFT JOIN last_letter_backs b ON b.slot = l.slot
+      ORDER BY l.slot`).all(),
     env.DB.prepare("SELECT COUNT(DISTINCT user_id) AS participants FROM last_letter_claims").first(),
     env.DB.prepare("SELECT image_key, headline, sub_message FROM last_letter_finale WHERE id = 1").first(),
   ]);
@@ -428,6 +431,7 @@ async function adminGetLastLetter(request, env) {
       creatorName: row.creator_name,
       creatorNoteId: row.creator_note_id,
       characterImageUrl: imageUrl(row.character_image_key),
+      backImageUrl: imageUrl(row.back_image_key),
       path: `/letter/${row.claim_token}`,
     })),
     participants: Number(totalClaims?.participants || 0),
@@ -467,29 +471,44 @@ async function adminSaveLastLetterSlot(request, env) {
   // the letter board. Store WebP only so they display exactly as uploaded.
   // Metadata-only edits keep the previously uploaded image unchanged.
   const uploadedImage = form.get("image");
-  let nextImage = null;
-  if (uploadedImage && uploadedImage.size) {
-    if (uploadedImage.type !== "image/webp" || uploadedImage.size > MAX_IMAGE_BYTES) {
-      return json({ error: "完成イラストは5MB以下のWebP形式で登録してください。" }, 400);
+  const uploadedBack = form.get("backImage");
+  async function saveWebpFile(file, label) {
+    if (!file || !file.size) return null;
+    if (file.type !== "image/webp" || file.size > MAX_IMAGE_BYTES) {
+      throw new PublicError(`${label}は5MB以下のWebP形式にしてください。`, 400);
     }
-    const buffer = await uploadedImage.arrayBuffer();
-    const header = new Uint8Array(buffer.slice(0, 12));
+    const bytes = await file.arrayBuffer();
+    const header = new Uint8Array(bytes.slice(0, 12));
     if (header.length < 12 || String.fromCharCode(...header.slice(0, 4)) !== "RIFF"
       || String.fromCharCode(...header.slice(8, 12)) !== "WEBP") {
-      return json({ error: "WebP形式の画像データを確認できません。" }, 400);
+      throw new PublicError(`${label}のWebP画像データを確認できません。`, 400);
     }
-    nextImage = `letters/${crypto.randomUUID()}.webp`;
-    await env.IMAGES.put(nextImage, buffer, { metadata: { contentType: "image/webp" } });
+    const key = `letters/${crypto.randomUUID()}.webp`;
+    await env.IMAGES.put(key, bytes, { metadata: { contentType: "image/webp" } });
+    return key;
   }
+
+  const keysToClean = [];
   try {
-    await env.DB.prepare(`UPDATE last_letter_slots
+    const newFrontKey = await saveWebpFile(uploadedImage, "表面イラスト");
+    if (newFrontKey) keysToClean.push(newFrontKey);
+    const newBackKey = await saveWebpFile(uploadedBack, "裏面イラスト");
+    if (newBackKey) keysToClean.push(newBackKey);
+    const statements = [env.DB.prepare(`UPDATE last_letter_slots
       SET creator_name = ?, creator_note_id = ?, character_image_key = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE slot = ?`).bind(creatorName, creatorNoteId, nextImage || existing.character_image_key, slot).run();
+      WHERE slot = ?`).bind(creatorName, creatorNoteId, newFrontKey || existing.character_image_key, slot)];
+    if (newBackKey) {
+      statements.push(env.DB.prepare(`
+        INSERT INTO last_letter_backs (slot, image_key) VALUES (?, ?)
+        ON CONFLICT(slot) DO UPDATE SET image_key = excluded.image_key, updated_at = CURRENT_TIMESTAMP
+      `).bind(slot, newBackKey));
+    }
+    await env.DB.batch(statements);
   } catch (error) {
-    if (nextImage) await env.IMAGES.delete(nextImage).catch(() => {});
+    await Promise.all(keysToClean.map((key) => env.IMAGES.delete(key).catch(() => {})));
     throw error;
   }
-  // Do not remove the old image immediately: links may be cached at the edge.
+  // Do not delete previously referenced images: edges may still have cached URLs.
   return json({ saved: true, slot });
 }
 
@@ -540,13 +559,15 @@ async function adminSetLastLetterVisibility(request, env) {
   const input = await readJson(request);
   if (typeof input.published !== "boolean") return json({ error: "公開設定が不正です。" }, 400);
   const [slots, finale] = await Promise.all([
-    env.DB.prepare("SELECT slot, creator_name, character_image_key FROM last_letter_slots ORDER BY slot").all(),
+    env.DB.prepare(`SELECT l.slot, l.creator_name, l.character_image_key,
+      b.image_key AS back_image_key FROM last_letter_slots l
+      LEFT JOIN last_letter_backs b ON b.slot = l.slot ORDER BY l.slot`).all(),
     env.DB.prepare("SELECT image_key FROM last_letter_finale WHERE id = 1").first(),
   ]);
   if (input.published && (slots.results.length !== 7 ||
-    slots.results.some((card) => !card.creator_name || !card.character_image_key)
+    slots.results.some((card) => !card.creator_name || !card.character_image_key || !card.back_image_key)
     || !finale?.image_key)) {
-    return json({ error: "7人の表面画像と最後の特別イラストを登録してから公開してください。" }, 409);
+    return json({ error: "表7枚・裏7枚・最後の特別イラストの全15枚を登録してから公開してください。" }, 409);
   }
   await env.DB.prepare("INSERT INTO last_letter_settings (id, is_published) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET is_published = excluded.is_published")
     .bind(Number(input.published)).run();
@@ -566,9 +587,11 @@ async function getLastLetterCollection(request, env) {
   // Draft campaign reveals no creator names, images, claim tokens, or message.
   const rows = isPublished ? await env.DB.prepare(`
     SELECT l.slot, l.creator_name, l.creator_note_id, l.character_image_key,
+      b.image_key AS back_image_key,
       CASE WHEN c.slot IS NULL THEN NULL ELSE l.letter END AS found_letter,
       c.claimed_at
     FROM last_letter_slots l
+    LEFT JOIN last_letter_backs b ON b.slot = l.slot
     LEFT JOIN last_letter_claims c ON c.slot = l.slot AND c.user_id = ?
     ORDER BY l.slot
   `).bind(user?.id || "").all() : { results: [] };
@@ -582,10 +605,17 @@ async function getLastLetterCollection(request, env) {
       creatorName: isFound ? card.creator_name : null,
       creatorNoteId: isFound ? card.creator_note_id : null,
       characterImageUrl: isFound ? imageUrl(card.character_image_key) : null,
+      // Do not reveal the back artwork before this visitor completes all 7.
+      backImageUrl: null,
       claimedAt: isFound ? card.claimed_at : null,
     };
   });
   const count = cards.filter((card) => card.found).length;
+  if (isPublished && count === 7) {
+    for (let index = 0; index < 7; index++) {
+      cards[index].backImageUrl = imageUrl(rows.results[index]?.back_image_key);
+    }
+  }
   // The finale is hidden until this particular visitor has all seven.
   const finale = isPublished && count === 7
     ? await env.DB.prepare("SELECT image_key, headline, sub_message FROM last_letter_finale WHERE id = 1").first()
@@ -770,6 +800,8 @@ async function adminListShops(request, env, url) {
 // and updating all of them also keeps triptych reward references in sync.
 const IMAGE_REFERENCES = [
   ["last_letter_slots", "character_image_key"],
+  ["last_letter_backs", "image_key"],
+  ["last_letter_finale", "image_key"],
   ["shops", "character_image_key"],
   ["treats", "image_key"],
   ["rewards", "image_key"],
@@ -783,6 +815,8 @@ const IMAGE_REFERENCES = [
 const ALL_IMAGE_KEYS_SQL = `
   SELECT character_image_key AS image_key FROM shops
   UNION SELECT character_image_key FROM last_letter_slots
+  UNION SELECT image_key FROM last_letter_backs
+  UNION SELECT image_key FROM last_letter_finale
   UNION SELECT image_key FROM treats
   UNION SELECT image_key FROM rewards
   UNION SELECT slot.value AS image_key
@@ -1338,6 +1372,12 @@ function ensureDatabase(env) {
         creator_note_id TEXT NOT NULL DEFAULT '',
         character_image_key TEXT,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS last_letter_backs (
+        slot INTEGER PRIMARY KEY CHECK (slot BETWEEN 1 AND 7),
+        image_key TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (slot) REFERENCES last_letter_slots(slot) ON DELETE CASCADE
       )`,
       `CREATE TABLE IF NOT EXISTS last_letter_finale (
         id INTEGER PRIMARY KEY CHECK (id = 1),
