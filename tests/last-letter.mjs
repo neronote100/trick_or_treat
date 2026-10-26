@@ -300,6 +300,77 @@ try {
     "No message, gradient or overlaid text is allowed on the finale image");
   assert.match(rendered, /function lastLetterStage/);
   assert.match(rendered, /flip-last-letter/);
+  // Render the actual browser template functions with harmless test props.
+  // Both public collection and administrator preview must use one row per creator,
+  // with the creator/link left and their 1:1 image right.
+  const boardCode = rendered.slice(
+    rendered.indexOf("function lastLetterBoard("),
+    rendered.indexOf("function renderLastLetterAdmin("),
+  );
+  const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[ch]);
+  const build = new Function("escapeHtml", "escapeAttr", "location",
+    boardCode + "\\nreturn { lastLetterBoard, lastLetterStage };");
+  const { lastLetterBoard, lastLetterStage } = build(escape, escape, { origin: origin });
+
+  const rows = Array.from({ length: 7 }, (_, idx) => ({
+    slot: idx + 1,
+    found: idx === 0,
+    letter: idx === 0 ? "み" : null,
+    creatorName: idx === 0 ? "クリエイター1" : null,
+    creatorNoteId: idx === 0 ? "nero_notelover" : null,
+    characterImageUrl: idx === 0 ? "/images/front.webp" : null,
+    backImageUrl: null,
+  }));
+  const incompleteMarkup = lastLetterStage(rows, false);
+  assert.equal((incompleteMarkup.match(/class="last-letter-tile is-/g) || []).length, 7);
+  assert.equal((incompleteMarkup.match(/last-letter-tile-info/g) || []).length, 7);
+  assert.ok(incompleteMarkup.includes("https://note.com/nero_notelover"));
+  assert.ok(incompleteMarkup.includes("まだ見つかっていない仲間"));
+  assert.ok(incompleteMarkup.indexOf("last-letter-tile-info") < incompleteMarkup.indexOf("last-letter-inner"),
+    "Name and link must precede image within a row");
+  assert.ok(!incompleteMarkup.includes('data-action="flip-last-letter"'),
+    "An incomplete visitor must not see the flip button");
+  assert.ok(!incompleteMarkup.includes("/letter/secret"),
+    "Public rows must never expose private claim URLs");
+
+  const adminPreview = lastLetterStage(rows.map((row, index) => ({
+    ...row,
+    creatorName: row.creatorName || `登録前の${index + 1}人目`,
+    letter: ["み", "ん", "な", "の", "思", "い", "出"][index],
+    characterImageUrl: null,
+    path: `/letter/secret${index + 1}`,
+  })), true, true, { imageUrl: "/images/finale.webp" });
+  assert.ok(adminPreview.includes("登録前の2人目"),
+    "Admin preview should show creator labels before images are registered");
+  assert.ok(adminPreview.includes("/letter/secret2"),
+    "Only admin preview should show private per-creator letter link");
+  assert.ok(adminPreview.includes("表面未登録"),
+    "Admin preview should explain missing art rather than showing unexplained question marks");
+
+  const completedMarkup = lastLetterStage(rows.map((row, idx) => ({
+    ...row,
+    found: true,
+    letter: ["み", "ん", "な", "の", "思", "い", "出"][idx],
+    creatorName: `クリエイター${idx + 1}`,
+    creatorNoteId: "nero_notelover",
+    characterImageUrl: `/images/front${idx + 1}.webp`,
+    backImageUrl: `/images/back${idx + 1}.webp`,
+  })), true, false, { imageUrl: "/images/finale.webp", headline: "ありがとう" });
+  assert.equal((completedMarkup.match(/data-action="flip-last-letter"/g) || []).length, 2,
+    "After 7/7, the flip button must be at top and bottom of long mobile list");
+  assert.ok(completedMarkup.indexOf("last-letter-flip-banner") < completedMarkup.indexOf("last-letter-grid"),
+    "Completion button should be seen before scrolling the 7 rows");
+  assert.ok(completedMarkup.includes("/images/back7.webp"));
+  assert.ok(completedMarkup.includes("last-letter-candy-rain"));
+
+  const styles = await readFile("public/styles.css", "utf8");
+  assert.match(styles, /\\.last-letter-stage \\.last-letter-grid\\s*\\{[\\s\\S]*?grid-template-columns:\\s*minmax\\(0,\\s*1fr\\)/,
+    "Collection and admin preview must use a single-column grid even on desktop");
+  assert.match(styles, /\\.last-letter-stage \\.last-letter-tile\\s*\\{[\\s\\S]*?grid-template-columns:/);
+  assert.match(styles, /\\.last-letter-admin \\.last-letter-admin-slots\\s*\\{[\\s\\S]*?grid-template-columns:\\s*minmax\\(0,\\s*1fr\\)/);
+
   assert.match(rendered, /last-letter-admin/);
   console.log("Last Letter smoke tests passed: seven private links, publish gate, seven claims, flip, reopening.");
 } finally {
