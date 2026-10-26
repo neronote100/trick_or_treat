@@ -812,16 +812,23 @@ const IMAGE_REFERENCES = [
 ];
 // SQLite/D1 sets a low maximum for compound SELECT clauses. Use four UNION
 // branches (one per table) and expand the four triptych columns via JSON1.
+// D1 has a strict limit on compound SELECT terms. Group the three letter
+// image sources in a nested subquery so the outer UNION remains only 5 terms.
 const ALL_IMAGE_KEYS_SQL = `
   SELECT character_image_key AS image_key FROM shops
-  UNION SELECT character_image_key FROM last_letter_slots
-  UNION SELECT image_key FROM last_letter_backs
-  UNION SELECT image_key FROM last_letter_finale
   UNION SELECT image_key FROM treats
   UNION SELECT image_key FROM rewards
   UNION SELECT slot.value AS image_key
-  FROM triptych_illustrations t,
-    json_each(json_array(t.full_image_key, t.left_image_key, t.center_image_key, t.right_image_key)) slot
+    FROM triptych_illustrations t,
+      json_each(json_array(t.full_image_key, t.left_image_key, t.center_image_key, t.right_image_key)) slot
+  UNION SELECT image_key FROM (
+    SELECT slot.value AS image_key
+      FROM last_letter_slots l
+      LEFT JOIN last_letter_backs b ON b.slot = l.slot,
+      json_each(json_array(l.character_image_key, b.image_key)) slot
+    UNION ALL
+    SELECT image_key FROM last_letter_finale
+  )
 `;
 const MIGRATABLE_IMAGES_SQL = `FROM (${ALL_IMAGE_KEYS_SQL}) refs
   WHERE (lower(image_key) LIKE '%.png' OR lower(image_key) LIKE '%.jpg' OR lower(image_key) LIKE '%.jpeg')`;
