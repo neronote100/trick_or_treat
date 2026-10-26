@@ -70,6 +70,7 @@ async function renderRoute() {
     if (page === "collection") return renderCollection();
     if (page === "shop" && parts[1]) return renderShop(parts[1]);
     if (page === "admin") return renderAdmin();
+    if (page === "last-letter") return renderLastLetter(parts[1]);
     location.hash = "#/collection";
   } catch (error) {
     app.innerHTML = errorState(error.message);
@@ -344,12 +345,144 @@ function renderAdminParticipants(data, token) {
   </section>`;
 }
 
+
+const LAST_LETTER_REVERSE = ["あ", "つ", "ま", "っ", "た", "ね", "🎃"];
+
+function lastLetterBoard(card, reveal, preview = false) {
+  const found = preview ? Boolean(card.letter) : Boolean(card.found);
+  const label = found ? card.letter : "？";
+  const creator = found ? (card.creatorName || "旅の仲間") : "？？？";
+  const portrait = found && card.characterImageUrl
+    ? `<img src="${escapeAttr(card.characterImageUrl)}" loading="lazy" alt="${escapeAttr(creator)}のキャラクター">`
+    : `<div class="last-letter-mystery" aria-hidden="true">✦</div>`;
+  return `<div class="last-letter-tile ${found ? "is-found" : "is-locked"}" style="--letter-delay:${(card.slot - 1) * 85}ms">
+    <div class="last-letter-inner">
+      <div class="last-letter-face last-letter-front">
+        <div class="last-letter-character">${portrait}</div>
+        <div class="last-letter-held-board" aria-label="${found ? "獲得した文字：" + escapeAttr(label) : "未発見"}"><span>${escapeHtml(label)}</span></div>
+        <div class="last-letter-creator">${escapeHtml(creator)}</div>
+      </div>
+      <div class="last-letter-face last-letter-back">
+        <span class="last-letter-number">MEMORY ${String(card.slot).padStart(2, "0")}</span>
+        <strong>${LAST_LETTER_REVERSE[card.slot - 1]}</strong>
+        <span class="last-letter-back-mark">✦ THANK YOU ✦</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function lastLetterStage(cards, isComplete, preview = false) {
+  return `<div id="last-letter-stage" class="last-letter-stage ${isComplete ? "is-complete" : ""}">
+    <div class="last-letter-grid">${cards.map((card) => lastLetterBoard(card, isComplete, preview)).join("")}</div>
+    ${isComplete ? `<div class="last-letter-reveal-actions">
+      <button type="button" class="btn btn-primary" data-action="flip-last-letter">✦ 7枚のボードをひっくり返す ✦</button>
+      <div class="last-letter-thanks" aria-live="polite">
+        <div class="last-letter-confetti" aria-hidden="true">✦ ✧ 🎃 ✧ ✦</div>
+        <h2>あつまったね🎃</h2>
+        <p>7人の想いと、あなたの冒険がひとつになりました。</p>
+        <strong>集めてくれて、本当にありがとう✨</strong>
+        <p class="subtle">ハロハロウィーンで出会えた、みんなの思い出を大切に🌙</p>
+      </div>
+    </div>` : ""}
+  </div>`;
+}
+
+function renderLastLetterAdmin(data, token) {
+  return `<section class="panel last-letter-admin" id="last-letter-admin">
+    <p class="eyebrow">HALO HALO FINAL MESSAGE</p>
+    <h2>🎃 ハロハロ・ラストレター 💌</h2>
+    <p class="subtle">7人がそれぞれ「みんなの思い出」の1文字を持つ、ハロウィンの最後の企画。7文字を集めた人だけが、ボード裏の「ありがとう」に出会えます。</p>
+    <p class="last-letter-admin-status">${data.published ? "🟢 公開中" : "🌙 準備中・参加者には非公開"}　・　文字を集めた参加者 ${data.participants} ID</p>
+    ${!data.initialized ? `<button class="btn btn-primary" type="button" data-action="init-last-letter" data-token="${escapeAttr(token)}">7人分の専用URLを発行する</button>` : `
+      <p class="subtle">7人の担当文字とURLは固定です。名前・画像はいつでも更新できます。専用URLを各クリエイターの記事に1つずつ置いてもらってください。</p>
+      <div class="last-letter-admin-slots">${data.slots.map((slot) => `
+        <form class="last-letter-slot-form" data-form="last-letter-slot" data-token="${escapeAttr(token)}">
+          <input type="hidden" name="slot" value="${slot.slot}">
+          <div class="last-letter-slot-meta">
+            <span class="last-letter-slot-letter">${escapeHtml(slot.letter)}</span>
+            <div><strong>${slot.slot}人目のクリエイター</strong><small>正方形のキャラクター画像がおすすめ</small></div>
+          </div>
+          ${slot.characterImageUrl ? `<img class="last-letter-admin-image" src="${escapeAttr(slot.characterImageUrl)}" alt="登録済みのキャラクター">` : ""}
+          <label class="field"><span>表示する名前</span><input name="creatorName" required maxlength="50" value="${escapeAttr(slot.creatorName)}" placeholder="例：ネロ王子"></label>
+          <label class="field"><span>note ID（任意）</span><input name="creatorNoteId" maxlength="32" value="${escapeAttr(slot.creatorNoteId)}" placeholder="nero_notelover"></label>
+          <label class="field"><span>キャラクター画像（5MBまで）</span><input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+          <button class="btn btn-secondary" type="submit">このキャラクターを保存</button>
+          <div class="last-letter-url">
+            <small>記事に貼る専用URL</small>
+            <input readonly aria-label="${slot.slot}人目の専用URL" value="${escapeAttr(new URL(slot.path, location.origin).href)}">
+            <button class="btn btn-secondary" type="button" data-action="copy-last-letter" data-token="${escapeAttr(token)}" data-path="${escapeAttr(slot.path)}">URLをコピー</button>
+          </div>
+        </form>`).join("")}</div>
+      <div class="last-letter-admin-launch">
+        <a class="btn btn-secondary" href="/#/last-letter">収集ページを確認</a>
+        <button class="btn ${data.published ? "btn-danger" : "btn-primary"}" type="button" data-action="visibility-last-letter" data-token="${escapeAttr(token)}" data-published="${!data.published}">${data.published ? "非公開に戻す" : "7人の準備ができたら公開する"}</button>
+      </div>
+      <p class="subtle">公開には7人全員の名前と画像が必要です。公開前のURLでは文字を獲得できません。公開後も図鑑の通常機能には影響しません。</p>
+      <h3 class="last-letter-preview-title">✨ 完成イメージ（管理者プレビュー）</h3>
+      ${lastLetterStage(data.slots.map((slot) => ({
+        slot: slot.slot, letter: slot.letter, creatorName: slot.creatorName || "クリエイター",
+        characterImageUrl: slot.characterImageUrl,
+      })), true, true)}
+    `}
+  </section>`;
+}
+
+async function renderLastLetter(token = "") {
+  showLoader();
+  const collection = await api("/api/last-letter", { auth: Boolean(state.identity) });
+  if (token && collection.published && state.identity) {
+    try {
+      const item = await api("/api/last-letter/claim", {
+        method: "POST", body: JSON.stringify({ token }),
+      });
+      const book = await api("/api/last-letter");
+      renderLastLetterBook(book, item);
+      return;
+    } catch (error) {
+      renderLastLetterBook(collection, null, error.message);
+      return;
+    }
+  }
+  renderLastLetterBook(collection, null, token && !state.identity && collection.published
+    ? "この文字を受け取るには、note IDで参加してください。"
+    : "");
+  if (token && !state.identity && collection.published) openJoin();
+}
+
+function renderLastLetterBook(collection, latest = null, errorMessage = "") {
+  const draft = !collection.published;
+  app.innerHTML = `<section class="page last-letter-page">
+    <div class="last-letter-hero">
+      <p class="eyebrow">HALO HALO FINAL LETTER</p>
+      <h1>🎃 ハロハロ・ラストレター 💌</h1>
+      <p>7人のクリエイターが持つ、7つの文字。記事の中に隠されたURLを探して、ハロハロウィーン最後のメッセージを完成させよう🌙</p>
+    </div>
+    ${draft ? `<div class="panel"><h2>🌙 ただいま準備中</h2><p>7人の仲間が集まるまで、この企画は秘密です。</p></div>` : `
+      <div class="last-letter-progress">
+        <span>集めた文字</span><strong>${collection.count} <small>/ 7</small></strong>
+      </div>
+      ${latest ? `<div class="last-letter-discovery" role="status">
+        <p class="sparkle">${latest.newlyCollected ? "✦ 新しい文字を発見！ ✦" : "✦ すでに集めた文字 ✦"}</p>
+        <strong>「${escapeHtml(latest.letter)}」</strong>
+        <p>${escapeHtml(latest.creatorName)}さんから文字を受け取りました💌</p>
+      </div>` : ""}
+      ${errorMessage ? `<div class="last-letter-error">${escapeHtml(errorMessage)}</div>` : ""}
+      ${lastLetterStage(collection.cards, collection.isComplete)}
+      ${collection.isComplete ? `<p class="last-letter-success">7文字完成！「${escapeHtml(collection.message)}」 🎉</p>`
+        : `<p class="last-letter-hint">まだ見つかっていないボードがあります。7人の記事に置かれたURLを探してみてね🤭︎</p>`}
+      ${!state.identity ? `<button type="button" class="btn btn-primary" data-action="show-join">note IDで参加する</button>` : ""}
+    `}
+    <a class="btn btn-secondary last-letter-to-collection" href="/#/collection">お菓子図鑑へ戻る</a>
+  </section>`;
+}
+
 async function showAdmin(token, page = state.adminParticipantPage, query = state.adminParticipantQuery) {
   const requestedQuery = String(query || "").trim().replace(/^@/, "").toLowerCase();
-  const [data, participants, migration] = await Promise.all([
+  const [data, participants, migration, lastLetter] = await Promise.all([
     api("/api/admin/shops", { adminToken: token, auth: false }),
     api(`/api/admin/participants?page=${encodeURIComponent(page)}&q=${encodeURIComponent(requestedQuery)}`, { adminToken: token, auth: false }),
     api("/api/admin/image-migration", { adminToken: token, auth: false }),
+    api("/api/admin/last-letter", { adminToken: token, auth: false }),
   ]);
   state.adminParticipantPage = participants.page;
   state.adminParticipantQuery = participants.query;
@@ -360,6 +493,7 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
   app.innerHTML = `
     <section class="page">
       <div class="page-head"><div><p class="eyebrow">OWNER</p><h1>管理</h1></div><span class="status">${data.shops.length} 店</span></div>
+      ${renderLastLetterAdmin(lastLetter, token)}
       ${renderAdminParticipants(participants, token)}
       <section class="panel admin-inventory" aria-label="管理者専用お菓子登録数">
         <h2>🍬 登録済みのお菓子</h2>
@@ -476,6 +610,15 @@ async function handleSubmit(event) {
     }
     if (kind === "admin-login") await showAdmin(new FormData(form).get("token"), 1, "");
     if (kind === "participant-search") await showAdmin(form.dataset.token, 1, new FormData(form).get("query"));
+    if (kind === "last-letter-slot") {
+      const body = new FormData(form);
+      await optimizeImageField(body, "image", 1400);
+      await api("/api/admin/last-letter/slot", {
+        method: "POST", body, adminToken: form.dataset.token, auth: false,
+      });
+      notify("クリエイターとキャラクター画像を保存しました");
+      await showAdmin(form.dataset.token);
+    }
     if (kind === "reward") {
       const body = new FormData(form);
       await optimizeImageField(body, "image", 1600);
@@ -510,10 +653,34 @@ async function handleClick(event) {
     button.disabled = true;
     return;
   }
-  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "migrate-webp-all", "restore-webp", "cleanup-webp-all"].includes(action);
+  const adminAction = ["publish-shop", "suspend-shop", "delete-shop", "participant-page", "migrate-webp", "migrate-webp-all", "restore-webp", "cleanup-webp-all", "init-last-letter", "visibility-last-letter", "copy-last-letter"].includes(action);
   if (!adminAction && !ensureAuth()) return;
   setBusy(button, true);
   try {
+    if (action === "init-last-letter") {
+      await api("/api/admin/last-letter/initialize", {
+        method: "POST", adminToken: button.dataset.token, auth: false,
+      });
+      notify("7人分の専用URLを発行しました");
+      await showAdmin(button.dataset.token);
+    }
+    if (action === "visibility-last-letter") {
+      const published = button.dataset.published === "true";
+      if (published && !confirm("7人の文字集めを公開しますか？配布した専用URLで文字を集められるようになります。")) return;
+      await api("/api/admin/last-letter/visibility", {
+        method: "POST", body: JSON.stringify({ published }),
+        adminToken: button.dataset.token, auth: false,
+      });
+      notify(published ? "ラストレターを公開しました！" : "ラストレターを準備中に戻しました");
+      await showAdmin(button.dataset.token);
+    }
+    if (action === "copy-last-letter") {
+      await copyText(new URL(button.dataset.path, location.origin).href, "記事に貼るURLをコピーしました");
+    }
+    if (action === "flip-last-letter") {
+      const board = document.querySelector("#last-letter-stage");
+      if (board) board.classList.toggle("is-flipped");
+    }
     if (action === "migrate-webp") await runImageMigration(button.dataset.token, false);
     if (action === "migrate-webp-all") {
       if (!confirm("残りの画像を最大300枚まで連続してWebP化します。元画像は24時間以上保管されます。変換中は管理画面を開いておいてください。開始しますか？")) return;
