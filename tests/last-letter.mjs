@@ -282,6 +282,14 @@ try {
 
   const rendered = await readFile("public/app.js", "utf8");
   assert.match(rendered, /function lastLetterBoard/);
+  // The seven collectible cards are intentionally neutral until the message
+  // is decided: neither admin registration, preview, nor visitor UI can show
+  // the older hard-coded sample message or one-character assignments.
+  assert.ok(!rendered.includes("みんなの思い出"));
+  assert.ok(!rendered.includes('slot.letter'));
+  assert.ok(!rendered.includes('card.letter'));
+  assert.ok(!rendered.includes("担当文字"));
+  assert.ok(rendered.includes("カードを獲得済み"));
   assert.match(rendered, /class="last-letter-finished-art"/);
   assert.ok(!rendered.slice(rendered.indexOf("function lastLetterBoard"), rendered.indexOf("function lastLetterStage"))
     .includes("last-letter-held-board"), "The entire user image is displayed without a generated letter board");
@@ -348,6 +356,10 @@ try {
     "Only admin preview should show private per-creator letter link");
   assert.ok(adminPreview.includes("表面未登録"),
     "Admin preview should explain missing art rather than showing unexplained question marks");
+  assert.ok(adminPreview.includes("CARD 01"));
+  assert.ok(!adminPreview.includes("担当文字"));
+  assert.ok(!adminPreview.includes("みんなの思い出"));
+  assert.ok(adminPreview.includes("専用URLを開く"));
 
   const completedMarkup = lastLetterStage(rows.map((row, idx) => ({
     ...row,
@@ -364,6 +376,7 @@ try {
     "Completion button should be seen before scrolling the 7 rows");
   assert.ok(completedMarkup.includes("/images/back7.webp"));
   assert.ok(completedMarkup.includes("last-letter-candy-rain"));
+  assert.ok(!completedMarkup.includes("みんなの思い出"), "Final card preview must not force a decided message");
 
   const styles = await readFile("public/styles.css", "utf8");
   assert.match(styles, /\.last-letter-stage \.last-letter-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/,

@@ -472,7 +472,7 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
 .last-letter-slot-meta div { display:flex; flex-direction:column; min-width:0; gap:3px; }
 .last-letter-slot-meta strong { font-size: 12px; }
 .last-letter-slot-meta small { font-size: 10px; color: var(--muted); }
-.last-letter-slot-letter { display:flex; width:46px; height:46px; flex:0 0 46px; align-items:center; justify-content:center; border:2px solid #f1c876; border-radius:11px; background:#fff0d1; color:#3b2456; font-weight:900; font-size:27px; box-shadow: 0 5px 12px rgba(0,0,0,.2); }
+.last-letter-slot-number { display:flex; width:46px; height:46px; flex:0 0 46px; align-items:center; justify-content:center; border:2px solid #f1c876; border-radius:11px; background:#fff0d1; color:#3b2456; font-weight:900; font-size:18px; box-shadow: 0 5px 12px rgba(0,0,0,.2); }
 .last-letter-admin-image { display:block; width:100%; max-height:155px; object-fit:contain; background:#291e3b; border-radius:10px; margin-bottom:10px; }
 .last-letter-slot-form .field { margin-bottom:8px; }
 .last-letter-slot-form input[type="file"] { width:100%; max-width:100%; font-size:11px; }
@@ -871,7 +871,7 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
   .last-letter-slot-form { padding: 12px; }
   .last-letter-slot-overview { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 9px; }
   .last-letter-slot-summary .last-letter-slot-meta { gap: 6px; }
-  .last-letter-slot-summary .last-letter-slot-letter { width: 37px; height: 37px; flex-basis: 37px; font-size: 21px; }
+  .last-letter-slot-summary .last-letter-slot-number { width: 37px; height: 37px; flex-basis: 37px; font-size: 15px; }
   .last-letter-slot-overview .last-letter-admin-pair { gap: 5px; }
   .last-letter-admin-side > strong { font-size: 10px; }
 }
