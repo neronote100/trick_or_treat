@@ -94,6 +94,7 @@ try {
     form.set("creatorName", `クリエイター${card.slot}`);
     form.set("creatorNoteId", "nero_notelover");
     form.set("image", webp());
+    form.set("backImage", webp());
     const result = await ok("/api/admin/last-letter/slot", "POST", admin, form);
     assert.equal(result.saved, true);
     const redirect = await api(card.path);
@@ -103,7 +104,13 @@ try {
 
   const configured = await ok("/api/admin/last-letter", "GET", admin);
   assert.equal(configured.slots.length, 7);
-  assert.ok(configured.slots.every((c) => c.characterImageUrl?.endsWith(".webp") && c.creatorName));
+  assert.ok(configured.slots.every((c) => c.characterImageUrl?.endsWith(".webp")
+    && c.backImageUrl?.endsWith(".webp") && c.creatorName));
+  assert.equal(new Set(configured.slots.map((c) => c.backImageUrl)).size, 7);
+  assert.ok(configured.slots.every((c) => c.backImageUrl !== c.characterImageUrl));
+  const reverseResponse = await api(configured.slots[0].backImageUrl);
+  assert.equal(reverseResponse.status, 200);
+  assert.equal(reverseResponse.headers.get("content-type"), "image/webp");
   const artResponse = await api(configured.slots[0].characterImageUrl);
   assert.equal(artResponse.status, 200);
   assert.equal(artResponse.headers.get("content-type"), "image/webp");
@@ -113,8 +120,39 @@ try {
   metadataOnly.set("creatorName", "クリエイター1");
   metadataOnly.set("creatorNoteId", "nero_notelover");
   await ok("/api/admin/last-letter/slot", "POST", admin, metadataOnly);
-  assert.equal((await ok("/api/admin/last-letter", "GET", admin)).slots[0].characterImageUrl,
-    configured.slots[0].characterImageUrl, "Editing name without a new image retains original WebP");
+  const metadataEdited = (await ok("/api/admin/last-letter", "GET", admin)).slots[0];
+  assert.equal(metadataEdited.characterImageUrl, configured.slots[0].characterImageUrl,
+    "Editing name without new art retains the front WebP");
+  assert.equal(metadataEdited.backImageUrl, configured.slots[0].backImageUrl,
+    "Editing name without new art retains the back WebP");
+
+  // A back-only edit must never overwrite the front art or the creator URL.
+  const backOnly = new FormData();
+  backOnly.set("slot", "1");
+  backOnly.set("creatorName", "クリエイター1");
+  backOnly.set("creatorNoteId", "nero_notelover");
+  backOnly.set("backImage", webp());
+  await ok("/api/admin/last-letter/slot", "POST", admin, backOnly);
+  const editedSides = (await ok("/api/admin/last-letter", "GET", admin)).slots[0];
+  assert.equal(editedSides.characterImageUrl, configured.slots[0].characterImageUrl);
+  assert.notEqual(editedSides.backImageUrl, configured.slots[0].backImageUrl);
+  assert.equal(editedSides.token, first.slots[0].token);
+
+  const fakeBack = new FormData();
+  fakeBack.set("slot", "1");
+  fakeBack.set("creatorName", "クリエイター1");
+  fakeBack.set("backImage", png());
+  assert.equal((await api("/api/admin/last-letter/slot", "POST", admin, fakeBack)).status, 400);
+  assert.equal((await ok("/api/admin/last-letter", "GET", admin)).slots[0].backImageUrl,
+    editedSides.backImageUrl, "Invalid back upload must preserve the current image");
+
+  const disguisedBack = new FormData();
+  disguisedBack.set("slot", "1");
+  disguisedBack.set("creatorName", "クリエイター1");
+  disguisedBack.set("backImage", new File([await png().arrayBuffer()], "fake.webp", { type: "image/webp" }));
+  assert.equal((await api("/api/admin/last-letter/slot", "POST", admin, disguisedBack)).status, 400);
+  assert.equal((await ok("/api/admin/last-letter", "GET", admin)).slots[0].backImageUrl,
+    editedSides.backImageUrl);
   assert.equal(configured.published, false);
   // The seven front cards are not enough to publish without the secret 4:5 art.
   assert.equal((await api("/api/admin/last-letter/visibility", "POST",
@@ -154,8 +192,8 @@ try {
   badEmptyText.set("headline", "");
   assert.equal((await api("/api/admin/last-letter/finale", "POST", admin, badEmptyText)).status, 400);
   const publicDraft = await ok("/api/last-letter");
-  assert.ok(publicDraft.cards.every((c) => !c.characterImageUrl && !c.creatorName),
-    "Draft must never expose private creators or board letters");
+  assert.ok(publicDraft.cards.every((c) => !c.characterImageUrl && !c.creatorName && !c.backImageUrl),
+    "Draft must never expose private creators, back images or board letters");
   assert.equal(publicDraft.finale, undefined, "Draft must hide final art and adjustable message");
 
   const activated = await ok("/api/admin/last-letter/visibility", "POST",
@@ -166,7 +204,7 @@ try {
   const publicBeforeClaim = await ok("/api/last-letter", "GET", visitor);
   assert.equal(publicBeforeClaim.published, true);
   assert.equal(publicBeforeClaim.count, 0);
-  assert.ok(publicBeforeClaim.cards.every((c) => !c.letter && !c.creatorName));
+  assert.ok(publicBeforeClaim.cards.every((c) => !c.letter && !c.creatorName && !c.backImageUrl));
   assert.equal(publicBeforeClaim.finale, undefined, "Incomplete visitors must never see the special art URL");
 
   for (const slot of first.slots) {
@@ -184,6 +222,8 @@ try {
     if (slot.slot < 7) {
       assert.equal(progress.isComplete, false);
       assert.equal(progress.finale, undefined, "Final image and messages require all seven");
+      assert.ok(progress.cards.every((c) => !c.backImageUrl),
+        "Reverse images are secret until this visitor has all seven");
     }
   }
   const completed = await ok("/api/last-letter", "GET", visitor);
@@ -192,6 +232,9 @@ try {
   assert.equal(completed.backMessage, "あつまったね🎃");
   assert.ok(completed.thanks.includes("ありがとう"));
   assert.equal(completed.finale.imageUrl, savedFinale.imageUrl);
+  assert.ok(completed.cards.every((c) => c.backImageUrl?.endsWith(".webp")),
+    "Completion unlocks all seven administrator-uploaded reverse images");
+  assert.equal(completed.cards[0].backImageUrl, editedSides.backImageUrl);
   assert.equal(completed.finale.headline, "また会おうね！🎃");
   assert.equal(completed.finale.subMessage, "ハロハロウィーンに来てくれてありがとう✨");
   assert.equal((await ok("/api/admin/last-letter", "GET", admin)).participants, 1);
@@ -200,6 +243,7 @@ try {
   assert.equal(other.count, 0, "Every note ID has its own collection");
   assert.equal(other.isComplete, false);
   assert.equal(other.finale, undefined, "Another visitor does not inherit the reward art");
+  assert.ok(other.cards.every((c) => !c.backImageUrl), "Other visitors cannot access the seven reverse URLs");
   assert.ok(other.cards.every((c) => !c.creatorName));
   assert.equal((await api("/api/last-letter/claim", "POST",
     { ...secondVisitor, "content-type": "application/json" },
@@ -233,8 +277,14 @@ try {
   assert.match(rendered, /last-letter-final-frame/);
   assert.match(rendered, /last-letter-candy-rain/);
   assert.match(rendered, /validateLastLetterArtwork\(image, 4, 5\)/);
+  assert.match(rendered, /validateLastLetterArtwork\(backImage, 1, 1\)/);
+  assert.ok(rendered.includes('name="backImage"'));
+  assert.match(rendered, /card\.backImageUrl/);
   assert.match(rendered, /validateLastLetterArtwork\(image, 1, 1\)/);
   assert.match(rendered, /data\.finale/);
+  assert.match(rendered, /last-letter-final-message/);
+  assert.ok(!rendered.includes('last-letter-final-overlay'),
+    "No message, gradient or overlaid text is allowed on the finale image");
   assert.match(rendered, /function lastLetterStage/);
   assert.match(rendered, /flip-last-letter/);
   assert.match(rendered, /last-letter-admin/);
