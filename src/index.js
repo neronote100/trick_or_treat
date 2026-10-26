@@ -456,7 +456,24 @@ async function adminSaveLastLetterSlot(request, env) {
     "SELECT character_image_key FROM last_letter_slots WHERE slot = ?",
   ).bind(slot).first();
   if (!existing) return json({ error: "先に7つのURLを発行してください。" }, 409);
-  const nextImage = await storeImageIfPresent(form.get("image"), env, "letters");
+  // Letter cards are *finished square artworks* including the character and
+  // the letter board. Store WebP only so they display exactly as uploaded.
+  // Metadata-only edits keep the previously uploaded image unchanged.
+  const uploadedImage = form.get("image");
+  let nextImage = null;
+  if (uploadedImage && uploadedImage.size) {
+    if (uploadedImage.type !== "image/webp" || uploadedImage.size > MAX_IMAGE_BYTES) {
+      return json({ error: "完成イラストは5MB以下のWebP形式で登録してください。" }, 400);
+    }
+    const buffer = await uploadedImage.arrayBuffer();
+    const header = new Uint8Array(buffer.slice(0, 12));
+    if (header.length < 12 || String.fromCharCode(...header.slice(0, 4)) !== "RIFF"
+      || String.fromCharCode(...header.slice(8, 12)) !== "WEBP") {
+      return json({ error: "WebP形式の画像データを確認できません。" }, 400);
+    }
+    nextImage = `letters/${crypto.randomUUID()}.webp`;
+    await env.IMAGES.put(nextImage, buffer, { metadata: { contentType: "image/webp" } });
+  }
   try {
     await env.DB.prepare(`UPDATE last_letter_slots
       SET creator_name = ?, creator_note_id = ?, character_image_key = ?, updated_at = CURRENT_TIMESTAMP

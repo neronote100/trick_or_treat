@@ -31,6 +31,11 @@ function png() {
   bytes.set([137,80,78,71,13,10,26,10]);
   return new File([bytes], "creator.png", { type: "image/png" });
 }
+function webp() {
+  const bytes = new Uint8Array(128);
+  bytes.set([82,73,70,70, 120,0,0,0, 87,69,66,80]);
+  return new File([bytes], "completed-board.webp", { type: "image/webp" });
+}
 
 try {
   const db = await mf.getD1Database("DB");
@@ -66,12 +71,27 @@ try {
     { ...admin, "content-type": "application/json" }, json({ published: true }));
   assert.equal(denied.status, 409, "All seven creators must be configured before launch");
 
+  // Even a valid PNG cannot be stored as a Last Letter finished artwork.
+  const badFormat = new FormData();
+  badFormat.set("slot", "1");
+  badFormat.set("creatorName", "PNGテスト");
+  badFormat.set("image", png());
+  assert.equal((await api("/api/admin/last-letter/slot", "POST", admin, badFormat)).status, 400);
+
+  // Reject files with a misleading .webp extension or MIME.
+  const deceptiveFile = new FormData();
+  deceptiveFile.set("slot", "1");
+  deceptiveFile.set("creatorName", "偽WebP");
+  deceptiveFile.set("image", new File([await png().arrayBuffer()], "fake.webp", { type: "image/webp" }));
+  assert.equal((await api("/api/admin/last-letter/slot", "POST", admin, deceptiveFile)).status, 400);
+  assert.equal((await ok("/api/admin/last-letter", "GET", admin)).slots[0].characterImageUrl, null);
+
   for (const card of first.slots) {
     const form = new FormData();
     form.set("slot", String(card.slot));
     form.set("creatorName", `クリエイター${card.slot}`);
     form.set("creatorNoteId", "nero_notelover");
-    form.set("image", png());
+    form.set("image", webp());
     const result = await ok("/api/admin/last-letter/slot", "POST", admin, form);
     assert.equal(result.saved, true);
     const redirect = await api(card.path);
@@ -81,7 +101,18 @@ try {
 
   const configured = await ok("/api/admin/last-letter", "GET", admin);
   assert.equal(configured.slots.length, 7);
-  assert.ok(configured.slots.every((c) => c.characterImageUrl && c.creatorName));
+  assert.ok(configured.slots.every((c) => c.characterImageUrl?.endsWith(".webp") && c.creatorName));
+  const artResponse = await api(configured.slots[0].characterImageUrl);
+  assert.equal(artResponse.status, 200);
+  assert.equal(artResponse.headers.get("content-type"), "image/webp");
+  assert.equal(new Uint8Array(await artResponse.arrayBuffer())[0], 82, "Stored bytes begin with RIFF");
+  const metadataOnly = new FormData();
+  metadataOnly.set("slot", "1");
+  metadataOnly.set("creatorName", "クリエイター1");
+  metadataOnly.set("creatorNoteId", "nero_notelover");
+  await ok("/api/admin/last-letter/slot", "POST", admin, metadataOnly);
+  assert.equal((await ok("/api/admin/last-letter", "GET", admin)).slots[0].characterImageUrl,
+    configured.slots[0].characterImageUrl, "Editing name without a new image retains original WebP");
   assert.equal(configured.published, false);
   const publicDraft = await ok("/api/last-letter");
   assert.ok(publicDraft.cards.every((c) => !c.characterImageUrl && !c.creatorName),
@@ -146,6 +177,10 @@ try {
 
   const rendered = await readFile("public/app.js", "utf8");
   assert.match(rendered, /function lastLetterBoard/);
+  assert.match(rendered, /class="last-letter-finished-art"/);
+  assert.ok(!rendered.slice(rendered.indexOf("function lastLetterBoard"), rendered.indexOf("function lastLetterStage"))
+    .includes("last-letter-held-board"), "The entire user image is displayed without a generated letter board");
+  assert.ok(rendered.includes('accept="image/webp,.webp"'));
   assert.match(rendered, /function lastLetterStage/);
   assert.match(rendered, /flip-last-letter/);
   assert.match(rendered, /last-letter-admin/);
