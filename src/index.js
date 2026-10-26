@@ -83,6 +83,7 @@ async function route(request, env) {
   if (path === "/api/admin/last-letter" && request.method === "GET") return adminGetLastLetter(request, env);
   if (path === "/api/admin/last-letter/initialize" && request.method === "POST") return adminInitializeLastLetter(request, env);
   if (path === "/api/admin/last-letter/slot" && request.method === "POST") return adminSaveLastLetterSlot(request, env);
+  if (path === "/api/admin/last-letter/finale" && request.method === "POST") return adminSaveLastLetterFinale(request, env);
   if (path === "/api/admin/last-letter/visibility" && request.method === "POST") return adminSetLastLetterVisibility(request, env);
 
   if (path === "/api/admin/shops" && request.method === "GET") return adminListShops(request, env, url);
@@ -406,14 +407,20 @@ async function getCollection(request, env) {
 
 async function adminGetLastLetter(request, env) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
-  const [settings, slots, totalClaims] = await Promise.all([
+  const [settings, slots, totalClaims, finale] = await Promise.all([
     env.DB.prepare("SELECT is_published FROM last_letter_settings WHERE id = 1").first(),
     env.DB.prepare("SELECT slot, letter, claim_token, creator_name, creator_note_id, character_image_key FROM last_letter_slots ORDER BY slot").all(),
     env.DB.prepare("SELECT COUNT(DISTINCT user_id) AS participants FROM last_letter_claims").first(),
+    env.DB.prepare("SELECT image_key, headline, sub_message FROM last_letter_finale WHERE id = 1").first(),
   ]);
   return json({
     initialized: slots.results.length === 7,
     published: Boolean(settings?.is_published),
+    finale: {
+      imageUrl: imageUrl(finale?.image_key),
+      headline: finale?.headline || "遊んでくれてありがとう✨",
+      subMessage: finale?.sub_message ?? "みんなで集めてくれて、ありがとう。あなたと過ごしたハロハロウィーンの思い出は、王子の宝物です🌙",
+    },
     slots: slots.results.map((row) => ({
       slot: row.slot,
       letter: row.letter,
@@ -486,16 +493,60 @@ async function adminSaveLastLetterSlot(request, env) {
   return json({ saved: true, slot });
 }
 
+async function adminSaveLastLetterFinale(request, env) {
+  if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
+  const form = await request.formData();
+  const headline = cleanText(form.get("headline"), 80);
+  const subMessage = cleanText(form.get("subMessage"), 240);
+  if (!headline) return json({ error: "最後に表示するメッセージを入力してください。" }, 400);
+
+  // Never discard an existing artwork for a text-only edit.
+  const existing = await env.DB.prepare(
+    "SELECT image_key FROM last_letter_finale WHERE id = 1",
+  ).first();
+  const artwork = form.get("image");
+  let newKey = null;
+  if (artwork && artwork.size) {
+    if (artwork.type !== "image/webp" || artwork.size > MAX_IMAGE_BYTES) {
+      return json({ error: "特別イラストは5MB以下のWebP形式で登録してください。" }, 400);
+    }
+    const bytes = await artwork.arrayBuffer();
+    const header = new Uint8Array(bytes.slice(0, 12));
+    if (header.length < 12 || String.fromCharCode(...header.slice(0, 4)) !== "RIFF"
+      || String.fromCharCode(...header.slice(8, 12)) !== "WEBP") {
+      return json({ error: "WebP形式の画像データを確認できません。" }, 400);
+    }
+    newKey = `letters/${crypto.randomUUID()}.webp`;
+    await env.IMAGES.put(newKey, bytes, { metadata: { contentType: "image/webp" } });
+  }
+  try {
+    await env.DB.prepare(`
+      INSERT INTO last_letter_finale (id, image_key, headline, sub_message)
+      VALUES (1, ?, ?, ?)
+      ON CONFLICT (id) DO UPDATE SET
+        image_key = excluded.image_key, headline = excluded.headline,
+        sub_message = excluded.sub_message, updated_at = CURRENT_TIMESTAMP
+    `).bind(newKey || existing?.image_key || null, headline, subMessage).run();
+  } catch (error) {
+    if (newKey) await env.IMAGES.delete(newKey).catch(() => {});
+    throw error;
+  }
+  // An older image remains in KV: viewers may still have cached its URL.
+  return json({ saved: true, imageUrl: imageUrl(newKey || existing?.image_key), headline, subMessage });
+}
+
 async function adminSetLastLetterVisibility(request, env) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const input = await readJson(request);
   if (typeof input.published !== "boolean") return json({ error: "公開設定が不正です。" }, 400);
-  const slots = await env.DB.prepare(
-    "SELECT slot, creator_name, character_image_key FROM last_letter_slots ORDER BY slot",
-  ).all();
+  const [slots, finale] = await Promise.all([
+    env.DB.prepare("SELECT slot, creator_name, character_image_key FROM last_letter_slots ORDER BY slot").all(),
+    env.DB.prepare("SELECT image_key FROM last_letter_finale WHERE id = 1").first(),
+  ]);
   if (input.published && (slots.results.length !== 7 ||
-    slots.results.some((card) => !card.creator_name || !card.character_image_key))) {
-    return json({ error: "7人全員の名前とキャラクター画像を登録してから公開してください。" }, 409);
+    slots.results.some((card) => !card.creator_name || !card.character_image_key)
+    || !finale?.image_key)) {
+    return json({ error: "7人の表面画像と最後の特別イラストを登録してから公開してください。" }, 409);
   }
   await env.DB.prepare("INSERT INTO last_letter_settings (id, is_published) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET is_published = excluded.is_published")
     .bind(Number(input.published)).run();
@@ -535,6 +586,10 @@ async function getLastLetterCollection(request, env) {
     };
   });
   const count = cards.filter((card) => card.found).length;
+  // The finale is hidden until this particular visitor has all seven.
+  const finale = isPublished && count === 7
+    ? await env.DB.prepare("SELECT image_key, headline, sub_message FROM last_letter_finale WHERE id = 1").first()
+    : null;
   return json({
     published: isPublished,
     count,
@@ -542,7 +597,16 @@ async function getLastLetterCollection(request, env) {
     isComplete: isPublished && count === 7,
     cards,
     ...(isPublished && count === 7
-      ? { message: LAST_LETTER_CHARS.join(""), backMessage: LAST_LETTER_BACK.join(""), thanks: "みんなで集めてくれて、ありがとう。あなたと過ごしたハロハロウィーンの思い出は、王子の宝物です🌙" }
+      ? {
+        message: cards.map((card) => card.letter).join(""),
+        backMessage: LAST_LETTER_BACK.join(""),
+        thanks: finale?.sub_message || "みんなで集めてくれて、ありがとう🌙",
+        finale: {
+          imageUrl: imageUrl(finale?.image_key),
+          headline: finale?.headline || "遊んでくれてありがとう✨",
+          subMessage: finale?.sub_message || "",
+        },
+      }
       : {}),
   });
 }
@@ -1273,6 +1337,13 @@ function ensureDatabase(env) {
         creator_name TEXT NOT NULL DEFAULT '',
         creator_note_id TEXT NOT NULL DEFAULT '',
         character_image_key TEXT,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS last_letter_finale (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        image_key TEXT,
+        headline TEXT NOT NULL DEFAULT '遊んでくれてありがとう✨',
+        sub_message TEXT NOT NULL DEFAULT '',
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )`,
       `CREATE TABLE IF NOT EXISTS last_letter_claims (
