@@ -752,7 +752,7 @@ async function adminMigrateImage(request, env) {
   if (!isAdmin(request, env)) return json({ error: "管理者キーが違います。" }, 401);
   const form = await request.formData();
   const sourceKey = String(form.get("sourceKey") || "");
-  if (!/^(characters|treats|rewards|triptych)\/[a-zA-Z0-9-]+\.(png|jpg|jpeg)$/i.test(sourceKey)) {
+  if (!/^(characters|treats|rewards|triptych|letters)\/[a-zA-Z0-9-]+\.(png|jpg|jpeg)$/i.test(sourceKey)) {
     return json({ error: "変換対象の画像キーが不正です。" }, 400);
   }
   const active = await env.DB.prepare(
