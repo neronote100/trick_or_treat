@@ -729,3 +729,149 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 7px 10px
 }
 .last-letter-candy-rain { z-index:0; }
 .last-letter-final-content { z-index:1; }
+
+/* Last Letter: consistent single-column rows on mobile AND desktop.
+   Each row presents a name/link on the left and the unmodified art on the right. */
+.last-letter-stage .last-letter-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  max-width: 820px;
+  margin: 16px auto 24px;
+}
+.last-letter-stage .last-letter-tile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(115px, 36%, 212px);
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 213, 141, .3);
+  border-radius: 17px;
+  background: linear-gradient(120deg, rgba(65, 43, 83, .78), rgba(28, 20, 44, .82));
+  aspect-ratio: auto;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .16);
+}
+.last-letter-stage .last-letter-tile.is-locked { background: rgba(44, 34, 57, .6); }
+.last-letter-stage .last-letter-inner {
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  align-self: center;
+}
+.last-letter-tile-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  gap: 9px;
+  padding: 4px 0 4px 4px;
+}
+.last-letter-slot-index {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .15em;
+  color: #d6b47f;
+}
+.last-letter-info-name {
+  display: block;
+  width: 100%;
+  font-size: clamp(15px, 3.8vw, 20px);
+  line-height: 1.45;
+  font-weight: 850;
+  color: #fff0d3;
+  overflow-wrap: anywhere;
+}
+.last-letter-info-status {
+  display: block;
+  color: #e1d1ea;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.last-letter-info-link,
+.last-letter-info-link-muted {
+  display: inline-block;
+  max-width: 100%;
+  line-height: 1.65;
+  font-size: clamp(11px, 2.8vw, 13px);
+  overflow-wrap: anywhere;
+}
+.last-letter-info-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: #ffdc99;
+  font-weight: 800;
+}
+.last-letter-info-link:focus-visible {
+  outline: 2px solid #ffe1a4;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.last-letter-info-link-muted { color: #b6abc0; }
+.last-letter-stage .last-letter-creator { display: none; }
+.last-letter-stage .last-letter-mystery {
+  font-size: clamp(29px, 8vw, 65px);
+  text-align: center;
+  padding: 8px;
+  line-height: 1.6;
+}
+.last-letter-stage .last-letter-tile.is-locked .last-letter-mystery { font-size: clamp(40px, 8vw, 72px); }
+.last-letter-admin .last-letter-admin-slots {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  max-width: 860px;
+  margin: 16px auto 22px;
+}
+.last-letter-slot-form { padding: 16px; }
+.last-letter-slot-overview {
+  display: grid;
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 211, 138, .19);
+  margin-bottom: 14px;
+}
+.last-letter-slot-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 10px;
+}
+.last-letter-slot-summary .last-letter-slot-meta { margin: 0 0 3px; }
+.last-letter-slot-summary .last-letter-info-name { margin: 0; }
+.last-letter-slot-summary .last-letter-slot-copy { width: auto; margin: 0; padding: 8px 10px; font-size: 11px; }
+.last-letter-slot-overview .last-letter-admin-pair { width: 100%; margin: 0; }
+.last-letter-slot-overview .last-letter-admin-pair .last-letter-admin-image,
+.last-letter-slot-overview .last-letter-admin-pair .last-letter-admin-empty {
+  width: 100%;
+  max-width: none;
+}
+.last-letter-flip-banner {
+  max-width: 820px;
+  margin: 18px auto 20px;
+  padding: 17px 14px;
+  border: 2px solid #ffd381;
+  border-radius: 18px;
+  text-align: center;
+  background: radial-gradient(circle at top, rgba(254, 200, 95, .18), rgba(50, 30, 66, .96));
+  box-shadow: 0 6px 26px rgba(254, 173, 74, .18);
+}
+.last-letter-flip-banner strong { display: block; font-size: clamp(19px, 4.5vw, 25px); color: #ffebbd; }
+.last-letter-flip-banner p { margin: 9px auto 13px; color: #f7e1cf; font-size: 13px; line-height: 1.8; }
+.last-letter-flip-button { width: min(100%, 420px); padding: 14px 18px; font-weight: 800; }
+.last-letter-thanks { scroll-margin-top: 82px; }
+@media (max-width: 420px) {
+  .last-letter-stage .last-letter-tile { grid-template-columns: minmax(0, 1fr) minmax(112px, 39%); gap: 8px; padding: 10px; }
+  .last-letter-tile-info { gap: 6px; }
+  .last-letter-slot-form { padding: 12px; }
+  .last-letter-slot-overview { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 9px; }
+  .last-letter-slot-summary .last-letter-slot-meta { gap: 6px; }
+  .last-letter-slot-summary .last-letter-slot-letter { width: 37px; height: 37px; flex-basis: 37px; font-size: 21px; }
+  .last-letter-slot-overview .last-letter-admin-pair { gap: 5px; }
+  .last-letter-admin-side > strong { font-size: 10px; }
+}

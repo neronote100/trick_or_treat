@@ -349,23 +349,37 @@ function renderAdminParticipants(data, token) {
 const LAST_LETTER_REVERSE = ["あ", "つ", "ま", "っ", "た", "ね", "🎃"];
 
 function lastLetterBoard(card, reveal, preview = false) {
-  const found = preview ? Boolean(card.characterImageUrl) : Boolean(card.found);
-  const creator = found ? (card.creatorName || "旅の仲間") : "？？？";
-  const image = found && card.characterImageUrl
-    ? `<img class="last-letter-finished-art" src="${escapeAttr(card.characterImageUrl)}" loading="lazy" alt="${escapeAttr(creator)}の完成イラスト。文字「${escapeAttr(card.letter)}」のボードを持っています">`
-    : `<div class="last-letter-mystery" role="img" aria-label="まだ発見されていない文字">？</div>`;
+  // In admin preview the creator and their own article URL must remain visible
+  // even when the two artworks have not yet been uploaded.
+  const found = preview || Boolean(card.found);
+  const creator = found ? (card.creatorName || "クリエイター未登録") : "まだ見つかっていない仲間";
+  const frontArt = found && card.characterImageUrl
+    ? `<img class="last-letter-finished-art" src="${escapeAttr(card.characterImageUrl)}" loading="lazy" alt="${escapeAttr(creator)}の表面イラスト">`
+    : `<div class="last-letter-mystery" role="img" aria-label="${preview ? "表面イラスト未登録" : "未発見の文字"}">${preview ? "表面未登録" : "？"}</div>`;
+  // Public visitors only receive creatorNoteId for already discovered cards.
+  // The private claim URL is used only inside the admin preview.
+  const creatorUrl = preview && card.path
+    ? new URL(card.path, location.origin).href
+    : found && card.creatorNoteId
+      ? `https://note.com/${encodeURIComponent(card.creatorNoteId)}` : "";
+  const linkName = preview ? "文字の専用URLを開く" : "クリエイターのnoteへ";
   return `<div class="last-letter-tile ${found ? "is-found" : "is-locked"}" style="--letter-delay:${(card.slot - 1) * 85}ms">
+    <div class="last-letter-tile-info">
+      <span class="last-letter-slot-index">LETTER ${String(card.slot).padStart(2, "0")}</span>
+      <strong class="last-letter-info-name">${escapeHtml(creator)}</strong>
+      <span class="last-letter-info-status">${found ? `担当文字「${escapeHtml(card.letter || "？")}」` : "まだ発見されていません"}</span>
+      ${creatorUrl
+        ? `<a class="last-letter-info-link" href="${escapeAttr(creatorUrl)}" target="_blank" rel="noopener noreferrer">${linkName} ↗</a>`
+        : `<span class="last-letter-info-link-muted">${preview ? "URL準備中" : "発見するとリンクが表示されます"}</span>`}
+    </div>
     <div class="last-letter-inner">
-      <div class="last-letter-face last-letter-front">
-        ${image}
-      </div>
+      <div class="last-letter-face last-letter-front">${frontArt}</div>
       <div class="last-letter-face last-letter-back">
         ${found && card.backImageUrl
           ? `<img class="last-letter-finished-art" src="${escapeAttr(card.backImageUrl)}" loading="lazy" alt="${escapeAttr(creator)}の裏面イラスト">`
           : `<div class="last-letter-reverse-placeholder">裏面イラスト<br>準備中</div>`}
       </div>
     </div>
-    <div class="last-letter-creator">${escapeHtml(creator)}</div>
   </div>`;
 }
 
@@ -384,10 +398,16 @@ function lastLetterStage(cards, isComplete, preview = false, finale = null) {
         ${finale.subMessage ? `<p>${escapeHtml(finale.subMessage)}</p>` : ""}
       </div>`
     : `<div class="last-letter-final-missing">最後の特別イラストは準備中です🌙</div>`;
+  const flipButton = `<button type="button" class="btn btn-primary last-letter-flip-button" data-action="flip-last-letter" aria-expanded="false">✦ 7枚のボードをひっくり返す ✦</button>`;
   return `<div id="last-letter-stage" class="last-letter-stage ${isComplete ? "is-complete" : ""}">
+    ${isComplete ? `<div class="last-letter-flip-banner" role="status">
+      <strong>🎉 7枚コンプリート！</strong>
+      <p>7人の想いが集まりました。ボタンを押して、裏側の秘密を見よう✨</p>
+      ${flipButton}
+    </div>` : ""}
     <div class="last-letter-grid">${cards.map((card) => lastLetterBoard(card, isComplete, preview)).join("")}</div>
     ${isComplete ? `<div class="last-letter-reveal-actions">
-      <button type="button" class="btn btn-primary" data-action="flip-last-letter" aria-expanded="false">✦ 7枚のボードをひっくり返す ✦</button>
+      ${flipButton}
       <div class="last-letter-thanks" aria-live="polite">
         <div class="last-letter-candy-rain" aria-hidden="true">${candyRain}</div>
         <div class="last-letter-final-sparkles" aria-hidden="true">✦ ✧ ✨ 🍬 ✨ ✧ ✦</div>
@@ -410,11 +430,17 @@ function renderLastLetterAdmin(data, token) {
       <div class="last-letter-admin-slots">${data.slots.map((slot) => `
         <form class="last-letter-slot-form" data-form="last-letter-slot" data-token="${escapeAttr(token)}">
           <input type="hidden" name="slot" value="${slot.slot}">
-          <div class="last-letter-slot-meta">
-            <span class="last-letter-slot-letter">${escapeHtml(slot.letter)}</span>
-            <div><strong>${slot.slot}人目のクリエイター</strong><small>「${escapeHtml(slot.letter)}」のボードを持った完成イラスト</small></div>
-          </div>
-          <div class="last-letter-admin-pair">
+          <div class="last-letter-slot-overview">
+            <div class="last-letter-slot-summary">
+              <div class="last-letter-slot-meta">
+                <span class="last-letter-slot-letter">${escapeHtml(slot.letter)}</span>
+                <div><strong>${slot.slot}人目</strong><small>表・裏の2枚</small></div>
+              </div>
+              <strong class="last-letter-info-name">${escapeHtml(slot.creatorName || "クリエイター未登録")}</strong>
+              <a class="last-letter-info-link" href="${escapeAttr(new URL(slot.path, location.origin).href)}" target="_blank" rel="noopener noreferrer">専用URLを開く ↗</a>
+              <button class="btn btn-secondary last-letter-slot-copy" type="button" data-action="copy-last-letter" data-token="${escapeAttr(token)}" data-path="${escapeAttr(slot.path)}">URLをコピー</button>
+            </div>
+            <div class="last-letter-admin-pair">
             <div class="last-letter-admin-side">
               <strong>表面（1:1）</strong>
               ${slot.characterImageUrl ? `<img class="last-letter-admin-image" src="${escapeAttr(slot.characterImageUrl)}" alt="${slot.slot}人目の登録済み表面イラスト">` : `<div class="last-letter-admin-empty">表面未登録</div>`}
@@ -422,6 +448,7 @@ function renderLastLetterAdmin(data, token) {
             <div class="last-letter-admin-side">
               <strong>裏面（1:1）</strong>
               ${slot.backImageUrl ? `<img class="last-letter-admin-image" src="${escapeAttr(slot.backImageUrl)}" alt="${slot.slot}人目の登録済み裏面イラスト">` : `<div class="last-letter-admin-empty">裏面未登録</div>`}
+            </div>
             </div>
           </div>
           <label class="field"><span>表示する名前</span><input name="creatorName" required maxlength="50" value="${escapeAttr(slot.creatorName)}" placeholder="例：ネロ王子"></label>
@@ -431,9 +458,8 @@ function renderLastLetterAdmin(data, token) {
           <p class="subtle last-letter-upload-hint">表面・裏面とも推奨1024×1024px。どちらか一方だけ差し替えることもできます。保存済みのもう一方は維持されます。</p>
           <button class="btn btn-secondary" type="submit">表面・裏面を登録・保存</button>
           <div class="last-letter-url">
-            <small>記事に貼る専用URL</small>
+            <small>記事に貼る専用URL（コピーして配布）</small>
             <input readonly aria-label="${slot.slot}人目の専用URL" value="${escapeAttr(new URL(slot.path, location.origin).href)}">
-            <button class="btn btn-secondary" type="button" data-action="copy-last-letter" data-token="${escapeAttr(token)}" data-path="${escapeAttr(slot.path)}">URLをコピー</button>
           </div>
         </form>`).join("")}</div>
       <section class="last-letter-finale-editor" aria-label="最後の特別イラストと感謝メッセージ">
@@ -459,6 +485,8 @@ function renderLastLetterAdmin(data, token) {
         slot: slot.slot, letter: slot.letter, creatorName: slot.creatorName || "クリエイター",
         characterImageUrl: slot.characterImageUrl,
         backImageUrl: slot.backImageUrl,
+        creatorNoteId: slot.creatorNoteId,
+        path: slot.path,
       })), true, true, data.finale)}
     `}
   </section>`;
@@ -754,8 +782,22 @@ async function handleClick(event) {
       const board = document.querySelector("#last-letter-stage");
       if (board) {
         const isFlipped = board.classList.toggle("is-flipped");
-        button.setAttribute("aria-expanded", String(isFlipped));
-        button.textContent = isFlipped ? "✦ 表面の7枚をもう一度見る ✦" : "✦ 7枚のボードをひっくり返す ✦";
+        board.querySelectorAll('[data-action="flip-last-letter"]').forEach((flip) => {
+          flip.setAttribute("aria-expanded", String(isFlipped));
+          flip.textContent = isFlipped ? "✦ 表面の7枚をもう一度見る ✦" : "✦ 7枚のボードをひっくり返す ✦";
+        });
+        if (isFlipped) {
+          // When the button is above seven vertical cards, reveal the finale
+          // after the flip animation; otherwise the reward is off screen.
+          const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+          setTimeout(() => {
+            if (board.isConnected && board.classList.contains("is-flipped")) {
+              board.querySelector(".last-letter-thanks")?.scrollIntoView({
+                behavior: reduceMotion ? "instant" : "smooth", block: "start",
+              });
+            }
+          }, reduceMotion ? 0 : 2200);
+        }
       }
     }
     if (action === "migrate-webp") await runImageMigration(button.dataset.token, false);
