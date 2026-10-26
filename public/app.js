@@ -369,17 +369,32 @@ function lastLetterBoard(card, reveal, preview = false) {
   </div>`;
 }
 
-function lastLetterStage(cards, isComplete, preview = false) {
+function lastLetterStage(cards, isComplete, preview = false, finale = null) {
+  const candies = ["🍬", "🍭", "🍫", "🍪", "🍬", "🍡", "🎃", "🍭", "🍬", "🍫", "✨", "🍬"];
+  const candyRain = Array.from({ length: 42 }, (_, index) => {
+    const candy = candies[index % candies.length];
+    return `<span class="last-letter-candy" style="--candy-left:${(index * 41 + 7) % 100}%;--candy-delay:${(index % 14) * 0.17}s;--candy-speed:${3.8 + (index % 5) * 0.55}s;--candy-size:${16 + (index % 4) * 5}px">${candy}</span>`;
+  }).join("");
+  const specialArt = finale?.imageUrl
+    ? `<div class="last-letter-final-frame">
+        <img class="last-letter-final-art" src="${escapeAttr(finale.imageUrl)}" loading="eager" alt="ハロハロ・ラストレターの特別な最後のイラスト">
+        <div class="last-letter-final-overlay">
+          <h2>${escapeHtml(finale.headline || "遊んでくれてありがとう✨")}</h2>
+          ${finale.subMessage ? `<p>${escapeHtml(finale.subMessage)}</p>` : ""}
+        </div>
+      </div>`
+    : `<div class="last-letter-final-missing">最後の特別イラストは準備中です🌙</div>`;
   return `<div id="last-letter-stage" class="last-letter-stage ${isComplete ? "is-complete" : ""}">
     <div class="last-letter-grid">${cards.map((card) => lastLetterBoard(card, isComplete, preview)).join("")}</div>
     ${isComplete ? `<div class="last-letter-reveal-actions">
-      <button type="button" class="btn btn-primary" data-action="flip-last-letter">✦ 7枚のボードをひっくり返す ✦</button>
+      <button type="button" class="btn btn-primary" data-action="flip-last-letter" aria-expanded="false">✦ 7枚のボードをひっくり返す ✦</button>
       <div class="last-letter-thanks" aria-live="polite">
-        <div class="last-letter-confetti" aria-hidden="true">✦ ✧ 🎃 ✧ ✦</div>
-        <h2>あつまったね🎃</h2>
-        <p>7人の想いと、あなたの冒険がひとつになりました。</p>
-        <strong>集めてくれて、本当にありがとう✨</strong>
-        <p class="subtle">ハロハロウィーンで出会えた、みんなの思い出を大切に🌙</p>
+        <div class="last-letter-candy-rain" aria-hidden="true">${candyRain}</div>
+        <div class="last-letter-final-sparkles" aria-hidden="true">✦ ✧ ✨ 🍬 ✨ ✧ ✦</div>
+        <div class="last-letter-final-content">
+          ${specialArt}
+          <p class="last-letter-final-thanks">7人の想いと、あなたの冒険がひとつになりました。ありがとう！ 🎃🌙</p>
+        </div>
       </div>
     </div>` : ""}
   </div>`;
@@ -412,16 +427,29 @@ function renderLastLetterAdmin(data, token) {
             <button class="btn btn-secondary" type="button" data-action="copy-last-letter" data-token="${escapeAttr(token)}" data-path="${escapeAttr(slot.path)}">URLをコピー</button>
           </div>
         </form>`).join("")}</div>
+      <section class="last-letter-finale-editor" aria-label="最後の特別イラストと感謝メッセージ">
+        <p class="eyebrow">SECRET FINAL ARTWORK</p>
+        <h3>🎁 最後の特別イラスト（4:5）</h3>
+        <p class="subtle">7枚の表面画像は今までどおり1:1です。7文字を集めてボタンを押した人だけに、縦長4:5の特別イラストが現れます。</p>
+        <form data-form="last-letter-finale" data-token="${escapeAttr(token)}">
+          ${data.finale?.imageUrl ? `<img class="last-letter-finale-admin-preview" src="${escapeAttr(data.finale.imageUrl)}" alt="登録済みの特別イラスト">` : `<div class="last-letter-admin-empty">最後の特別イラストは未登録</div>`}
+          <label class="field"><span>特別イラスト・WebP（推奨1000×1250px／最大5MB）</span><input type="file" name="image" accept="image/webp,.webp"></label>
+          <label class="field"><span>画像に重ねるメッセージ（自由に変更できます）</span><input type="text" name="headline" maxlength="80" required value="${escapeAttr(data.finale?.headline || "遊んでくれてありがとう✨")}"></label>
+          <label class="field"><span>添える文章（任意）</span><textarea name="subMessage" maxlength="240" rows="3">${escapeHtml(data.finale?.subMessage || "")}</textarea></label>
+          <p class="subtle">文字は画像の下側に重ねて表示します。後から文字だけ変更する場合、画像の選び直しは不要です。文字が隠れないよう、イラスト下部に少し余白を設けるのがおすすめです。</p>
+          <button class="btn btn-primary" type="submit">特別イラストとメッセージを保存</button>
+        </form>
+      </section>
       <div class="last-letter-admin-launch">
         <a class="btn btn-secondary" href="/#/last-letter">収集ページを確認</a>
         <button class="btn ${data.published ? "btn-danger" : "btn-primary"}" type="button" data-action="visibility-last-letter" data-token="${escapeAttr(token)}" data-published="${!data.published}">${data.published ? "非公開に戻す" : "7人の準備ができたら公開する"}</button>
       </div>
-      <p class="subtle">公開には7人全員の名前と画像が必要です。公開前のURLでは文字を獲得できません。公開後も図鑑の通常機能には影響しません。</p>
+      <p class="subtle">公開には7人全員の名前と表面画像、および最後の特別イラストが必要です。既存のURLと獲得記録は保持します。</p>
       <h3 class="last-letter-preview-title">✨ 完成イメージ（管理者プレビュー）</h3>
       ${lastLetterStage(data.slots.map((slot) => ({
         slot: slot.slot, letter: slot.letter, creatorName: slot.creatorName || "クリエイター",
         characterImageUrl: slot.characterImageUrl,
-      })), true, true)}
+      })), true, true, data.finale)}
     `}
   </section>`;
 }
@@ -466,7 +494,7 @@ function renderLastLetterBook(collection, latest = null, errorMessage = "") {
         <p>${escapeHtml(latest.creatorName)}さんから文字を受け取りました💌</p>
       </div>` : ""}
       ${errorMessage ? `<div class="last-letter-error">${escapeHtml(errorMessage)}</div>` : ""}
-      ${lastLetterStage(collection.cards, collection.isComplete)}
+      ${lastLetterStage(collection.cards, collection.isComplete, false, collection.finale)}
       ${collection.isComplete ? `<p class="last-letter-success">7文字完成！「${escapeHtml(collection.message)}」 🎉</p>`
         : `<p class="last-letter-hint">まだ見つかっていないボードがあります。7人の記事に置かれたURLを探してみてね🤭︎</p>`}
       ${!state.identity ? `<button type="button" class="btn btn-primary" data-action="show-join">note IDで参加する</button>` : ""}
@@ -584,6 +612,26 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
     </section>`;
 }
 
+async function validateLastLetterArtwork(file, ratioWidth, ratioHeight) {
+  if (file.type !== "image/webp" || file.size > 5 * 1024 * 1024) {
+    throw new Error("WebP形式の画像（5MB以下）を選んでください。");
+  }
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+    const ratio = bitmap.width / bitmap.height;
+    const target = ratioWidth / ratioHeight;
+    if (!bitmap.width || !bitmap.height || Math.abs(ratio - target) > 0.015) {
+      throw new Error(`画像は${ratioWidth}:${ratioHeight}の比率にしてください（現在 ${bitmap.width}×${bitmap.height}px）。`);
+    }
+  } catch (error) {
+    if (error.message.startsWith("画像は")) throw error;
+    throw new Error("画像を開けませんでした。正しいWebP画像を選んでください。");
+  } finally {
+    bitmap?.close?.();
+  }
+}
+
 async function handleSubmit(event) {
   const form = event.target.closest("form[data-form]");
   if (!form) return;
@@ -609,15 +657,23 @@ async function handleSubmit(event) {
     }
     if (kind === "admin-login") await showAdmin(new FormData(form).get("token"), 1, "");
     if (kind === "participant-search") await showAdmin(form.dataset.token, 1, new FormData(form).get("query"));
+    if (kind === "last-letter-finale") {
+      const body = new FormData(form);
+      const image = body.get("image");
+      if (image?.size) await validateLastLetterArtwork(image, 4, 5);
+      await api("/api/admin/last-letter/finale", {
+        method: "POST", body, adminToken: form.dataset.token, auth: false,
+      });
+      notify("最後の特別イラストとメッセージを保存しました");
+      await showAdmin(form.dataset.token);
+    }
     if (kind === "last-letter-slot") {
       const body = new FormData(form);
       const image = body.get("image");
       if (image?.size && image.type !== "image/webp") {
         throw new Error("完成イラストはWebP（.webp）を選んでください。");
       }
-      if (image?.size > 5 * 1024 * 1024) {
-        throw new Error("WebP画像は5MB以下にしてください。");
-      }
+      if (image?.size) await validateLastLetterArtwork(image, 1, 1);
       await api("/api/admin/last-letter/slot", {
         method: "POST", body, adminToken: form.dataset.token, auth: false,
       });
@@ -684,7 +740,11 @@ async function handleClick(event) {
     }
     if (action === "flip-last-letter") {
       const board = document.querySelector("#last-letter-stage");
-      if (board) board.classList.toggle("is-flipped");
+      if (board) {
+        const isFlipped = board.classList.toggle("is-flipped");
+        button.setAttribute("aria-expanded", String(isFlipped));
+        button.textContent = isFlipped ? "✦ 表面の7枚をもう一度見る ✦" : "✦ 7枚のボードをひっくり返す ✦";
+      }
     }
     if (action === "migrate-webp") await runImageMigration(button.dataset.token, false);
     if (action === "migrate-webp-all") {
