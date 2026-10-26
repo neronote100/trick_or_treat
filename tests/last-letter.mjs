@@ -47,6 +47,8 @@ try {
   assert.ok(visibility.cards.every((c) => !c.found && !c.letter && !c.creatorName));
   assert.equal((await api("/api/admin/last-letter")).status, 401, "Creator URLs require admin authentication");
   assert.equal((await api("/api/admin/last-letter/initialize", "POST")).status, 401);
+  assert.equal((await api("/api/admin/last-letter/finale", "POST", {}, new FormData())).status, 401);
+  assert.equal(visibility.finale, undefined, "Never reveal finale before completion");
   assert.equal((await api("/api/admin/last-letter/visibility", "POST",
     { "content-type": "application/json" }, json({ published: true }))).status, 401);
 
@@ -114,9 +116,47 @@ try {
   assert.equal((await ok("/api/admin/last-letter", "GET", admin)).slots[0].characterImageUrl,
     configured.slots[0].characterImageUrl, "Editing name without a new image retains original WebP");
   assert.equal(configured.published, false);
+  // The seven front cards are not enough to publish without the secret 4:5 art.
+  assert.equal((await api("/api/admin/last-letter/visibility", "POST",
+    { ...admin, "content-type": "application/json" }, json({ published: true }))).status, 409);
+  const invalidFinale = new FormData();
+  invalidFinale.set("headline", "お祝いメッセージ");
+  invalidFinale.set("subMessage", "ありがとう");
+  invalidFinale.set("image", png());
+  assert.equal((await api("/api/admin/last-letter/finale", "POST", admin, invalidFinale)).status, 400);
+  const fakeFinale = new FormData();
+  fakeFinale.set("headline", "お祝いメッセージ");
+  fakeFinale.set("image", new File([await png().arrayBuffer()], "fake.webp", { type: "image/webp" }));
+  assert.equal((await api("/api/admin/last-letter/finale", "POST", admin, fakeFinale)).status, 400);
+  const finaleUpload = new FormData();
+  finaleUpload.set("headline", "遊んでくれてありがとう✨");
+  finaleUpload.set("subMessage", "7人と過ごしたハロハロウィーンは宝物です🌙");
+  finaleUpload.set("image", webp());
+  const savedFinale = await ok("/api/admin/last-letter/finale", "POST", admin, finaleUpload);
+  assert.equal(savedFinale.saved, true);
+  assert.ok(savedFinale.imageUrl.endsWith(".webp"));
+  const adminFinale = await ok("/api/admin/last-letter", "GET", admin);
+  assert.equal(adminFinale.finale.imageUrl, savedFinale.imageUrl);
+  assert.equal(adminFinale.finale.headline, "遊んでくれてありがとう✨");
+  const servedFinale = await api(savedFinale.imageUrl);
+  assert.equal(servedFinale.status, 200);
+  assert.equal(servedFinale.headers.get("content-type"), "image/webp");
+  // Message updates never invalidate artwork URLs, creator links, or claims.
+  const textOnlyFinale = new FormData();
+  textOnlyFinale.set("headline", "また会おうね！🎃");
+  textOnlyFinale.set("subMessage", "ハロハロウィーンに来てくれてありがとう✨");
+  await ok("/api/admin/last-letter/finale", "POST", admin, textOnlyFinale);
+  const edited = await ok("/api/admin/last-letter", "GET", admin);
+  assert.equal(edited.finale.imageUrl, savedFinale.imageUrl);
+  assert.equal(edited.finale.headline, "また会おうね！🎃");
+  assert.equal(edited.finale.subMessage, "ハロハロウィーンに来てくれてありがとう✨");
+  const badEmptyText = new FormData();
+  badEmptyText.set("headline", "");
+  assert.equal((await api("/api/admin/last-letter/finale", "POST", admin, badEmptyText)).status, 400);
   const publicDraft = await ok("/api/last-letter");
   assert.ok(publicDraft.cards.every((c) => !c.characterImageUrl && !c.creatorName),
     "Draft must never expose private creators or board letters");
+  assert.equal(publicDraft.finale, undefined, "Draft must hide final art and adjustable message");
 
   const activated = await ok("/api/admin/last-letter/visibility", "POST",
     { ...admin, "content-type": "application/json" }, json({ published: true }));
@@ -127,6 +167,7 @@ try {
   assert.equal(publicBeforeClaim.published, true);
   assert.equal(publicBeforeClaim.count, 0);
   assert.ok(publicBeforeClaim.cards.every((c) => !c.letter && !c.creatorName));
+  assert.equal(publicBeforeClaim.finale, undefined, "Incomplete visitors must never see the special art URL");
 
   for (const slot of first.slots) {
     const claimed = await ok("/api/last-letter/claim", "POST",
@@ -140,18 +181,25 @@ try {
     const progress = await ok("/api/last-letter", "GET", visitor);
     assert.equal(progress.count, slot.slot);
     assert.equal(progress.cards.filter((c) => c.found).length, slot.slot);
-    if (slot.slot < 7) assert.equal(progress.isComplete, false);
+    if (slot.slot < 7) {
+      assert.equal(progress.isComplete, false);
+      assert.equal(progress.finale, undefined, "Final image and messages require all seven");
+    }
   }
   const completed = await ok("/api/last-letter", "GET", visitor);
   assert.equal(completed.isComplete, true);
   assert.equal(completed.message, "みんなの思い出");
   assert.equal(completed.backMessage, "あつまったね🎃");
   assert.ok(completed.thanks.includes("ありがとう"));
+  assert.equal(completed.finale.imageUrl, savedFinale.imageUrl);
+  assert.equal(completed.finale.headline, "また会おうね！🎃");
+  assert.equal(completed.finale.subMessage, "ハロハロウィーンに来てくれてありがとう✨");
   assert.equal((await ok("/api/admin/last-letter", "GET", admin)).participants, 1);
 
   const other = await ok("/api/last-letter", "GET", secondVisitor);
   assert.equal(other.count, 0, "Every note ID has its own collection");
   assert.equal(other.isComplete, false);
+  assert.equal(other.finale, undefined, "Another visitor does not inherit the reward art");
   assert.ok(other.cards.every((c) => !c.creatorName));
   assert.equal((await api("/api/last-letter/claim", "POST",
     { ...secondVisitor, "content-type": "application/json" },
@@ -181,6 +229,12 @@ try {
   assert.ok(!rendered.slice(rendered.indexOf("function lastLetterBoard"), rendered.indexOf("function lastLetterStage"))
     .includes("last-letter-held-board"), "The entire user image is displayed without a generated letter board");
   assert.ok(rendered.includes('accept="image/webp,.webp"'));
+  assert.match(rendered, /data-form="last-letter-finale"/);
+  assert.match(rendered, /last-letter-final-frame/);
+  assert.match(rendered, /last-letter-candy-rain/);
+  assert.match(rendered, /validateLastLetterArtwork\(image, 4, 5\)/);
+  assert.match(rendered, /validateLastLetterArtwork\(image, 1, 1\)/);
+  assert.match(rendered, /data\.finale/);
   assert.match(rendered, /function lastLetterStage/);
   assert.match(rendered, /flip-last-letter/);
   assert.match(rendered, /last-letter-admin/);
