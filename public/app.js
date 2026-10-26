@@ -365,9 +365,9 @@ function lastLetterBoard(card, reveal, preview = false) {
   const linkName = preview ? "文字の専用URLを開く" : "クリエイターのnoteへ";
   return `<div class="last-letter-tile ${found ? "is-found" : "is-locked"}" style="--letter-delay:${(card.slot - 1) * 85}ms">
     <div class="last-letter-tile-info">
-      <span class="last-letter-slot-index">LETTER ${String(card.slot).padStart(2, "0")}</span>
+      <span class="last-letter-slot-index">CARD ${String(card.slot).padStart(2, "0")}</span>
       <strong class="last-letter-info-name">${escapeHtml(creator)}</strong>
-      <span class="last-letter-info-status">${found ? `担当文字「${escapeHtml(card.letter || "？")}」` : "まだ発見されていません"}</span>
+      <span class="last-letter-info-status">${found ? "カードを獲得済み" : "まだ発見されていません"}</span>
       ${creatorUrl
         ? `<a class="last-letter-info-link" href="${escapeAttr(creatorUrl)}" target="_blank" rel="noopener noreferrer">${linkName} ↗</a>`
         : `<span class="last-letter-info-link-muted">${preview ? "URL準備中" : "発見するとリンクが表示されます"}</span>`}
@@ -423,17 +423,17 @@ function renderLastLetterAdmin(data, token) {
   return `<section class="panel last-letter-admin" id="last-letter-admin">
     <p class="eyebrow">HALO HALO FINAL MESSAGE</p>
     <h2>🎃 ハロハロ・ラストレター 💌</h2>
-    <p class="subtle">7人がそれぞれ「みんなの思い出」の1文字を持つ、ハロウィンの最後の企画。7文字を集めた人だけが、ボード裏の「ありがとう」に出会えます。</p>
+    <p class="subtle">7人のクリエイターが、それぞれ特別なカードを用意するハロウィンの最後の企画。7枚を集めると裏面と最後のイラストが見られます。</p>
     <p class="last-letter-admin-status">${data.published ? "🟢 公開中" : "🌙 準備中・参加者には非公開"}　・　文字を集めた参加者 ${data.participants} ID</p>
     ${!data.initialized ? `<button class="btn btn-primary" type="button" data-action="init-last-letter" data-token="${escapeAttr(token)}">7人分の専用URLを発行する</button>` : `
-      <p class="subtle">7人の担当文字とURLは固定です。1人につき<strong>表面と裏面それぞれ1枚（合計14枚）</strong>の正方形WebPを登録してください。最後の1枚だけ4:5です。画像は切り抜かずそのまま表示します。</p>
+      <p class="subtle">7人分の専用URLは発行後も変わりません。1人につき<strong>表面と裏面それぞれ1枚（合計14枚）</strong>の正方形WebPを登録してください。最後の1枚だけ4:5です。画像は切り抜かずそのまま表示します。カードに描く言葉はまだ決めなくて大丈夫です。</p>
       <div class="last-letter-admin-slots">${data.slots.map((slot) => `
         <form class="last-letter-slot-form" data-form="last-letter-slot" data-token="${escapeAttr(token)}">
           <input type="hidden" name="slot" value="${slot.slot}">
           <div class="last-letter-slot-overview">
             <div class="last-letter-slot-summary">
               <div class="last-letter-slot-meta">
-                <span class="last-letter-slot-letter">${escapeHtml(slot.letter)}</span>
+                <span class="last-letter-slot-number">${String(slot.slot).padStart(2, "0")}</span>
                 <div><strong>${slot.slot}人目</strong><small>表・裏の2枚</small></div>
               </div>
               <strong class="last-letter-info-name">${escapeHtml(slot.creatorName || "クリエイター未登録")}</strong>
@@ -482,7 +482,7 @@ function renderLastLetterAdmin(data, token) {
       <p class="subtle">公開には7人全員の名前・表面7枚・裏面7枚・最後の4:5イラスト、合計15枚が必要です。既存のURLと獲得記録は保持します。</p>
       <h3 class="last-letter-preview-title">✨ 完成イメージ（管理者プレビュー）</h3>
       ${lastLetterStage(data.slots.map((slot) => ({
-        slot: slot.slot, letter: slot.letter, creatorName: slot.creatorName || "クリエイター",
+        slot: slot.slot, creatorName: slot.creatorName || "クリエイター",
         characterImageUrl: slot.characterImageUrl,
         backImageUrl: slot.backImageUrl,
         creatorNoteId: slot.creatorNoteId,
@@ -520,21 +520,21 @@ function renderLastLetterBook(collection, latest = null, errorMessage = "") {
     <div class="last-letter-hero">
       <p class="eyebrow">HALO HALO FINAL LETTER</p>
       <h1>🎃 ハロハロ・ラストレター 💌</h1>
-      <p>7人のクリエイターが持つ、7つの文字。記事の中に隠されたURLを探して、ハロハロウィーン最後のメッセージを完成させよう🌙</p>
+      <p>7人のクリエイターが用意した、7つの秘密のカード。記事の中に隠されたURLを探して、最後の贈り物を見つけよう🌙</p>
     </div>
     ${draft ? `<div class="panel"><h2>🌙 ただいま準備中</h2><p>7人の仲間が集まるまで、この企画は秘密です。</p></div>` : `
       <div class="last-letter-progress">
-        <span>集めた文字</span><strong>${collection.count} <small>/ 7</small></strong>
+        <span>集めたカード</span><strong>${collection.count} <small>/ 7</small></strong>
       </div>
       ${latest ? `<div class="last-letter-discovery" role="status">
-        <p class="sparkle">${latest.newlyCollected ? "✦ 新しい文字を発見！ ✦" : "✦ すでに集めた文字 ✦"}</p>
-        <strong>「${escapeHtml(latest.letter)}」</strong>
-        <p>${escapeHtml(latest.creatorName)}さんから文字を受け取りました💌</p>
+        <p class="sparkle">${latest.newlyCollected ? "✦ 新しいカードを発見！ ✦" : "✦ すでに集めたカード ✦"}</p>
+        <strong>カード ${String(latest.slot).padStart(2, "0")}</strong>
+        <p>${escapeHtml(latest.creatorName)}さんからカードを受け取りました💌</p>
       </div>` : ""}
       ${errorMessage ? `<div class="last-letter-error">${escapeHtml(errorMessage)}</div>` : ""}
       ${lastLetterStage(collection.cards, collection.isComplete, false, collection.finale)}
-      ${collection.isComplete ? `<p class="last-letter-success">7文字完成！「${escapeHtml(collection.message)}」 🎉</p>`
-        : `<p class="last-letter-hint">まだ見つかっていないボードがあります。7人の記事に置かれたURLを探してみてね🤭︎</p>`}
+      ${collection.isComplete ? `<p class="last-letter-success">7枚コンプリート！ 特別な裏面が解放されました🎉</p>`
+        : `<p class="last-letter-hint">まだ見つかっていないカードがあります。7人の記事に置かれたURLを探してみてね🤭︎</p>`}
       ${!state.identity ? `<button type="button" class="btn btn-primary" data-action="show-join">note IDで参加する</button>` : ""}
     `}
     <a class="btn btn-secondary last-letter-to-collection" href="/#/collection">お菓子図鑑へ戻る</a>
