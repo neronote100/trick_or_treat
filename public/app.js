@@ -349,18 +349,15 @@ function renderAdminParticipants(data, token) {
 const LAST_LETTER_REVERSE = ["あ", "つ", "ま", "っ", "た", "ね", "🎃"];
 
 function lastLetterBoard(card, reveal, preview = false) {
-  const found = preview ? Boolean(card.letter) : Boolean(card.found);
-  const label = found ? card.letter : "？";
+  const found = preview ? Boolean(card.characterImageUrl) : Boolean(card.found);
   const creator = found ? (card.creatorName || "旅の仲間") : "？？？";
-  const portrait = found && card.characterImageUrl
-    ? `<img src="${escapeAttr(card.characterImageUrl)}" loading="lazy" alt="${escapeAttr(creator)}のキャラクター">`
-    : `<div class="last-letter-mystery" aria-hidden="true">✦</div>`;
+  const image = found && card.characterImageUrl
+    ? `<img class="last-letter-finished-art" src="${escapeAttr(card.characterImageUrl)}" loading="lazy" alt="${escapeAttr(creator)}の完成イラスト。文字「${escapeAttr(card.letter)}」のボードを持っています">`
+    : `<div class="last-letter-mystery" role="img" aria-label="まだ発見されていない文字">？</div>`;
   return `<div class="last-letter-tile ${found ? "is-found" : "is-locked"}" style="--letter-delay:${(card.slot - 1) * 85}ms">
     <div class="last-letter-inner">
       <div class="last-letter-face last-letter-front">
-        <div class="last-letter-character">${portrait}</div>
-        <div class="last-letter-held-board" aria-label="${found ? "獲得した文字：" + escapeAttr(label) : "未発見"}"><span>${escapeHtml(label)}</span></div>
-        <div class="last-letter-creator">${escapeHtml(creator)}</div>
+        ${image}
       </div>
       <div class="last-letter-face last-letter-back">
         <span class="last-letter-number">MEMORY ${String(card.slot).padStart(2, "0")}</span>
@@ -368,6 +365,7 @@ function lastLetterBoard(card, reveal, preview = false) {
         <span class="last-letter-back-mark">✦ THANK YOU ✦</span>
       </div>
     </div>
+    <div class="last-letter-creator">${escapeHtml(creator)}</div>
   </div>`;
 }
 
@@ -394,19 +392,20 @@ function renderLastLetterAdmin(data, token) {
     <p class="subtle">7人がそれぞれ「みんなの思い出」の1文字を持つ、ハロウィンの最後の企画。7文字を集めた人だけが、ボード裏の「ありがとう」に出会えます。</p>
     <p class="last-letter-admin-status">${data.published ? "🟢 公開中" : "🌙 準備中・参加者には非公開"}　・　文字を集めた参加者 ${data.participants} ID</p>
     ${!data.initialized ? `<button class="btn btn-primary" type="button" data-action="init-last-letter" data-token="${escapeAttr(token)}">7人分の専用URLを発行する</button>` : `
-      <p class="subtle">7人の担当文字とURLは固定です。名前・画像はいつでも更新できます。専用URLを各クリエイターの記事に1つずつ置いてもらってください。</p>
+      <p class="subtle">7人の担当文字とURLは固定です。キャラクターが1文字入りの正方形ボードを持っている<strong>完成イラスト</strong>を、1人につき1枚登録してください。収集ページでは画像全体をそのまま表示します。</p>
       <div class="last-letter-admin-slots">${data.slots.map((slot) => `
         <form class="last-letter-slot-form" data-form="last-letter-slot" data-token="${escapeAttr(token)}">
           <input type="hidden" name="slot" value="${slot.slot}">
           <div class="last-letter-slot-meta">
             <span class="last-letter-slot-letter">${escapeHtml(slot.letter)}</span>
-            <div><strong>${slot.slot}人目のクリエイター</strong><small>正方形のキャラクター画像がおすすめ</small></div>
+            <div><strong>${slot.slot}人目のクリエイター</strong><small>「${escapeHtml(slot.letter)}」のボードを持った完成イラスト</small></div>
           </div>
-          ${slot.characterImageUrl ? `<img class="last-letter-admin-image" src="${escapeAttr(slot.characterImageUrl)}" alt="登録済みのキャラクター">` : ""}
+          ${slot.characterImageUrl ? `<img class="last-letter-admin-image" src="${escapeAttr(slot.characterImageUrl)}" alt="登録済みの完成ボードイラスト">` : `<div class="last-letter-admin-empty">完成イラスト未登録</div>`}
           <label class="field"><span>表示する名前</span><input name="creatorName" required maxlength="50" value="${escapeAttr(slot.creatorName)}" placeholder="例：ネロ王子"></label>
           <label class="field"><span>note ID（任意）</span><input name="creatorNoteId" maxlength="32" value="${escapeAttr(slot.creatorNoteId)}" placeholder="nero_notelover"></label>
-          <label class="field"><span>キャラクター画像（5MBまで）</span><input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>
-          <button class="btn btn-secondary" type="submit">このキャラクターを保存</button>
+          <label class="field"><span>完成イラスト・WebP（5MBまで）</span><input name="image" type="file" accept="image/webp,.webp"></label>
+          <p class="subtle last-letter-upload-hint">推奨：1024×1024px／正方形。イラスト内に「${escapeHtml(slot.letter)}」を入れてください。画像は切り抜かずそのまま表示します。</p>
+          <button class="btn btn-secondary" type="submit">この完成イラストを登録・保存</button>
           <div class="last-letter-url">
             <small>記事に貼る専用URL</small>
             <input readonly aria-label="${slot.slot}人目の専用URL" value="${escapeAttr(new URL(slot.path, location.origin).href)}">
@@ -612,11 +611,17 @@ async function handleSubmit(event) {
     if (kind === "participant-search") await showAdmin(form.dataset.token, 1, new FormData(form).get("query"));
     if (kind === "last-letter-slot") {
       const body = new FormData(form);
-      await optimizeImageField(body, "image", 1400);
+      const image = body.get("image");
+      if (image?.size && image.type !== "image/webp") {
+        throw new Error("完成イラストはWebP（.webp）を選んでください。");
+      }
+      if (image?.size > 5 * 1024 * 1024) {
+        throw new Error("WebP画像は5MB以下にしてください。");
+      }
       await api("/api/admin/last-letter/slot", {
         method: "POST", body, adminToken: form.dataset.token, auth: false,
       });
-      notify("クリエイターとキャラクター画像を保存しました");
+      notify("完成イラスト（WebP）を登録しました");
       await showAdmin(form.dataset.token);
     }
     if (kind === "reward") {
