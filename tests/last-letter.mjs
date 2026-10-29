@@ -293,21 +293,92 @@ try {
   assert.match(rendered, /class="last-letter-finished-art"/);
   assert.ok(!rendered.slice(rendered.indexOf("function lastLetterBoard"), rendered.indexOf("function lastLetterStage"))
     .includes("last-letter-held-board"), "The entire user image is displayed without a generated letter board");
-  assert.ok(rendered.includes('accept="image/webp,.webp"'));
+  assert.ok(rendered.includes('accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"'));
   assert.match(rendered, /data-form="last-letter-finale"/);
   assert.match(rendered, /last-letter-final-frame/);
   assert.match(rendered, /last-letter-candy-rain/);
-  assert.match(rendered, /validateLastLetterArtwork\(image, 4, 5\)/);
-  assert.match(rendered, /validateLastLetterArtwork\(backImage, 1, 1\)/);
+  assert.ok(rendered.includes('prepareLastLetterArtwork(body, "image", 4, 5)'));
+  assert.ok(rendered.includes('prepareLastLetterArtwork(body, "backImage", 1, 1)'));
   assert.ok(rendered.includes('name="backImage"'));
   assert.match(rendered, /card\.backImageUrl/);
-  assert.match(rendered, /validateLastLetterArtwork\(image, 1, 1\)/);
+  assert.ok(rendered.includes('prepareLastLetterArtwork(body, "image", 1, 1)'));
   assert.match(rendered, /data\.finale/);
   assert.match(rendered, /last-letter-final-message/);
   assert.ok(!rendered.includes('last-letter-final-overlay'),
     "No message, gradient or overlaid text is allowed on the finale image");
   assert.match(rendered, /function lastLetterStage/);
   assert.match(rendered, /flip-last-letter/);
+  // Exercise the browser upload path: PNG/JPEG become WebP without cropping,
+  // existing WebP stays untouched and incorrect aspect ratios are rejected.
+  const artworkCode = rendered.slice(
+    rendered.indexOf("async function prepareLastLetterArtwork("),
+    rendered.indexOf("async function handleSubmit("),
+  );
+  assert.ok(artworkCode.startsWith("async function prepareLastLetterArtwork"));
+  let closedBitmaps = 0;
+  const canvasSizes = [];
+  const browserUpload = new Function("createImageBitmap", "document", "File",
+    artworkCode + "\nreturn prepareLastLetterArtwork;")(
+    async (file) => ({
+      width: file.name === "wrong-ratio.png" ? 1200 : file.name.startsWith("finale") ? 1000 : 1024,
+      height: file.name === "wrong-ratio.png" ? 900 : file.name.startsWith("finale") ? 1250 : 1024,
+      close() { closedBitmaps++; },
+    }),
+    {
+      createElement(tag) {
+        assert.equal(tag, "canvas");
+        const canvas = {
+          width: 0, height: 0,
+          getContext(kind) {
+            assert.equal(kind, "2d");
+            return {
+              drawImage(_bitmap, x, y) {
+                assert.equal(x, 0);
+                assert.equal(y, 0);
+                canvasSizes.push([canvas.width, canvas.height]);
+              },
+            };
+          },
+          toBlob(callback, type, quality) {
+            assert.equal(type, "image/webp");
+            assert.equal(quality, 0.94);
+            callback(new Blob([new Uint8Array([82,73,70,70, 0,0,0,0, 87,69,66,80])], { type }));
+          },
+        };
+        return canvas;
+      },
+    }, File);
+  // Images are converted with original dimensions and without clipping.
+  const uploadedPng = new FormData();
+  uploadedPng.set("image", png());
+  await browserUpload(uploadedPng, "image", 1, 1);
+  assert.equal(uploadedPng.get("image").type, "image/webp");
+  assert.equal(uploadedPng.get("image").name, "creator.webp");
+  const uploadedJpegBack = new FormData();
+  uploadedJpegBack.set("backImage", new File([new Uint8Array([255,216,255])],
+    "back.jpg", { type: "image/jpeg" }));
+  await browserUpload(uploadedJpegBack, "backImage", 1, 1);
+  assert.equal(uploadedJpegBack.get("backImage").type, "image/webp");
+  const uploadedFinale = new FormData();
+  uploadedFinale.set("image", new File([new Uint8Array([255,216,255])],
+    "finale.jpg", { type: "image/jpeg" }));
+  await browserUpload(uploadedFinale, "image", 4, 5);
+  assert.equal(uploadedFinale.get("image").name, "finale.webp");
+  assert.equal(uploadedFinale.get("image").type, "image/webp");
+  assert.deepEqual(canvasSizes, [[1024, 1024], [1024, 1024], [1000, 1250]]);
+  const existingWebp = new FormData();
+  const originalWebp = webp();
+  existingWebp.set("image", originalWebp);
+  await browserUpload(existingWebp, "image", 1, 1);
+  assert.equal(existingWebp.get("image"), originalWebp, "Already-WebP images must not be re-encoded");
+  const badRatio = new FormData();
+  badRatio.set("image", new File([new Uint8Array(128)], "wrong-ratio.png", { type: "image/png" }));
+  await assert.rejects(browserUpload(badRatio, "image", 1, 1), /1:1の比率/);
+  const badMime = new FormData();
+  badMime.set("image", new File([new Uint8Array(128)], "animated.gif", { type: "image/gif" }));
+  await assert.rejects(browserUpload(badMime, "image", 1, 1), /PNG・JPEG・WebP形式/);
+  assert.equal(closedBitmaps, 5, "Image bitmaps must be released after conversion or rejection");
+
   // Render the actual browser template functions with harmless test props.
   // Both public collection and administrator preview must use one row per creator,
   // with the creator/link left and their 1:1 image right.
