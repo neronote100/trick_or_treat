@@ -426,7 +426,7 @@ function renderLastLetterAdmin(data, token) {
     <p class="subtle">7人のクリエイターが、それぞれ特別なカードを用意するハロウィンの最後の企画。7枚を集めると裏面と最後のイラストが見られます。</p>
     <p class="last-letter-admin-status">${data.published ? "🟢 公開中" : "🌙 準備中・参加者には非公開"}　・　文字を集めた参加者 ${data.participants} ID</p>
     ${!data.initialized ? `<button class="btn btn-primary" type="button" data-action="init-last-letter" data-token="${escapeAttr(token)}">7人分の専用URLを発行する</button>` : `
-      <p class="subtle">7人分の専用URLは発行後も変わりません。1人につき<strong>表面と裏面それぞれ1枚（合計14枚）</strong>の正方形WebPを登録してください。最後の1枚だけ4:5です。画像は切り抜かずそのまま表示します。カードに描く言葉はまだ決めなくて大丈夫です。</p>
+      <p class="subtle">7人分の専用URLは発行後も変わりません。1人につき<strong>表面と裏面それぞれ1枚（合計14枚）</strong>の正方形画像を登録してください。PNG・JPEGはWebPに自動変換します。最後の1枚だけ4:5です。画像は切り抜かずそのまま表示します。カードに描く言葉はまだ決めなくて大丈夫です。</p>
       <div class="last-letter-admin-slots">${data.slots.map((slot) => `
         <form class="last-letter-slot-form" data-form="last-letter-slot" data-token="${escapeAttr(token)}">
           <input type="hidden" name="slot" value="${slot.slot}">
@@ -453,9 +453,9 @@ function renderLastLetterAdmin(data, token) {
           </div>
           <label class="field"><span>表示する名前</span><input name="creatorName" required maxlength="50" value="${escapeAttr(slot.creatorName)}" placeholder="例：ネロ王子"></label>
           <label class="field"><span>note ID（任意）</span><input name="creatorNoteId" maxlength="32" value="${escapeAttr(slot.creatorNoteId)}" placeholder="nero_notelover"></label>
-          <label class="field"><span>表面の完成イラスト・WebP（1:1／5MBまで）</span><input name="image" type="file" accept="image/webp,.webp"></label>
-          <label class="field"><span>裏面の完成イラスト・WebP（1:1／5MBまで）</span><input name="backImage" type="file" accept="image/webp,.webp"></label>
-          <p class="subtle last-letter-upload-hint">表面・裏面とも推奨1024×1024px。どちらか一方だけ差し替えることもできます。保存済みのもう一方は維持されます。</p>
+          <label class="field"><span>表面の完成イラスト（1:1／PNG・JPEG・WebP）</span><input name="image" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"></label>
+          <label class="field"><span>裏面の完成イラスト（1:1／PNG・JPEG・WebP）</span><input name="backImage" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"></label>
+          <p class="subtle last-letter-upload-hint">表面・裏面とも推奨1024×1024px。PNG・JPEGは縦横を変えずWebPに自動変換（保存時5MB以下）。切り抜きはしません。片面だけ差し替えた場合、もう一方は維持されます。</p>
           <button class="btn btn-secondary" type="submit">表面・裏面を登録・保存</button>
           <div class="last-letter-url">
             <small>記事に貼る専用URL（コピーして配布）</small>
@@ -468,10 +468,10 @@ function renderLastLetterAdmin(data, token) {
         <p class="subtle">7枚の表面画像は今までどおり1:1です。7文字を集めてボタンを押した人だけに、縦長4:5の特別イラストが現れます。</p>
         <form data-form="last-letter-finale" data-token="${escapeAttr(token)}">
           ${data.finale?.imageUrl ? `<img class="last-letter-finale-admin-preview" src="${escapeAttr(data.finale.imageUrl)}" alt="登録済みの特別イラスト">` : `<div class="last-letter-admin-empty">最後の特別イラストは未登録</div>`}
-          <label class="field"><span>特別イラスト・WebP（推奨1000×1250px／最大5MB）</span><input type="file" name="image" accept="image/webp,.webp"></label>
+          <label class="field"><span>特別イラスト（4:5／PNG・JPEG・WebP）</span><input type="file" name="image" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"></label>
           <label class="field"><span>画像の下に添えるメッセージ（自由に変更できます）</span><input type="text" name="headline" maxlength="80" required value="${escapeAttr(data.finale?.headline || "遊んでくれてありがとう✨")}"></label>
           <label class="field"><span>添える文章（任意）</span><textarea name="subMessage" maxlength="240" rows="3">${escapeHtml(data.finale?.subMessage || "")}</textarea></label>
-          <p class="subtle">画像は加工せず4:5の比率で全体をそのまま表示します。メッセージは画像の外（下側）に独立して添えます。文字だけ変更する場合、画像の選び直しは不要です。</p>
+          <p class="subtle">PNG・JPEGは縦横を変えずWebPに自動変換（保存時5MB以下）。切り抜きせず4:5の全体を表示します。メッセージは画像の外（下側）に独立して添えます。文字だけ変更する場合、画像の選び直しは不要です。</p>
           <button class="btn btn-primary" type="submit">特別イラストとメッセージを保存</button>
         </form>
       </section>
@@ -650,23 +650,47 @@ async function showAdmin(token, page = state.adminParticipantPage, query = state
     </section>`;
 }
 
-async function validateLastLetterArtwork(file, ratioWidth, ratioHeight) {
-  if (file.type !== "image/webp" || file.size > 5 * 1024 * 1024) {
-    throw new Error("WebP形式の画像（5MB以下）を選んでください。");
+async function prepareLastLetterArtwork(body, field, ratioWidth, ratioHeight) {
+  const file = body.get(field);
+  if (!file?.size) return;
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+    throw new Error("PNG・JPEG・WebP形式の画像を選んでください。");
   }
+
   let bitmap;
   try {
     bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error("画像を開けませんでした。PNG・JPEG・WebP形式で保存し直してください。");
+  }
+  try {
     const ratio = bitmap.width / bitmap.height;
-    const target = ratioWidth / ratioHeight;
-    if (!bitmap.width || !bitmap.height || Math.abs(ratio - target) > 0.015) {
+    if (!bitmap.width || !bitmap.height || Math.abs(ratio - ratioWidth / ratioHeight) > 0.015) {
       throw new Error(`画像は${ratioWidth}:${ratioHeight}の比率にしてください（現在 ${bitmap.width}×${bitmap.height}px）。`);
     }
-  } catch (error) {
-    if (error.message.startsWith("画像は")) throw error;
-    throw new Error("画像を開けませんでした。正しいWebP画像を選んでください。");
+    if (file.type === "image/webp") {
+      if (file.size > 5 * 1024 * 1024) throw new Error("画像は5MB以下にしてください。");
+      return; // Existing WebP files are not needlessly re-encoded.
+    }
+
+    // Convert PNG/JPEG locally while preserving all pixels, dimensions and transparency.
+    // The Worker still receives only validated WebP; no new server format is exposed.
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("画像の変換に対応していないブラウザです。");
+    ctx.drawImage(bitmap, 0, 0);
+    const blob = await new Promise((resolve, reject) =>
+      canvas.toBlob((value) => value ? resolve(value) : reject(new Error("WebPへの変換に失敗しました。")), "image/webp", 0.94),
+    );
+    if (blob.type !== "image/webp") throw new Error("WebPへの変換に対応していないブラウザです。");
+    if (blob.size > 5 * 1024 * 1024) {
+      throw new Error("WebP変換後の画像が5MBを超えました。画像を小さくしてお試しください。");
+    }
+    body.set(field, new File([blob], (file.name || "artwork").replace(/\.[^.]+$/, "") + ".webp", { type: "image/webp" }));
   } finally {
-    bitmap?.close?.();
+    bitmap.close?.();
   }
 }
 
@@ -697,8 +721,7 @@ async function handleSubmit(event) {
     if (kind === "participant-search") await showAdmin(form.dataset.token, 1, new FormData(form).get("query"));
     if (kind === "last-letter-finale") {
       const body = new FormData(form);
-      const image = body.get("image");
-      if (image?.size) await validateLastLetterArtwork(image, 4, 5);
+      await prepareLastLetterArtwork(body, "image", 4, 5);
       await api("/api/admin/last-letter/finale", {
         method: "POST", body, adminToken: form.dataset.token, auth: false,
       });
@@ -707,13 +730,8 @@ async function handleSubmit(event) {
     }
     if (kind === "last-letter-slot") {
       const body = new FormData(form);
-      const image = body.get("image");
-      const backImage = body.get("backImage");
-      if (image?.size && image.type !== "image/webp") {
-        throw new Error("完成イラストはWebP（.webp）を選んでください。");
-      }
-      if (image?.size) await validateLastLetterArtwork(image, 1, 1);
-      if (backImage?.size) await validateLastLetterArtwork(backImage, 1, 1);
+      await prepareLastLetterArtwork(body, "image", 1, 1);
+      await prepareLastLetterArtwork(body, "backImage", 1, 1);
       await api("/api/admin/last-letter/slot", {
         method: "POST", body, adminToken: form.dataset.token, auth: false,
       });
