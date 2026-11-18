@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#091427">
+<meta name="description" content="大切な誰かと過ごす、クリスマスの妄想デート。みんなのnote作品が光る、城下町のクリスマスツリー。">
+<title>クリスマス妄想デート展🎄｜王子の城下町🌙</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="stars" aria-hidden="true"></div>
+<header class="header">
+  <a class="brand" href="./" aria-label="王子の城下町 クリスマス妄想デート展">☾ <span>王子の城下町</span></a>
+  <a class="header-link" href="#works">作品一覧 <span aria-hidden="true">↘</span></a>
+</header>
+<main>
+  <section class="intro" aria-labelledby="headline">
+    <p class="eyebrow">THE CHRISTMAS WISH TREE · 2026</p>
+    <h1 id="headline">あなたの想いで、<br><em>ツリーに灯りを。</em></h1>
+    <p class="lead">もしも今年のクリスマス、大切な誰かと<br>自由に一日を過ごせるとしたら。</p>
+    <p class="hint">恋人でも、家族でも、推しでも、憧れの人でも。<br>あなたの妄想デートを、エッセイやイラストにして届けてね。</p>
+    <div class="stats" aria-live="polite"><strong id="count">0</strong><span>の想いがツリーを彩っています</span></div>
+  </section>
+
+  <section class="tree-section" aria-label="みんなの作品を飾ったクリスマスツリー">
+    <div class="tree-scene" id="tree-scene">
+      <div class="tree-halo" aria-hidden="true"></div>
+      <svg class="tree-svg" aria-hidden="true" viewBox="0 0 800 750" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="pine" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1e6153"/><stop offset=".55" stop-color="#124538"/><stop offset="1" stop-color="#072b2b"/></linearGradient>
+          <linearGradient id="trunk"><stop stop-color="#855b3d"/><stop offset="1" stop-color="#4f3529"/></linearGradient>
+          <filter id="soft"><feGaussianBlur stdDeviation="11"/></filter>
+        </defs>
+        <ellipse cx="400" cy="685" rx="275" ry="22" fill="#68bdb7" opacity=".12" filter="url(#soft)"/>
+        <path d="M381 566h38v108h-38z" fill="url(#trunk)"/>
+        <path d="M400 72 247 290h52L152 480h75L105 623h590L571 480h77L500 290h55z" fill="url(#pine)" stroke="#4e9c80" stroke-width="3"/>
+        <path d="M400 85 298 290h26L210 480h45L160 617h76l133-530z" fill="#9fe3ba" opacity=".075"/>
+        <path d="M400 85 500 290h-24l114 190h-45l96 136h-65L425 90z" fill="#0a242c" opacity=".27"/>
+        <path d="M250 331Q400 406 550 331M192 491Q400 577 607 491" fill="none" stroke="#edc783" stroke-width="5" opacity=".8" stroke-linecap="round" stroke-dasharray="1 17"/>
+        <path d="m400 41 15 29 32 5-23 22 6 33-30-16-30 16 6-33-23-22 32-5Z" fill="#ffe4a5" stroke="#ffeccc" stroke-width="3"/>
+        <circle cx="400" cy="80" r="49" fill="#ffe6a0" opacity=".34" filter="url(#soft)"/>
+      </svg>
+      <div id="ornaments" class="ornaments"></div>
+      <div class="snow-base" aria-hidden="true"></div>
+      <div class="tree-message" id="tree-message">最初のオーナメントを待っています <span aria-hidden="true">✧</span></div>
+    </div>
+    <p class="tree-instruction">✦ オーナメントをタップすると、作者のnote作品へ ✦</p>
+  </section>
+
+  <section class="works" id="works" aria-labelledby="works-title">
+    <div class="section-top"><div><p class="eyebrow">STORIES & ILLUSTRATIONS</p><h2 id="works-title">ツリーに飾られた作品たち</h2></div><span class="section-count" id="works-count">0 作品</span></div>
+    <div class="toolbar"><label class="sr-only" for="filter">作品を検索</label><input id="filter" type="search" placeholder="タイトル・作者で探す" autocomplete="off"><span id="updated" class="updated"></span></div>
+    <div id="work-list" class="work-list"></div>
+    <div id="empty" class="empty">最初の作品が届くのを楽しみにしています。<br>あなたの物語から、ツリーが始まります。🌙</div>
+  </section>
+
+  <section class="outro"><span class="outro-icon" aria-hidden="true">✉</span><h2>あなたなら、誰と過ごす？</h2><p>妄想でいい。憧れでもいい。<br>誰かと過ごしたいクリスマスを、自由に描いてください。</p><p class="tag">#クリスマス妄想デート展</p><p class="small">作品の掲載は投稿・収集状況により時間差があります。</p></section>
+</main>
+<footer><span>☾ 王子の城下町</span><span>with らてさん・堂安咲和さん</span><span>2026 CHRISTMAS</span></footer>
+<script src="./app.js" defer></script>
+</body></html>

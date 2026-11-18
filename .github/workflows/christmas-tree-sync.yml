@@ -1,0 +1,36 @@
+name: Christmas Tree - collect note works
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '13 */3 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: christmas-tree-collector
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test collector
+        run: python -m unittest discover -s christmas-tree/tests -v
+      - name: Collect public note RSS
+        run: python christmas-tree/scripts/collect.py
+      - name: Commit new ornaments if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add christmas-tree/data/ornaments.json
+          if git diff --cached --quiet; then
+            echo "No updates"
+          else
+            git commit -m "chore(christmas): update note ornaments"
+            git push
+          fi
