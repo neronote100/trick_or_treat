@@ -24,7 +24,7 @@ CONFIG = ROOT / "config.json"
 DEST = ROOT / "data" / "ornaments.json"
 ARCHIVE_DEST = ROOT / "data" / "archive.json"
 MAX_FEED_BYTES = 3_000_000
-NS = {"media": "http://search.yahoo.com/mrss/", "dc": "http://purl.org/dc/elements/1.1/"}
+NS = {"media": "http://search.yahoo.com/mrss/", "dc": "http://purl.org/dc/elements/1.1/", "note": "https://note.com"}
 
 
 class ImageParser(HTMLParser):
@@ -125,17 +125,23 @@ def parse_rss(data: bytes) -> list[dict]:
         else:
             raw_url = child_text(item, "link")
             title = child_text(item, "title")
-            author = child_text(item, "dc:creator") or child_text(item, "author")
+            author = child_text(item, "note:creatorName") or child_text(item, "dc:creator") or child_text(item, "author")
             published = child_text(item, "pubDate")
             description = child_text(item, "description")
         url = valid_note_url(raw_url)
         if not url:
             continue
+        # note feeds use a media:thumbnail element; match the local name too
+        # to tolerate namespace variations in note's RSS output.
         image = ""
-        for name in ("media:thumbnail", "media:content", "enclosure"):
-            e = item.find(name, NS) if name.startswith("media:") else item.find(name)
-            if e is not None:
-                image = valid_image(e.attrib.get("url", ""))
+        for element in item:
+            local_name = element.tag.rsplit("}", 1)[-1].lower()
+            if local_name in ("thumbnail", "content", "enclosure", "eyecatch"):
+                image = valid_image(
+                    element.attrib.get("url", "")
+                    or element.attrib.get("href", "")
+                    or (element.text or "").strip()
+                )
                 if image:
                     break
         if not image:
