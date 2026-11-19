@@ -1,6 +1,40 @@
 {
-  "updated_at": null,
+  "updated_at": "2026-11-19T17:40:09+00:00",
   "articles": [],
-  "sources": [],
-  "warnings": []
+  "sources": [
+    {
+      "type": "hashtag",
+      "project_id": "letter",
+      "tag": "キングダム恋文2026",
+      "ok": false,
+      "items": 0
+    },
+    {
+      "type": "hashtag",
+      "project_id": "confession",
+      "tag": "キングダム告白2026",
+      "ok": false,
+      "items": 0
+    },
+    {
+      "type": "hashtag",
+      "project_id": "card",
+      "tag": "キングダムカード2026",
+      "ok": false,
+      "items": 0
+    },
+    {
+      "type": "hashtag",
+      "project_id": "santa",
+      "tag": "キングダムサンタ2026",
+      "ok": false,
+      "items": 0
+    }
+  ],
+  "warnings": [
+    "letter: HTTP Error 404: Not Found",
+    "confession: HTTP Error 404: Not Found",
+    "card: HTTP Error 404: Not Found",
+    "santa: HTTP Error 404: Not Found"
+  ]
 }
