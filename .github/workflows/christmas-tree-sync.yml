@@ -1,34 +1,44 @@
-name: Christmas Tree - optional note RSS discovery
+name: Christmas Kingdom - auto-publish tagged note articles
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '13,43 * * * *'
+  push:
+    paths:
+      - 'christmas-tree/config.json'
+      - 'christmas-tree/scripts/collect.py'
+      - '.github/workflows/christmas-tree-sync.yml'
 permissions:
   contents: write
 concurrency:
-  group: christmas-tree-collector
+  group: christmas-kingdom-auto-collector
   cancel-in-progress: false
 jobs:
   collect:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Test legacy RSS collector
-        run: python -m unittest discover -s christmas-tree/tests -p 'test_*.py' -v
-      - name: Run optional RSS discovery (NOT public submissions)
-        run: python christmas-tree/scripts/collect.py
-      - name: Commit candidate feed data if changed
+      - name: Test tag collector
+        run: python3 -m unittest discover -s christmas-tree/tests -p 'test_*.py' -v
+      - name: Discover public note hashtags and auto-publish to static JSON
+        run: python3 christmas-tree/scripts/collect.py
+      - name: Commit changed ornaments only
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add christmas-tree/data/ornaments.json
           if git diff --cached --quiet; then
-            echo "No changes"
+            echo "No new ornaments"
           else
-            git commit -m "chore(christmas): refresh RSS candidates (not public)"
-            git push
+            git commit -m "chore(christmas): auto-publish hashtag ornaments"
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi

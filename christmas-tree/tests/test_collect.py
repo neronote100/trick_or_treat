@@ -1,10 +1,9 @@
-import json
 import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from collect import parse_rss, collect, valid_note_url  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+from collect import parse_rss, collect, valid_note_url
 
 SAMPLE = b'''<?xml version="1.0" encoding="utf-8"?><rss version="2.0"
  xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
@@ -12,32 +11,65 @@ SAMPLE = b'''<?xml version="1.0" encoding="utf-8"?><rss version="2.0"
 <dc:creator>Latte</dc:creator><media:thumbnail url="https://assets.st-note.com/img.jpg"/>
 <pubDate>Tue, 17 Nov 2026 12:00:00 +0900</pubDate></item></channel></rss>'''
 
+EMPTY = b'<?xml version="1.0"?><rss><channel></channel></rss>'
+CONFIG = {
+    "projects": [
+        {"id": "letter", "hashtag": "キングダム恋文2026"},
+        {"id": "card", "hashtag": "キングダムカード2026"},
+    ],
+    "manual_articles": [],
+    "exclude_urls": [],
+    "exclude_by_project": [],
+}
+
 class CollectorTests(unittest.TestCase):
-    def test_parse_media_image_and_url(self):
-        x = parse_rss(SAMPLE)[0]
-        self.assertEqual(x['url'], 'https://note.com/test_user/n/n123abcd')
-        self.assertEqual(x['author'], 'Latte')
-        self.assertEqual(x['thumbnail'], 'https://assets.st-note.com/img.jpg')
+    def test_parse_rss(self):
+        a = parse_rss(SAMPLE)[0]
+        self.assertEqual(a["url"], "https://note.com/test_user/n/n123abcd")
+        self.assertEqual(a["title"], "Christmas story")
+        self.assertEqual(a["author"], "Latte")
+        self.assertEqual(a["thumbnail"], "https://assets.st-note.com/img.jpg")
 
-    def test_reject_foreign_or_untrusted_link(self):
-        self.assertEqual(valid_note_url('https://evil.example/n/n123abcd'), '')
-        self.assertEqual(valid_note_url('javascript:alert(1)'), '')
+    def test_reject_unsafe_links(self):
+        self.assertEqual(valid_note_url("https://evil.example/n/n123abcd"), "")
+        self.assertEqual(valid_note_url("javascript:alert(1)"), "")
 
-    def test_dedupe_and_keep_prior_articles(self):
-        old = {'articles': [{'url': 'https://note.com/old/n/n9999', 'title': 'old', 'first_seen': '2026-11-01'}], 'updated_at': 'yesterday'}
-        result = collect({'hashtag': 'Christmas', 'magazine_rss_urls': [], 'manual_articles': []}, old, fetcher=lambda u: SAMPLE, now=lambda:'2026-11-18')
-        self.assertEqual(len(result['articles']), 2)
-        result2 = collect({'hashtag': 'Christmas', 'magazine_rss_urls': [], 'manual_articles': []}, result, fetcher=lambda u: SAMPLE, now=lambda:'2026-11-19')
-        self.assertEqual(len(result2['articles']), 2)
+    def test_auto_publish_each_project_and_repeat_authors(self):
+        works = collect(CONFIG, {"articles": []}, fetcher=lambda url: SAMPLE,
+                        now=lambda: "2026-11-20")
+        self.assertEqual(len(works["articles"]), 2)
+        self.assertEqual({w["project_id"] for w in works["articles"]}, {"letter", "card"})
+        self.assertEqual({w["author"] for w in works["articles"]}, {"Latte"})
+        self.assertTrue(all("status" not in w for w in works["articles"]))
 
-    def test_keep_previous_on_source_failure(self):
-        old = {'articles': [{'url': 'https://note.com/old/n/n9999', 'title': 'old'}], 'updated_at': 'yesterday'}
-        with self.assertRaises(RuntimeError):
-            collect({'hashtag': 'Christmas', 'magazine_rss_urls': [], 'manual_articles': []}, old, fetcher=lambda u: (_ for _ in ()).throw(OSError('offline')))
+    def test_dedupe_and_idempotent(self):
+        first = collect(CONFIG, {"articles": []}, fetcher=lambda url: SAMPLE,
+                        now=lambda: "first")
+        second = collect(CONFIG, first, fetcher=lambda url: SAMPLE, now=lambda: "second")
+        self.assertEqual(first, second)
 
-    def test_manual_source_works(self):
-        result = collect({'hashtag': '', 'magazine_rss_urls': [], 'manual_articles': [{'url':'https://note.com/u/n/nabc', 'title':'hello','author':'you'}]}, {'articles': []}, now=lambda:'now')
-        self.assertEqual(result['articles'][0]['title'], 'hello')
+    def test_retains_previous_on_missing_tag_or_feed_failure(self):
+        first = collect(CONFIG, {"articles": []}, fetcher=lambda url: SAMPLE,
+                        now=lambda: "first")
+        second = collect(CONFIG, first, fetcher=lambda url: (_ for _ in ()).throw(OSError("offline")),
+                         now=lambda: "second")
+        self.assertEqual(len(second["articles"]), 2)
+        third = collect(CONFIG, second, fetcher=lambda url: EMPTY, now=lambda: "third")
+        self.assertEqual(len(third["articles"]), 2)
 
-if __name__ == '__main__':
+    def test_global_and_project_opt_out(self):
+        config = {**CONFIG, "exclude_by_project": [{"project_id": "letter", "url": "https://note.com/test_user/n/n123abcd"}]}
+        result = collect(config, {"articles": []}, fetcher=lambda url: SAMPLE, now=lambda: "now")
+        self.assertEqual([a["project_id"] for a in result["articles"]], ["card"])
+        config = {**CONFIG, "exclude_urls": ["https://note.com/test_user/n/n123abcd"]}
+        result = collect(config, {"articles": []}, fetcher=lambda url: SAMPLE, now=lambda: "now")
+        self.assertEqual(len(result["articles"]), 0)
+
+    def test_operator_fallback_missing_feed(self):
+        config = {**CONFIG, "manual_articles": [{"project_id": "letter", "url": "https://note.com/another/n/n123", "title": "発見", "author": "王子"}]}
+        result = collect(config, {"articles": []}, fetcher=lambda url: EMPTY, now=lambda: "now")
+        self.assertEqual(len(result["articles"]), 1)
+        self.assertEqual(result["articles"][0]["title"], "発見")
+
+if __name__ == "__main__":
     unittest.main()

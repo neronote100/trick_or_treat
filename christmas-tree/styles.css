@@ -13,3 +13,19 @@ header,main,footer{position:relative;z-index:1}.topbar{max-width:1200px;margin:a
 @media(max-width:850px){.project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.work-list{grid-template-columns:repeat(2,minmax(0,1fr))}.join-layout{grid-template-columns:1fr}.join-guide{padding:8px}}
 @media(max-width:520px){.topbar{padding:18px 16px;flex-wrap:wrap}.logo{font-size:20px}.logo span{font-size:12px}.topbar nav{gap:13px}.topbar nav a{font-size:10px}.hero{padding:60px 17px 65px}.hero-stats{gap:14px}.hero-stats div{gap:4px}.section-wrap,.forest{padding:23px 15px 65px}.project-grid{gap:11px}.project-card{min-height:218px;padding:18px 9px}.project-card strong{font-size:15px}.project-card small{font-size:10px}.tree-panel{border-radius:19px}.tree-scene{width:100%}.ornament{width:clamp(25px,6vw,38px);border-width:2px}.ornament::after{top:-7px;width:10px;height:6px;border-width:2px}.work-list{grid-template-columns:1fr}.work-card{min-height:92px}footer{flex-wrap:wrap;gap:14px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Automatic hashtag entry: no registration form or moderation UI. */
+.join-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;max-width:960px;margin:0 auto 32px}
+.join-step{background:linear-gradient(160deg,#233d48c9,#102932cf);border:1px solid #ffffff2c;border-radius:16px;padding:24px 20px}
+.join-step>span{font:400 28px Georgia,serif;color:#ebc78c}
+.join-step h3{font:500 19px "Yu Mincho",serif;margin:14px 0 8px}
+.join-step p{color:#bbced0;font-size:12px;line-height:2}
+.tags-panel{max-width:800px;margin:35px auto 0;padding:27px;background:#ffffff0d;border:1px solid #d9bd874a;border-radius:18px}
+.tags-panel h3{margin:0 0 10px;font:500 23px "Yu Mincho",serif;text-align:center}
+.tag-guide-lead{text-align:center;font-size:12px;color:#bfc9c9;line-height:1.8;margin:0 0 20px}
+.tag-guide{display:grid;gap:12px}.tag-guide-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 15px;background:#0a2431ad;border-radius:12px}
+.tag-guide-name{font-size:13px}.tag-chip{padding:7px 12px;border:1px solid #e7ca9170;border-radius:999px;color:#ffe0ac;font-size:13px;text-decoration:none;white-space:nowrap}
+.tag-chip:hover,.common-tag a:hover{text-decoration:underline}.tag-guide-note{font-size:10px;color:#b5c0c8;white-space:nowrap}
+.common-tag{margin:20px auto 0;text-align:center;font-size:12px;line-height:2;color:#d3d9d5}
+.common-tag a{color:#ffe3b5}.publication-notice{font-size:11px;line-height:2.1;color:#a9bec7;max-width:800px;margin:23px auto}
+@media(max-width:700px){.join-steps{grid-template-columns:1fr}.tag-guide-row{flex-wrap:wrap}.tag-guide-name{flex:1 1 100%}}

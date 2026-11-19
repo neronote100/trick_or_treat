@@ -1,7 +1,6 @@
 {
-  "site_title": "王子の城下町🌙 クリスマスの森 2026",
+  "site_title": "王子の城下町🌙 クリスマスキングダム2026",
   "event_open": false,
-  "turnstile_site_key": "0x4AAAAAAGI8-_fIMAYOFlfK",
   "stage_thresholds": [
     0,
     8,
@@ -16,7 +15,8 @@
       "subtitle": "伝えられなかった想いを、そっと灯す",
       "hosts": "らてさん × 王子",
       "theme": "rose",
-      "accepting": false
+      "accepting": false,
+      "hashtag": "キングダム恋文2026"
     },
     {
       "id": "confession",
@@ -25,7 +25,8 @@
       "subtitle": "好きな人も、作品も、気持ちは自由",
       "hosts": "企画準備中",
       "theme": "pink",
-      "accepting": false
+      "accepting": false,
+      "hashtag": "キングダム告白2026"
     },
     {
       "id": "card",
@@ -34,7 +35,8 @@
       "subtitle": "大切な誰かへ感謝を贈ろう",
       "hosts": "企画準備中",
       "theme": "gold",
-      "accepting": false
+      "accepting": false,
+      "hashtag": "キングダムカード2026"
     },
     {
       "id": "santa",
@@ -43,13 +45,13 @@
       "subtitle": "誰かを喜ばせたい、贈り物の物語",
       "hosts": "企画準備中",
       "theme": "mint",
-      "accepting": false
+      "accepting": false,
+      "hashtag": "キングダムサンタ2026"
     }
   ],
-  "hashtag": "",
-  "magazine_rss_urls": [],
   "manual_articles": [],
   "exclude_urls": [],
-  "picks": [],
-  "max_articles": 200
+  "max_articles": 1000,
+  "common_hashtag": "クリスマスキングダム2026",
+  "exclude_by_project": []
 }
