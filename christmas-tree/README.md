@@ -1,60 +1,61 @@
-# 🎄 王子の城下町 — クリスマスの森 2026
+# 🎄 クリスマスキングダム2026 — noteハッシュタグ自動オーナメント
 
-参加者のnote記事を**企画ごとのクリスマスツリーにオーナメントとして飾る**、Cloudflare Pages + Pages Functions + D1 の独立したサイト。タップで元記事へ遷移します。**旧ハロウィンサイト/Workerは変更しません**。
+**noteに企画専用タグを付けて投稿するだけで、各企画のツリーに作品が自動で灯る**静的Cloudflare Pagesサイト。URL入力、運営承認、参加回数制限なし。
 
-## 実装済み
+## 参加の仕組み
 
-- 4つの独立ツリー：💌届けないラブレター / 💕好きの告白 / 🎁クリスマスカード / 🎅全国のサンタさん。各企画の募集開始・主催者表示・タイトルは `config.json` で調整。
-- ツリーごとに公開作品数を集計し、**0・8・20・40作品**で4段階に植え替え。段階は `stage_thresholds` で調整可能。過去作品は消さない。
-- サムネイル画像を金縁の円形オーナメントに自動加工して表示。最大75個ずつページを切り替えて全件閲覧可能。タップでnote記事を新規タブ表示。
-- note記事URL1つでエントリー、同一作者の投稿数制限なし。同じ記事の同じツリーへの重複登録はD1で防止。別企画への登録は別件扱い。
-- 参加者は「自分の作品または許諾を得た作品」「サムネイル等の公開掲載」への同意チェック。TurnstileでBot対策。
-- **承認してから公開**。管理画面 `/admin.html` で確認、承認、掲載取り消し、おすすめ表示、タイトル/画像修正。
-- ハッシュタグは発見・周知の補助。**検索で見つかっただけの記事は自動掲載しない**。記事URL本人登録方式を掲載の基準とする。
+1. 参加者はnoteで記事を公開し、**共通タグ** `#クリスマスキングダム2026` と、参加する**各ツリーの専用タグ**を付ける（専用タグが収集のキー）。
+2. GitHub Actionsが**毎時13分・43分（目安）**に4タグの公開RSSを巡回。GitHubによるスケジュール遅延・noteの反映遅延は起きる。
+3. note RSSから公開記事のURL・タイトル・作者・画像を取得し、`christmas-tree/data/ornaments.json` に**自動蓄積**。同一作品・同一企画は重複排除。複数作品も可。RSSから一時的に消えても過去に集めた作品は残す。
+4. データが変化した場合だけGitHubにコミットされ、Cloudflare Pagesが別URLのクリスマスサイトを再デプロイ。**旧ハロウィンのソース・DBは変更しない**。
+5. 選択したツリーにサムネイルが金縁オーナメントとなって表示され、タップするとnote記事へ。
+6. ツリーは公開作品数0・8・20・40件で4段階成長。75作品を超えたらページ切り替え。
 
-## 公開への手順（Cloudflareの操作が必要）
+## ハッシュタグの管理（**仮のタグ名。主催者と確定後にconfig.jsonで修正すること**）
 
-1. GitHubのPRをレビューしてマージ（準備段階ではdraftを維持）。
-2. Cloudflare ダッシュボードで新しい **Pages** プロジェクトを作成し、GitHub `neronote100/trick_or_treat` と接続。**既存の `trick_or_treat` Workerに上書きしないこと。**
-3. ビルド設定：**Root directory** `christmas-tree`、**Build command** `npm run build`、**Build output directory** `dist`、フレームワークなし。Functionsは `christmas-tree/functions` に置いてあり、公開される静的ファイルとは分離。
-4. Cloudflare D1で新しいデータベース `christmas-ornaments-2026` を作る。`migrations/0001_init.sql` を実行する。CLI例（`christmas-tree` ディレクトリから）：
-   ```sh
-   npx wrangler d1 execute christmas-ornaments-2026 --remote --file=migrations/0001_init.sql
-   ```
-5. Pagesプロジェクトの **Settings → Bindings** でD1 binding `ORNAMENTS_DB` を上記DBへ設定（ProductionとPreview、それぞれ必要なら設定）。
-6. Pagesの **Variables and Secrets** に `ADMIN_TOKEN`（ランダムな24文字以上の強い秘密値）と `TURNSTILE_SECRET`（Cloudflare Turnstileの秘密鍵）を**Secret**として設定。`REGISTRATION_OPEN` は通常は `false`、開始日に `true` にする。`OPEN_PROJECTS` は登録を許可するIDをカンマ区切り（例：`letter`）。環境ごとに設定。
-7. Cloudflare Turnstileを作成し、公開可能な **sitekey** を `config.json` の `turnstile_site_key` に設定。開始時に `event_open: true` とし、参加募集する `projects[].accepting: true` に変更。**画面の開始スイッチとサーバーの開始スイッチの両方が必要**。
-8. 受付開始前にテストURL（note公開記事）で送信→ `/admin.html` で承認→ツリー表示→取消の一連を確認。テスト記事は公開前に非掲載へ戻す。
+| 企画 | 仮の専用タグ | 主催に関する表示 |
+| --- | --- | --- |
+| 届けないラブレター | `#キングダム恋文2026` | らてさん × 王子 |
+| 好きの告白 | `#キングダム告白2026` | 企画準備中 |
+| クリスマスカード | `#キングダムカード2026` | 企画準備中 |
+| 全国のサンタさん | `#キングダムサンタ2026` | 企画準備中 |
 
-### デプロイ上の注意
-- 現時点では**Cloudflareへの接続・D1作成・本番動作確認は未完了**。コードがGitHubにあることと公開済みは別です。
-- Turnstileが未設定ならフォームは無効。サーバーは `TURNSTILE_SECRET` または `REGISTRATION_OPEN` 未設定時に受け付けません。
-- `OPEN_PROJECTS` はサーバーで許可する企画を制限するため、開始する企画と同じ値にしてください。
-- `ADMIN_TOKEN` はコミット・URL・Discordの公開チャンネル等に書かないこと。管理画面では入力するがブラウザ保存しません。
-- noteのOGメタ情報取得はベストエフォート。サイト都合で取得できない場合は「記事タイトル確認中」で保留になり、管理者が記事を確認してタイトル/画像を補正します。
-- CDN画像は元記事の画像URLを参照する方式。画像に外部アクセス制限がある場合は星の代替アイコンに切り替えます。
+**共通タグだけではどのツリーに飾るか判定できない。** 必ず専用タグも付けるよう告知。複数の専用タグを付けた記事は複数ツリーに飾られる。 `config.json` の `projects[].hashtag` と `common_hashtag` を編集するとサイトの案内・RSS対象をまとめて変更できる。`projects[].accepting` は「募集中／準備中」表示のためのスイッチであり、RSSの収集は止めない。未確定の企画では他人に仮タグでの参加を求めないこと。
 
-## サムネイルをオーナメントにする
-サイトは縦横の画像を円形にマスクし、金縁・吊り輪を重ねます。**参加者に画像生成を強制しません**。希望者には [thumbnail-prompt.md](thumbnail-prompt.md) を配れます。既存画像も参加可能です。
+### 収集上の制約
+- noteの `https://note.com/hashtag/タグ名/rss` に依存。**タグ検索/フィードは公式の漏れのない応募APIではない**。noteの2026年検索仕様ではキーワードページになる場合があり、検索の反映にも遅延がある。タグRSSが一時的に失敗しても前回データは消さない。
+- **反映は即時ではない**。GitHub ActionsのスケジュールやCloudflareのビルドにも遅延がある。
+- 新しいタグでまだ記事がない間はRSSが404等で失敗する場合がある。警告を出して次回再試行する。
+- 過去記事に後からタグを付けてもRSSの最新記事範囲に入らないことがある。どうしても取得できない記事は、管理者が `manual_articles` に `project_id,url,title,author,thumbnail` を追加可能（手動確認・承認を必須にする仕組みではない）。
+- 新しく見つかった記事は**自動公開**。不適切な作品や掲載取り下げは `exclude_urls`（全ツリー）または `exclude_by_project: [{"project_id":"letter","url":"https://note.com/.../n/n..."}]`（該当ツリーのみ）で自動掲載対象から外せる。通常のタグ除去だけでは蓄積済みの作品は消えないため注意。
+- 記事の画像URLは元のnoteの画像にリンクし、取得できない場合は代替表示。本文の転載は行わない。
+- `max_articles` の初期値1000、最大3000件。あくまでサーバー側スクリプトの実装上の保持件数でありRSSの完全性を意味しない。
 
-## 参加者情報・権利
-- 記事全文、noteログイン情報、メールアドレスは収集しません。
-- 応募時の明示的な掲載同意をDBへ日時とともに保存。掲載内容はタイトル・作者名・OG画像・記事URLのみ。
-- 作品は管理者が公開ボタンを押すまでは表示されません。削除・取り下げは管理画面から非掲載に変更できます。
-- 著作権・肖像権・個人情報・有料記事などの応募条件は企画告知側で合わせて明示してください。らてさん側のフェス独自ルールと相互掲載する場合は事前にすり合わせてください。
-- 「参加者数」はnote OG metadata内の作者表記による参考集計。正確なnoteアカウントIDによる本人認証は行っていません。
+## Cloudflareの設定
 
-## RSS収集（任意の候補発掘）
-旧 `scripts/collect.py` は任意で使える候補抽出器ですが、サイトの公開ツリーのデータソースでは**ありません**。ハッシュタグ自動取得は漏れがあり、応募・掲載同意と見なしてはいけません。GitHub Actionsの自動定期スケジュールは停止し、必要時だけ手動実行します。
+すでに公開中の **`christmas-kingdom-2026.pages.dev`** を引き続き使用。GitHub `main` の `christmas-tree/` だけをPagesとしてビルド。
 
-## 開発・テスト
+- Root directory: `christmas-tree`
+- Framework: None
+- Build command: `npm run build`
+- Build output: `dist`
 
-```sh
-cd christmas-tree
-npm test
-npm run build
-python3 -m unittest discover -s tests -v
-# API付きローカル実行には Wrangler と D1 binding が必要
-```
+`scripts/build.mjs` は `data/ornaments.json` も `dist/data/` にコピーする。**公開ページはD1やCloudflare Functionsをもう使用しない**。以前に作成したD1/Secretは削除せず残しても表示に影響はしないが、今のサイトの自動収集には不要。管理画面 `admin.html` と登録APIは廃止。
 
-`dist` は生成物でGit管理対象外。Pagesは `dist` のみを静的公開し、`functions` はCloudflare側で実行されます。
+### ハロウィンサイトへの影響
+
+クリスマスの記事収集で `main` にデータファイルのコミットが発生すると、**同じGitHubリポジトリを監視しているハロウィンWorkerも再ビルドされる可能性**がある。ハロウィンのソースは変化しないものの、不要なデプロイを避けるにはCloudflare Workers BuildsのBuild watch pathsで `christmas-tree/**` の変更を除外し、ハロウィンの対象のみを監視する設定を推奨。これを設定するまでは頻繁な自動更新でハロウィン側のビルド回数が増える可能性がある。
+
+## 自動収集の実行・テスト
+
+- GitHub Actions → **Christmas Kingdom - auto-publish tagged note articles** → Run workflow で手動試験可能（`main`）。
+- 定期実行は毎時13分・43分（実際はGitHubの混雑で遅延あり）。
+- 検証：`cd christmas-tree && npm test && npm run build && python3 -m unittest discover -s tests -v`
+- 公開JSON： `https://christmas-kingdom-2026.pages.dev/data/ornaments.json`
+- 投稿作品がまだ0件なら `articles: []` は正常。最新の処理状況はGitHub ActionsのログとJSONの `sources/warnings` を確認。
+
+## 参加・掲載の告知に必ず記載すること
+
+> 企画専用ハッシュタグを付けた公開記事は、運営による承認を挟まず、タイトル・作者名・見出し画像・記事へのリンクがクリスマスキングダムの外部公開サイトへ自動掲載されます。掲載まで時間差が生じたり、タグ付きでも取得漏れが起きることがあります。掲載取り下げをご希望の方は主催者へご連絡ください。
+
+らてさんの恋愛交流フェスなど、**既存のイベント独自のタグを無条件に新サイトへ取り込むことは避ける**。主催者の了解を取り、クリスマスキングダム専用タグの追加を参加希望の意思表示とすることで、別企画へ勝手に掲載されないようにする。

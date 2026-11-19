@@ -38,7 +38,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No new ornaments"
           else
-            git commit -m "chore(christmas): auto-publish hashtag ornaments [skip ci]"
+            git commit -m "chore(christmas): auto-publish hashtag ornaments"
             git pull --rebase origin main
             git push origin HEAD:main
           fi
