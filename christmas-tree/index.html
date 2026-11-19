@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a1924">
+<meta name="description" content="王子の城下町のクリスマス。届けないラブレター、告白、クリスマスカード、全国のサンタさん。参加者のnote作品がツリーのオーナメントに。">
+<title>城下町のクリスマスの森 2026 🌙</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="starfield" aria-hidden="true"></div>
+<header class="topbar">
+ <a class="logo" href="./">☾ <span>王子の城下町</span></a>
+ <nav aria-label="メイン"><a href="#forest">ツリーをめぐる</a><a href="#join">参加する</a><a href="#works">作品一覧</a></nav>
+</header>
+<main>
+ <section class="hero">
+  <p class="eyebrow">CHRISTMAS FOREST · 2026</p>
+  <p class="hero-mini">四つの小さな木から、ひとつの森へ。</p>
+  <h1>あなたの想いが、<br><em>クリスマスの灯りになる。</em></h1>
+  <p class="hero-desc">恋の言葉も、好きの告白も、誰かへのありがとうも。<br>noteに綴った作品を、クリスマスツリーに飾りませんか。</p>
+  <div class="hero-stats"><div><strong id="all-works">0</strong><span>作品</span></div><i></i><div><strong id="all-authors">0</strong><span>参加者</span></div><i></i><div><strong id="all-trees">4</strong><span>本のツリー</span></div></div>
+  <a class="primary-pill" href="#forest">クリスマスの森へ <span>↓</span></a>
+ </section>
+ <section class="forest" id="forest" aria-labelledby="forest-title">
+   <div class="section-head"><p class="eyebrow">EXPLORE THE FOREST</p><h2 id="forest-title">あなたはどの木を飾る？</h2><p>ツリーを選ぶと、そこに集まった作品を読めます。</p></div>
+   <div class="project-grid" id="project-nav" role="group" aria-label="企画を選ぶ"></div>
+ </section>
+ <section class="tree-panel" id="tree-panel" data-stage="1" data-theme="rose" aria-labelledby="tree-title">
+   <div class="tree-head"><p class="eyebrow">THE WISH TREE</p><p class="tree-icon" id="tree-icon">💌</p><h2 id="tree-title">届けないラブレター</h2><p id="tree-subtitle">まだ言えない言葉を、そっと灯す。</p>
+    <div class="tree-meter"><span id="tree-count">0作品</span><span id="tree-stage">第1段階・芽吹き</span></div>
+    <div class="meter-track" aria-hidden="true"><span id="stage-fill"></span></div>
+   </div>
+   <div class="tree-scene" id="tree-scene" data-stage="1">
+    <div class="tree-halo" aria-hidden="true"></div>
+    <svg class="tree-art" viewBox="0 0 700 720" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="fir" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#277763"/><stop offset=".52" stop-color="#155343"/><stop offset="1" stop-color="#092c31"/></linearGradient><linearGradient id="wood"><stop stop-color="#9f6d44"/><stop offset="1" stop-color="#513629"/></linearGradient></defs>
+      <ellipse cx="350" cy="663" rx="230" ry="30" fill="#c1eadb" opacity=".09"/>
+      <path d="M329 543h42v114h-42z" fill="url(#wood)"/>
+      <path d="M350 73 239 250h51L170 417h60L107 611h487L470 417h60L410 250h51Z" fill="url(#fir)" stroke="#68a48f" stroke-width="2"/>
+      <path d="M350 85 248 250h55L188 418h56L130 602h81L346 90z" fill="#b1f0c7" opacity=".08"/>
+      <path d="M350 85 451 250h-49l117 168h-59l115 184h-53L356 98Z" fill="#041d2c" opacity=".22"/>
+      <path d="M244 290Q350 340 457 290M181 456Q350 521 519 456" fill="none" stroke="#ffe1a8" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 14" opacity=".75"/>
+      <path d="m350 30 15 30 33 5-24 23 6 34-30-17-30 17 6-34-24-23 33-5Z" fill="#ffe0a3" stroke="#fff1c9" stroke-width="3"/>
+      <g class="tree-pot"><path d="M295 607h110l-17 82h-76Z" fill="#a44143" stroke="#df9a7a" stroke-width="3"/><path d="M288 596h124v23H288z" fill="#c85959"/><path d="M347 596v92" stroke="#ecc27d" stroke-width="4"/></g>
+    </svg>
+    <div class="ornament-layer" id="ornament-layer" aria-label="note作品のオーナメント"></div>
+    <div class="tree-empty" id="tree-empty">最初の灯りを待っています ✧</div>
+    <div class="forest-floor" aria-hidden="true"></div>
+   </div>
+   <div class="tree-bottom"><p>✦ オーナメントをタップすると作者のnoteへ ✦</p>
+     <div class="tree-paging" id="tree-paging" hidden><button type="button" id="prev-tree">前の飾り</button><span id="tree-page-label"></span><button type="button" id="next-tree">次の飾り</button></div>
+   </div>
+ </section>
+ <section class="works section-wrap" id="works" aria-labelledby="works-title">
+  <div class="section-head"><p class="eyebrow">STORIES & ILLUSTRATIONS</p><h2 id="works-title">このツリーに飾られた作品</h2><p>同じ人が何作品でも飾れます。気になるオーナメントから読みに行こう。</p></div>
+  <div class="work-tools"><label for="search">作品を検索</label><input id="search" type="search" placeholder="作品名・作者名で探す"><span id="work-total">0作品</span></div>
+  <div class="work-list" id="work-list"></div>
+  <div class="empty-state" id="work-empty">作品が届くのを楽しみにしています🌙</div>
+ </section>
+ <section class="join section-wrap" id="join" aria-labelledby="join-title">
+  <div class="section-head"><p class="eyebrow">HANG YOUR STORY</p><h2 id="join-title">あなたの作品を飾ろう</h2><p>参加は何度でも。note記事のURLを1つ貼るだけ。掲載前に運営が確認します。</p></div>
+  <div class="join-layout">
+  <form id="entry-form" class="entry-form" novalidate>
+   <label for="entry-project">飾りたいツリー</label><select id="entry-project" required></select>
+   <label for="entry-url">noteの記事URL</label><input id="entry-url" type="url" required placeholder="https://note.com/あなたのID/n/n...">
+   <label class="tick"><input id="entry-owner" type="checkbox" required><span>自分の作品、または作者に掲載許可を得た作品です</span></label>
+   <label class="tick"><input id="entry-consent" type="checkbox" required><span>記事タイトル・作者名・サムネイル・リンクがこの公開サイトに掲載されることに同意します</span></label>
+   <div id="turnstile-slot" class="turnstile-slot"></div>
+   <button class="submit-button" id="submit-button" type="submit" disabled>🎄 オーナメントを届ける</button>
+   <p id="entry-status" class="entry-status" role="status" aria-live="polite">受付準備中です。企画の開始をお待ちください。</p>
+  </form>
+  <div class="join-guide">
+   <h3>こんな参加方法でも大丈夫</h3>
+   <p>新しく書いた作品も、過去の作品も。あなたらしいサムネイルを使えます。</p>
+   <p>作品ごとに再登録できるので、1人何回参加してもOK。登録してから運営確認後に公開されます。</p>
+   <p><strong>画像はそのままでOK。</strong>サイトが金色の縁取りをつけて、ツリーのオーナメントに変身させます。</p>
+   <p class="small">掲載辞退・取り下げのご相談は企画主催者にご連絡ください。タグ検索だけでは自動掲載しません。</p>
+  </div></div>
+ </section>
+ <section class="ending"><span>✉</span><h2>届かなかった想いも、<br>誰かの心を照らすかもしれない。</h2><p>一つひとつの作品が、この森の宝物です。</p></section>
+</main>
+<footer><span>☾ 王子の城下町</span><span>2026 CHRISTMAS FOREST</span><a href="#join">作品を飾る</a></footer>
+<script type="module" src="./app.js"></script>
+</body></html>

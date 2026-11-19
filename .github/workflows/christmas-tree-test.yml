@@ -1,0 +1,32 @@
+name: Christmas Tree - test and build
+on:
+  pull_request:
+    paths:
+      - 'christmas-tree/**'
+      - '.github/workflows/christmas-tree-test.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test Cloudflare/backend and tree growth logic
+        working-directory: christmas-tree
+        run: npm test
+      - name: Compile Cloudflare Pages static bundle
+        working-directory: christmas-tree
+        run: npm run build
+      - name: Check emitted files
+        run: |
+          test -f christmas-tree/dist/index.html
+          test -f christmas-tree/dist/admin.js
+          test -f christmas-tree/dist/tree-core.js
+      - name: Test optional legacy RSS collector
+        run: python3 -m unittest discover -s christmas-tree/tests -p 'test_*.py' -v

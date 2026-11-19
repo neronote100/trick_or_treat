@@ -1,0 +1,34 @@
+name: Christmas Tree - optional note RSS discovery
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: christmas-tree-collector
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test legacy RSS collector
+        run: python -m unittest discover -s christmas-tree/tests -p 'test_*.py' -v
+      - name: Run optional RSS discovery (NOT public submissions)
+        run: python christmas-tree/scripts/collect.py
+      - name: Commit candidate feed data if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add christmas-tree/data/ornaments.json
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "chore(christmas): refresh RSS candidates (not public)"
+            git push
+          fi

@@ -1,0 +1,55 @@
+{
+  "site_title": "王子の城下町🌙 クリスマスの森 2026",
+  "event_open": false,
+  "turnstile_site_key": "",
+  "stage_thresholds": [
+    0,
+    8,
+    20,
+    40
+  ],
+  "projects": [
+    {
+      "id": "letter",
+      "icon": "💌",
+      "name": "届けないラブレター",
+      "subtitle": "伝えられなかった想いを、そっと灯す",
+      "hosts": "らてさん × 王子",
+      "theme": "rose",
+      "accepting": false
+    },
+    {
+      "id": "confession",
+      "icon": "💕",
+      "name": "好きの告白",
+      "subtitle": "好きな人も、作品も、気持ちは自由",
+      "hosts": "企画準備中",
+      "theme": "pink",
+      "accepting": false
+    },
+    {
+      "id": "card",
+      "icon": "🎁",
+      "name": "クリスマスカード",
+      "subtitle": "大切な誰かへ感謝を贈ろう",
+      "hosts": "企画準備中",
+      "theme": "gold",
+      "accepting": false
+    },
+    {
+      "id": "santa",
+      "icon": "🎅",
+      "name": "全国のサンタさん",
+      "subtitle": "誰かを喜ばせたい、贈り物の物語",
+      "hosts": "企画準備中",
+      "theme": "mint",
+      "accepting": false
+    }
+  ],
+  "hashtag": "",
+  "magazine_rss_urls": [],
+  "manual_articles": [],
+  "exclude_urls": [],
+  "picks": [],
+  "max_articles": 200
+}
