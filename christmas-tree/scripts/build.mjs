@@ -9,4 +9,6 @@ for(const name of ['index.html','archive.html','app.js','styles.css','config.jso
 await mkdir(path.join(out,'data'),{recursive:true});
 await copyFile(path.join(root,'data','ornaments.json'),path.join(out,'data','ornaments.json'));
 await copyFile(path.join(root,'data','archive.json'),path.join(out,'data','archive.json'));
+await mkdir(path.join(out,'assets'),{recursive:true});
+await copyFile(path.join(root,'assets','royal-tree.svg'),path.join(out,'assets','royal-tree.svg'));
 console.log('Cloudflare Pages build ready:',out);

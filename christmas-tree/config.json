@@ -75,5 +75,7 @@
   ],
   "archive_max_articles": 1000,
   "archive_exclude_urls": [],
-  "archive_exclude_by_project": []
+  "archive_exclude_by_project": [],
+  "max_pages_per_tag": 25,
+  "archive_max_pages_per_tag": 25
 }

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from collect import parse_rss, collect, valid_note_url, archive_config
+from collect import parse_rss, collect, valid_note_url, archive_config, normalize_api_article, api_articles_for_tag
 
 SAMPLE = b'''<?xml version="1.0" encoding="utf-8"?><rss version="2.0"
  xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
@@ -50,6 +50,36 @@ class CollectorTests(unittest.TestCase):
         article = parse_rss(xml)[0]
         self.assertEqual(article["author"], "Event Author")
         self.assertEqual(article["thumbnail"], "https://assets.st-note.com/thumb.png?width=800")
+
+    def test_comment_reader_api_page_and_cover(self):
+        article={"key":"n123abcde","name":"告白","status":"published",
+                 "eyecatch_url":"https://assets.st-note.com/cover.png",
+                 "user":{"nickname":"らて","urlname":"latte_note"}}
+        calls=[]
+        def page(tag,n):
+            calls.append(n)
+            return {"data":{"notes":[article] if n==1 else [{**article,"key":"n789abcde"}],
+                            "next_page":2 if n==1 else None}}
+        works,pages=api_articles_for_tag("秋読コレクション",page,max_pages=10,delay=0)
+        self.assertEqual((len(works),pages),(2,2))
+        self.assertEqual(works[0]["thumbnail"],"https://assets.st-note.com/cover.png")
+        self.assertEqual(works[0]["author"],"らて")
+        self.assertEqual(calls,[1,2])
+
+    def test_api_scan_and_rss_fallback(self):
+        raw={"key":"n123abcde","name":"星の手紙","status":"published",
+             "eyecatch_url":"https://assets.st-note.com/cover.png",
+             "user":{"nickname":"らて","urlname":"latte_note"}}
+        cfg={**CONFIG,"projects":[{"id":"letter","hashtag":"クリスマス"}]}
+        first=collect(cfg,{"articles":[]},fetcher=lambda u:EMPTY,
+             api_fetcher=lambda tag,page:{"data":{"notes":[raw],"next_page":None}},
+             now=lambda:"first",sleep=lambda _:None)
+        self.assertEqual(len(first["articles"]),1)
+        self.assertEqual(first["sources"][0]["method"],"note-api")
+        second=collect(cfg,first,fetcher=lambda u:EMPTY,
+               api_fetcher=lambda tag,page:(_ for _ in ()).throw(OSError("blocked")),
+               now=lambda:"second",sleep=lambda _:None)
+        self.assertEqual(len(second["articles"]),1)
 
     def test_parse_rss(self):
         a = parse_rss(SAMPLE)[0]

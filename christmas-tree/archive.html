@@ -19,8 +19,8 @@
   <p class="eyebrow">CHRISTMAS KINGDOM · HISTORICAL DATA TEST</p>
   <p class="hero-mini">過去の3企画で、オーナメントの表示テスト。</p>
   <h1>過去の作品が、<br><em>ツリーに灯る。</em></h1>
-  <p class="hero-desc">王子ごっこ・秋読コレクション・ハロハロウィーン。<br>noteの公開RSSで取得できた作品を過去企画として試験展示しています。</p>
-  <div class="hero-stats"><div><strong id="all-works">0</strong><span>作品</span></div><i></i><div><strong id="all-authors">0</strong><span>参加者</span></div><i></i><div><strong id="all-trees">3</strong><span>本のツリー</span></div></div>
+  <p class="hero-desc">王子ごっこ・秋読コレクション・ハロハロウィーン。<br>noteの公開ハッシュタグ検索から取得できた作品を過去企画として試験展示しています。</p>
+  <div class="hero-stats"><div><strong id="all-works">0</strong><span>作品</span></div><i></i><div><strong id="all-authors">0</strong><span>参加者</span></div><i></i><div><strong id="all-trees">3</strong><span>参加企画</span></div></div>
   <a class="primary-pill" href="#forest">クリスマスの森へ <span>↓</span></a>
  </section>
  <section class="forest" id="forest" aria-labelledby="forest-title">
@@ -29,28 +29,12 @@
  </section>
  <section class="tree-panel" id="tree-panel" data-stage="1" data-theme="rose" aria-labelledby="tree-title">
    <div class="tree-head"><p class="eyebrow">THE WISH TREE</p><p class="tree-icon" id="tree-icon">👑</p><h2 id="tree-title">王子ごっこ</h2><p id="tree-subtitle">過去の参加作品をオーナメントで試験表示</p>
-    <div class="tree-meter"><span id="tree-count">0作品</span><span id="tree-stage">第1段階・芽吹き</span></div>
+    <div class="tree-meter"><span id="tree-count">0作品</span><span id="tree-stage">1本のツリー / 1本あたり15作品</span></div>
     <div class="meter-track" aria-hidden="true"><span id="stage-fill"></span></div>
    </div>
-   <div class="tree-scene" id="tree-scene" data-stage="1">
-    <div class="tree-halo" aria-hidden="true"></div>
-    <svg class="tree-art" viewBox="0 0 700 720" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-      <defs><linearGradient id="fir" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#277763"/><stop offset=".52" stop-color="#155343"/><stop offset="1" stop-color="#092c31"/></linearGradient><linearGradient id="wood"><stop stop-color="#9f6d44"/><stop offset="1" stop-color="#513629"/></linearGradient></defs>
-      <ellipse cx="350" cy="663" rx="230" ry="30" fill="#c1eadb" opacity=".09"/>
-      <path d="M329 543h42v114h-42z" fill="url(#wood)"/>
-      <path d="M350 73 239 250h51L170 417h60L107 611h487L470 417h60L410 250h51Z" fill="url(#fir)" stroke="#68a48f" stroke-width="2"/>
-      <path d="M350 85 248 250h55L188 418h56L130 602h81L346 90z" fill="#b1f0c7" opacity=".08"/>
-      <path d="M350 85 451 250h-49l117 168h-59l115 184h-53L356 98Z" fill="#041d2c" opacity=".22"/>
-      <path d="M244 290Q350 340 457 290M181 456Q350 521 519 456" fill="none" stroke="#ffe1a8" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 14" opacity=".75"/>
-      <path d="m350 30 15 30 33 5-24 23 6 34-30-17-30 17 6-34-24-23 33-5Z" fill="#ffe0a3" stroke="#fff1c9" stroke-width="3"/>
-      <g class="tree-pot"><path d="M295 607h110l-17 82h-76Z" fill="#a44143" stroke="#df9a7a" stroke-width="3"/><path d="M288 596h124v23H288z" fill="#c85959"/><path d="M347 596v92" stroke="#ecc27d" stroke-width="4"/></g>
-    </svg>
-    <div class="ornament-layer" id="ornament-layer" aria-label="note作品のオーナメント"></div>
-    <div class="tree-empty" id="tree-empty">最初の灯りを待っています ✧</div>
-    <div class="forest-floor" aria-hidden="true"></div>
-   </div>
+   <div class="tree-grove" id="tree-grove" aria-label="作品が飾られたクリスマスツリー"></div>
    <div class="tree-bottom"><p>✦ オーナメントをタップすると作者のnoteへ ✦</p>
-     <div class="tree-paging" id="tree-paging" hidden><button type="button" id="prev-tree">前の飾り</button><span id="tree-page-label"></span><button type="button" id="next-tree">次の飾り</button></div>
+     <div class="tree-paging" id="tree-paging" hidden><button type="button" id="prev-tree">前の森</button><span id="tree-page-label"></span><button type="button" id="next-tree">次の森</button></div>
    </div>
  </section>
  <section class="works section-wrap" id="works" aria-labelledby="works-title">
