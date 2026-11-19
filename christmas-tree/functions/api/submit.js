@@ -9,6 +9,8 @@ export async function onRequestPost({request,env}) {
   let body;try {const txt=await request.text();if(txt.length>8192)return json({error:'TOO_LARGE'},413);body=JSON.parse(txt);}catch{return json({error:'INVALID_JSON'},400);}
   const project=String(body.project_id||''),url=normalizeNoteUrl(body.url);
   if(!PROJECT_IDS.has(project)||!url) return json({error:'INVALID_ENTRY'},400);
+  const openProjects=String(env.OPEN_PROJECTS||'').split(',').map(x=>x.trim());
+  if(!openProjects.includes(project)) return json({error:'PROJECT_CLOSED'},403);
   if(body.consent!==true || body.is_author_or_authorized!==true) return json({error:'CONSENT_REQUIRED'},400);
   try {
     if(!await verifyTurnstile(env.TURNSTILE_SECRET,String(body.turnstile_token||''),request.headers.get('CF-Connecting-IP')||'')) return json({error:'CHALLENGE_FAILED'},400);
