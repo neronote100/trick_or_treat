@@ -36,6 +36,21 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual({x["project_id"] for x in result["articles"]},
                          {"prince-play", "autumn-reading", "hello-halloween"})
 
+    def test_note_native_creator_and_cover(self):
+        xml = b"""<?xml version="1.0" encoding="utf-8"?>
+        <rss xmlns:note="https://note.com"
+             xmlns:media="http://search.yahoo.com/mrss/">
+          <channel><item>
+            <title>Note event</title><link>https://note.com/abc/n/n12345</link>
+            <media:thumbnail url="https://assets.st-note.com/thumb.png?width=800"/>
+            <note:creatorName>Event Author</note:creatorName>
+            <note:creatorImage url="https://assets.st-note.com/profile.png"/>
+          </item></channel>
+        </rss>"""
+        article = parse_rss(xml)[0]
+        self.assertEqual(article["author"], "Event Author")
+        self.assertEqual(article["thumbnail"], "https://assets.st-note.com/thumb.png?width=800")
+
     def test_parse_rss(self):
         a = parse_rss(SAMPLE)[0]
         self.assertEqual(a["url"], "https://note.com/test_user/n/n123abcd")
