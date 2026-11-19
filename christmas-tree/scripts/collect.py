@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Automated event-tag RSS collection for the Christmas Kingdom multi-tree site.
+"""Automated note hashtag API collection for Christmas Kingdom, with RSS fallback.
 
 Publishes tagged note thumbnails without operator review. Feed discovery can be delayed
 or incomplete; prior entries persist through temporary failures. No credentials.
@@ -154,88 +154,145 @@ def iso_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def collect(config: dict, previous: dict, fetcher=fetch_feed, now=iso_now) -> dict:
-    """Collect hashtag RSS for each tree, retain prior ornaments, auto-publish without review.
 
-    The hashtag URL is best-effort, not an official comprehensive search API.
-    A unique event tag per tree is used as the public participation signal.
-    """
-    projects = [(str(p.get("id", "")), str(p.get("hashtag", "")).strip().lstrip("#"))
-                for p in config.get("projects", []) if p.get("id") and p.get("hashtag")]
-    allowed = {pid for pid, _ in projects}
-    saved = {}
-    for article in previous.get("articles", []):
-        pid = str(article.get("project_id", ""))
-        url = valid_note_url(article.get("url", ""))
-        if pid in allowed and url:
-            saved[(pid, url)] = {**article, "project_id": pid, "url": url}
-    sources, warnings = [], []
-    checked = 0
-    for pid, tag in projects:
-        feed = f"https://note.com/hashtag/{quote(tag, safe='')}/rss"
-        try:
-            works = parse_rss(fetcher(feed))
-            checked += 1
-            for work in works:
-                key = (pid, work["url"])
-                prior = saved.get(key, {})
-                saved[key] = {
-                    **prior,
-                    **work,
-                    "project_id": pid,
-                    "first_seen": prior.get("first_seen") or now(),
-                }
-            sources.append({"type": "hashtag", "project_id": pid, "tag": tag, "ok": True, "items": len(works)})
-        except (ValueError, ET.ParseError, OSError, TimeoutError) as error:
-            # A newly invented tag may return 404 until the first public article.
-            # Do not delete previously indexed entries or break a scheduled run.
-            warnings.append(f"{pid}: {str(error)[:120]}")
-            sources.append({"type": "hashtag", "project_id": pid, "tag": tag, "ok": False, "items": 0})
-        time.sleep(0.3)
+MAX_API_BYTES = 3_000_000
 
-    # Operator rescue for articles missed by a delayed/incomplete RSS feed.
-    # This is not a participant form, and no approval is required.
-    for item in config.get("manual_articles", []):
-        pid = str(item.get("project_id", ""))
-        url = valid_note_url(item.get("url", ""))
-        if pid not in allowed or not url:
-            warnings.append("Manual item skipped (invalid project_id or note article URL)")
-            continue
-        key = (pid, url)
-        prior = saved.get(key, {})
-        saved[key] = {
-            **prior,
-            "project_id": pid,
-            "url": url,
-            "title": str(item.get("title") or prior.get("title") or "無題の作品")[:220],
-            "author": str(item.get("author") or prior.get("author") or "noteクリエイター")[:100],
-            "thumbnail": valid_image(item.get("thumbnail", "")) or prior.get("thumbnail", ""),
-            "published_at": prior.get("published_at", ""),
-            "first_seen": prior.get("first_seen") or now(),
-        }
+def fetch_note_page(tag: str, page: int) -> dict:
+    """Use comment reader's public hashtag JSON endpoint with pagination."""
+    if not tag or len(tag) > 100 or not (1 <= page <= 80):
+        raise ValueError("Invalid tag/page")
+    url = ("https://note.com/api/v3/hashtags/" + quote(tag, safe="") +
+           "/notes?order=new&page=" + str(page) + "&paid_only=false")
+    req = Request(url, headers={"Accept":"application/json",
+                  "User-Agent":"NeroCommentReader/0.3 (+https://neronote100.github.io/nero_comment_reader/)"})
+    with urlopen(req, timeout=22) as response:
+        final = urlsplit(response.geturl())
+        if final.scheme != "https" or final.hostname not in ("note.com","www.note.com"):
+            raise ValueError("Note API redirect outside note.com")
+        data = response.read(MAX_API_BYTES + 1)
+    if len(data) > MAX_API_BYTES:
+        raise ValueError("Note API response too big")
+    payload = json.loads(data)
+    if not isinstance(payload,dict) or not isinstance(payload.get("data"),dict):
+        raise ValueError("Invalid note API response")
+    return payload
 
-    blocked = {valid_note_url(url) for url in config.get("exclude_urls", [])}
-    blocked_pairs = {(str(item.get("project_id", "")), valid_note_url(item.get("url", "")))
-                     for item in config.get("exclude_by_project", [])}
-    for key in list(saved):
-        if key[1] in blocked or key in blocked_pairs:
-            del saved[key]
 
-    articles = sorted(saved.values(), key=lambda a: (a.get("first_seen", ""), a.get("project_id", ""), a["url"]))
-    limit = max(1, min(3000, int(config.get("max_articles", 1000))))
-    articles = articles[:limit]
-
-    # Prevent needless Git commits and Cloudflare redeployments when no work changed.
-    changed = articles != previous.get("articles", []) or sources != previous.get("sources", []) or warnings != previous.get("warnings", [])
-    if not projects:
-        warnings.append("No project hashtags configured")
-        changed = True
+def normalize_api_article(raw: dict) -> dict | None:
+    if not isinstance(raw,dict) or raw.get("status") not in (None,"published"):
+        return None
+    user=raw.get("user") or {}
+    if not isinstance(user,dict):return None
+    key=str(raw.get("key") or "")
+    username=str(user.get("urlname") or "")
+    if not re.fullmatch(r"n[a-zA-Z0-9]{7,40}",key):return None
+    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}",username):return None
+    link=valid_note_url(f"https://note.com/{username}/n/{key}")
+    if not link:return None
     return {
-        "updated_at": now() if changed else previous.get("updated_at"),
-        "articles": articles,
-        "sources": sources,
-        "warnings": warnings,
+      "url":link,
+      "title":unescape(str(raw.get("name") or raw.get("title") or "無題の作品"))[:220],
+      "author":unescape(str(user.get("nickname") or user.get("name") or username))[:100],
+      "author_id":username,
+      "thumbnail":(valid_image(raw.get("eyecatch_url") or "") or
+                   valid_image(raw.get("thumbnail_external_url") or "") or
+                   valid_image(raw.get("sp_eyecatch_url") or "")),
+      "published_at":parse_date(str(raw.get("publish_at") or raw.get("published_at") or raw.get("created_at") or "")),
     }
+
+
+def api_articles_for_tag(tag: str, page_fetcher=fetch_note_page,
+                         max_pages: int=25, delay:float=0.12):
+    page,seen,articles,actual=1,set(),{},0
+    for _ in range(max(1,min(80,max_pages))):
+        if page in seen:raise ValueError("Note API pagination cycle")
+        seen.add(page)
+        response=page_fetcher(tag,page)
+        data=response.get("data") or {}
+        rows=data.get("notes")
+        if not isinstance(rows,list):raise ValueError("Note API notes missing")
+        actual+=1
+        for raw in rows:
+            item=normalize_api_article(raw)
+            if item:articles[item["url"]]=item
+        nxt=data.get("next_page")
+        if not nxt or not rows:break
+        try:
+            target=int(nxt)
+            page=target if target>page else page+1
+        except (ValueError,TypeError):
+            page+=1
+        if delay:time.sleep(delay)
+    return list(articles.values()),actual
+
+
+
+def collect(config:dict,previous:dict,fetcher=fetch_feed,now=iso_now,
+            api_fetcher=None,sleep=time.sleep)->dict:
+    projects=[(str(p.get("id","")),str(p.get("hashtag","")).strip().lstrip("#"))
+              for p in config.get("projects",[]) if p.get("id") and p.get("hashtag")]
+    allowed={pid for pid,_ in projects}
+    saved={}
+    for item in previous.get("articles",[]):
+        pid,url=str(item.get("project_id","")),valid_note_url(item.get("url",""))
+        if pid in allowed and url:saved[(pid,url)]={**item,"project_id":pid,"url":url}
+    sources,warnings=[],[]
+    for pid,tag in projects:
+        works,pages,method=[],0,"rss"
+        api_error=""
+        if api_fetcher is not None:
+            try:
+                works,pages=api_articles_for_tag(tag,api_fetcher,int(config.get("max_pages_per_tag",25)))
+                method="note-api"
+            except (ValueError,OSError,TimeoutError,KeyError,TypeError) as exc:
+                api_error=str(exc)[:130]
+        if not works:
+            feed=f"https://note.com/hashtag/{quote(tag,safe='')}/rss"
+            try:
+                works=parse_rss(fetcher(feed))
+                method="rss-fallback" if api_fetcher is not None else "rss"
+                pages=1
+            except (ValueError,ET.ParseError,OSError,TimeoutError) as exc:
+                warnings.append(f"{pid}: API {api_error}; RSS {str(exc)[:130]}")
+                sources.append({"type":"hashtag","method":"failed","project_id":pid,
+                                "tag":tag,"ok":False,"items":0,"pages":pages})
+                sleep(0.15)
+                continue
+        for work in works:
+            key=(pid,work["url"])
+            old=saved.get(key,{})
+            merged={**old,**work,"project_id":pid,"first_seen":old.get("first_seen") or now()}
+            for field in ("thumbnail","author_id"):
+                if not merged.get(field) and old.get(field):merged[field]=old[field]
+            saved[key]=merged
+        sources.append({"type":"hashtag","method":method,"project_id":pid,
+                        "tag":tag,"ok":True,"items":len(works),"pages":pages})
+        sleep(0.15)
+    for item in config.get("manual_articles",[]):
+        pid,url=str(item.get("project_id","")),valid_note_url(item.get("url",""))
+        if pid not in allowed or not url:
+            warnings.append("Manual item skipped (invalid project_id or URL)")
+            continue
+        key=(pid,url);old=saved.get(key,{})
+        saved[key]={**old,"project_id":pid,"url":url,
+                    "title":str(item.get("title") or old.get("title") or "無題の作品")[:220],
+                    "author":str(item.get("author") or old.get("author") or "noteクリエイター")[:100],
+                    "thumbnail":valid_image(item.get("thumbnail","")) or old.get("thumbnail",""),
+                    "published_at":old.get("published_at",""),
+                    "first_seen":old.get("first_seen") or now()}
+    blocked={valid_note_url(u) for u in config.get("exclude_urls",[])}
+    pairs={(str(x.get("project_id","")),valid_note_url(x.get("url","")))
+           for x in config.get("exclude_by_project",[])}
+    for key in list(saved):
+        if key[1] in blocked or key in pairs:del saved[key]
+    articles=sorted(saved.values(),key=lambda a:(a.get("first_seen",""),a.get("project_id",""),a["url"]))
+    articles=articles[:max(1,min(3000,int(config.get("max_articles",1000))))]
+    changed=(articles!=previous.get("articles",[]) or sources!=previous.get("sources",[])
+             or warnings!=previous.get("warnings",[]))
+    if not projects:
+        warnings.append("No project hashtags configured");changed=True
+    return {"updated_at":now() if changed else previous.get("updated_at"),
+            "articles":articles,"sources":sources,"warnings":warnings}
 
 
 def archive_config(config: dict) -> dict:
@@ -243,6 +300,7 @@ def archive_config(config: dict) -> dict:
     return {
         "projects": config.get("archive_projects", []),
         "max_articles": config.get("archive_max_articles", 1000),
+        "max_pages_per_tag": config.get("archive_max_pages_per_tag", 25),
         "exclude_urls": config.get("archive_exclude_urls", []),
         "exclude_by_project": config.get("archive_exclude_by_project", []),
         "manual_articles": [],
@@ -257,7 +315,7 @@ def main():
         ("Historical sample", ARCHIVE_DEST, archive_config(config)),
     ):
         previous = json.loads(destination.read_text(encoding="utf-8")) if destination.exists() else {"articles": []}
-        result = collect(source_config, previous)
+        result = collect(source_config, previous, api_fetcher=fetch_note_page)
         destination.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"{label}: {len(result['articles'])} total, warnings: {len(result['warnings'])}")
         for warning in result["warnings"]:
