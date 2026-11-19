@@ -1,6 +1,6 @@
 import {stageForCount,noteArticleUrl,imageUrl,TREE_SPOTS,TREE_PAGE_SIZE} from './tree-core.js';
 const el=id=>document.getElementById(id);
-const state={config:null,articles:[],selected:'letter',page:0,query:'',turnstileId:null};
+const state={config:null,articles:[],selected:'letter',page:0,query:''};
 const STAGE_NAMES=['芽吹き','若木','大きな木','完成'];
 function text(node,value){node.textContent=String(value);return node;}
 function make(tag,className,value){
@@ -82,51 +82,25 @@ function render(){
  const option=el('entry-project').querySelector('option[value="'+state.selected+'"]');
  if(option && !option.disabled)el('entry-project').value=state.selected;
 }
-async function loadTurnstile(sitekey){
- await new Promise((resolve,reject)=>{
-  if(window.turnstile)return resolve();
-  const s=document.createElement('script');s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-  s.onload=resolve;s.onerror=reject;document.head.append(s);
- });
- state.turnstileId=window.turnstile.render('#turnstile-slot',{sitekey,theme:'dark',language:'ja'});
-}
-function initForm(){
- const select=el('entry-project');select.replaceChildren();
+function renderHashtagGuide() {
+ const box=el('tag-guide');if(!box)return;
+ box.replaceChildren();
  for(const p of state.config.projects){
-  const opt=make('option','',p.icon+' '+p.name+(p.accepting?'':'（準備中）'));
-  opt.value=p.id;opt.disabled=!p.accepting;select.append(opt);
+  const row=make('div','tag-guide-row');
+  const header=make('div','tag-guide-name',p.icon+' '+p.name);
+  const tag=make('a','tag-chip','#'+p.hashtag);
+  tag.href='https://note.com/hashtag/'+encodeURIComponent(p.hashtag);
+  tag.target='_blank';tag.rel='noopener noreferrer';
+  const note=make('span','tag-guide-note',p.accepting?'募集中':'企画準備中');
+  row.append(header,tag,note);box.append(row);
  }
- const active=state.config.projects.find(p=>p.accepting);
- if(active)select.value=active.id;
- const canOpen=Boolean(state.config.event_open && active && state.config.turnstile_site_key);
- if(canOpen){
-   loadTurnstile(state.config.turnstile_site_key).then(()=>{
-    el('submit-button').disabled=false;text(el('entry-status'),'作品を選んで、エントリーしてください🌙');
-   }).catch(()=>text(el('entry-status'),'認証の読み込みに失敗しました。再読み込みしてください。'));
- } else {
-   el('submit-button').disabled=true;
-   text(el('entry-status'),'現在は受付準備中です。開催日・ハッシュタグが決まったらオープンします。');
+ const common=el('common-hashtag');
+ if(common){
+  common.textContent='#'+state.config.common_hashtag;
+  common.href='https://note.com/hashtag/'+encodeURIComponent(state.config.common_hashtag);
  }
- el('entry-form').addEventListener('submit',async e=>{
-  e.preventDefault();
-  const p=state.config.projects.find(x=>x.id===select.value);
-  if(!canOpen||!p?.accepting)return;
-  const url=el('entry-url').value.trim();
-  if(!noteArticleUrl(url)){text(el('entry-status'),'note記事のURL（/n/n...）を入力してください。');return;}
-  if(!el('entry-consent').checked||!el('entry-owner').checked){text(el('entry-status'),'同意項目を確認してください。');return;}
-  const token=window.turnstile?.getResponse(state.turnstileId)||'';
-  if(!token){text(el('entry-status'),'認証チェックを完了してください。');return;}
-  const button=el('submit-button');button.disabled=true;text(el('entry-status'),'エントリーを送信中…');
-  try{
-   const r=await fetch('./api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({project_id:select.value,url,consent:true,is_author_or_authorized:true,turnstile_token:token})});
-   const data=await r.json();
-   if(!r.ok)throw new Error(data.error||'送信に失敗しました');
-   text(el('entry-status'),'🎄 受付しました！運営の確認後、ツリーに灯ります。');
-   el('entry-url').value='';el('entry-owner').checked=false;el('entry-consent').checked=false;
-  }catch(error){text(el('entry-status'),'登録できませんでした（'+error.message+'）。時間をおいてお試しください。');}
-  finally{window.turnstile?.reset(state.turnstileId);button.disabled=false;}
- });
 }
+
 async function init(){
  try{
   const cfg=await fetch('./config.json',{cache:'no-store'});if(!cfg.ok)throw Error('config unavailable');
@@ -134,20 +108,20 @@ async function init(){
   if(!Array.isArray(state.config.projects)||!state.config.projects.length)throw Error('projects missing');
   const target=new URLSearchParams(location.search).get('tree');
   if(state.config.projects.some(x=>x.id===target))state.selected=target;
-  initForm();
+  renderHashtagGuide();
   el('search').addEventListener('input',e=>{state.query=e.target.value.toLocaleLowerCase('ja');renderWorks();});
   el('prev-tree').addEventListener('click',()=>{state.page--;renderTree();});
   el('next-tree').addEventListener('click',()=>{state.page++;renderTree();});
   try{
-   const r=await fetch('./api/ornaments',{cache:'no-store'});
-   if(!r.ok)throw Error('not deployed');
+   const r=await fetch('./data/ornaments.json',{cache:'no-store'});
+   if(!r.ok)throw Error('ornament data unavailable');
    const data=await r.json();
    state.articles=(Array.isArray(data.articles)?data.articles:[]).filter(x=>noteArticleUrl(x.url) && state.config.projects.some(p=>p.id===x.project_id));
   }catch{
-   const info=make('p','system-notice','公開データベースはまだ接続されていません。ツリーは0件で表示しています。');
+   const info=make('p','system-notice','作品データを読み込めませんでした。時間をおいて再読み込みしてください。');
    document.querySelector('.forest').append(info);
   }
   render();
- }catch(e){console.warn(e);text(el('forest-title'),'ただいま準備中です');text(el('entry-status'),'設定を確認しています。');}
+ }catch(e){console.warn(e);text(el('forest-title'),'ただいま準備中です');}
 }
 init();
