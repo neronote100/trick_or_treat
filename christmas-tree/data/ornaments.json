@@ -1,32 +1,38 @@
 {
-  "updated_at": "2026-11-19T18:12:24+00:00",
+  "updated_at": "2026-11-19T18:50:05+00:00",
   "articles": [],
   "sources": [
     {
       "type": "hashtag",
+      "method": "failed",
       "project_id": "letter",
       "tag": "キングダム恋文2026",
       "ok": false,
-      "items": 0
+      "items": 0,
+      "pages": 0
     },
     {
       "type": "hashtag",
+      "method": "failed",
       "project_id": "confession",
       "tag": "キングダム告白2026",
       "ok": false,
-      "items": 0
+      "items": 0,
+      "pages": 0
     },
     {
       "type": "hashtag",
+      "method": "failed",
       "project_id": "card",
       "tag": "キングダムカード2026",
       "ok": false,
-      "items": 0
+      "items": 0,
+      "pages": 0
     }
   ],
   "warnings": [
-    "letter: HTTP Error 404: Not Found",
-    "confession: HTTP Error 404: Not Found",
-    "card: HTTP Error 404: Not Found"
+    "letter: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found",
+    "confession: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found",
+    "card: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found"
   ]
 }
