@@ -37,21 +37,43 @@
       "theme": "gold",
       "accepting": false,
       "hashtag": "キングダムカード2026"
-    },
-    {
-      "id": "santa",
-      "icon": "🎅",
-      "name": "全国のサンタさん",
-      "subtitle": "誰かを喜ばせたい、贈り物の物語",
-      "hosts": "企画準備中",
-      "theme": "mint",
-      "accepting": false,
-      "hashtag": "キングダムサンタ2026"
     }
   ],
   "manual_articles": [],
   "exclude_urls": [],
   "max_articles": 1000,
   "common_hashtag": "クリスマスキングダム2026",
-  "exclude_by_project": []
+  "exclude_by_project": [],
+  "archive_projects": [
+    {
+      "id": "prince-play",
+      "icon": "👑",
+      "name": "王子ごっこ",
+      "subtitle": "過去の参加作品をオーナメントで試験表示",
+      "theme": "gold",
+      "hashtag": "王子ごっこ",
+      "accepting": true
+    },
+    {
+      "id": "autumn-reading",
+      "icon": "🍁",
+      "name": "秋読コレクション",
+      "subtitle": "秋に集まった作品の試験展示",
+      "theme": "rose",
+      "hashtag": "秋読コレクション",
+      "accepting": true
+    },
+    {
+      "id": "hello-halloween",
+      "icon": "🎃",
+      "name": "ハロハロウィーン",
+      "subtitle": "ハロウィン作品の試験展示",
+      "theme": "pink",
+      "hashtag": "ハロハロウィーン",
+      "accepting": true
+    }
+  ],
+  "archive_max_articles": 1000,
+  "archive_exclude_urls": [],
+  "archive_exclude_by_project": []
 }

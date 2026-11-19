@@ -22,6 +22,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / "config.json"
 DEST = ROOT / "data" / "ornaments.json"
+ARCHIVE_DEST = ROOT / "data" / "archive.json"
 MAX_FEED_BYTES = 3_000_000
 NS = {"media": "http://search.yahoo.com/mrss/", "dc": "http://purl.org/dc/elements/1.1/"}
 
@@ -231,15 +232,30 @@ def collect(config: dict, previous: dict, fetcher=fetch_feed, now=iso_now) -> di
     }
 
 
+def archive_config(config: dict) -> dict:
+    """Read past-event tags separately, never as Christmas participants."""
+    return {
+        "projects": config.get("archive_projects", []),
+        "max_articles": config.get("archive_max_articles", 1000),
+        "exclude_urls": config.get("archive_exclude_urls", []),
+        "exclude_by_project": config.get("archive_exclude_by_project", []),
+        "manual_articles": [],
+    }
+
+
 def main():
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
-    previous = json.loads(DEST.read_text(encoding="utf-8")) if DEST.exists() else {"articles": []}
-    result = collect(config, previous)
     DEST.parent.mkdir(parents=True, exist_ok=True)
-    DEST.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Collected: {len(result['articles'])} total, warnings: {len(result['warnings'])}")
-    for warning in result["warnings"]:
-        print("WARNING:", warning, file=sys.stderr)
+    for label, destination, source_config in (
+        ("Christmas", DEST, config),
+        ("Historical sample", ARCHIVE_DEST, archive_config(config)),
+    ):
+        previous = json.loads(destination.read_text(encoding="utf-8")) if destination.exists() else {"articles": []}
+        result = collect(source_config, previous)
+        destination.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"{label}: {len(result['articles'])} total, warnings: {len(result['warnings'])}")
+        for warning in result["warnings"]:
+            print("WARNING:", warning, file=sys.stderr)
 
 
 if __name__ == "__main__":

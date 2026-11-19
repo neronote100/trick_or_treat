@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from collect import parse_rss, collect, valid_note_url
+from collect import parse_rss, collect, valid_note_url, archive_config
 
 SAMPLE = b'''<?xml version="1.0" encoding="utf-8"?><rss version="2.0"
  xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
@@ -23,6 +23,19 @@ CONFIG = {
 }
 
 class CollectorTests(unittest.TestCase):
+    def test_archival_feeds_separate_from_christmas(self):
+        setup = {"projects": [{"id": "letter", "hashtag": "キングダム恋文2026"}],
+                 "archive_projects": [
+                   {"id": "prince-play", "hashtag": "王子ごっこ"},
+                   {"id": "autumn-reading", "hashtag": "秋読コレクション"},
+                   {"id": "hello-halloween", "hashtag": "ハロハロウィーン"}]}
+        ac = archive_config(setup)
+        self.assertEqual(len(ac["projects"]), 3)
+        result = collect(ac, {"articles": []}, fetcher=lambda url:SAMPLE, now=lambda:"now")
+        self.assertEqual(len(result["articles"]), 3)
+        self.assertEqual({x["project_id"] for x in result["articles"]},
+                         {"prince-play", "autumn-reading", "hello-halloween"})
+
     def test_parse_rss(self):
         a = parse_rss(SAMPLE)[0]
         self.assertEqual(a["url"], "https://note.com/test_user/n/n123abcd")
