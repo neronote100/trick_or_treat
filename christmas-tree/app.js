@@ -60,7 +60,8 @@ function renderTree(){
    const canvas=make('div','tree-canvas');
    canvas.dataset.growth=stageLabel;
    const img=new Image();img.className='grand-tree-art';img.loading=unit.number>2?'lazy':'eager';
-   img.alt='';img.src='./assets/royal-tree.svg';canvas.append(img);
+   img.alt='';img.src='./assets/royal-tree.avif';
+   img.addEventListener('error',()=>{img.src='./assets/royal-tree.svg';},{once:true});canvas.append(img);
    const ornamentLayer=make('div','ornament-layer');ornamentLayer.setAttribute('aria-label',unit.number+'本目のオーナメント');
    unit.works.forEach((article,i)=>{const link=createOrnament(article,i);if(link)ornamentLayer.append(link);});
    canvas.append(ornamentLayer);

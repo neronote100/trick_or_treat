@@ -11,4 +11,5 @@ await copyFile(path.join(root,'data','ornaments.json'),path.join(out,'data','orn
 await copyFile(path.join(root,'data','archive.json'),path.join(out,'data','archive.json'));
 await mkdir(path.join(out,'assets'),{recursive:true});
 await copyFile(path.join(root,'assets','royal-tree.svg'),path.join(out,'assets','royal-tree.svg'));
+await copyFile(path.join(root,'assets','royal-tree.avif'),path.join(out,'assets','royal-tree.avif'));
 console.log('Cloudflare Pages build ready:',out);
