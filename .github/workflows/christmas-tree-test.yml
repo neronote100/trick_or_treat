@@ -31,5 +31,6 @@ jobs:
           test -f christmas-tree/dist/data/archive.json
           test -f christmas-tree/dist/archive.html
           test -f christmas-tree/dist/assets/royal-tree.svg
+          test -f christmas-tree/dist/assets/royal-tree.avif
       - name: Test optional legacy RSS collector
         run: python3 -m unittest discover -s christmas-tree/tests -p 'test_*.py' -v
