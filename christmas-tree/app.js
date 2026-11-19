@@ -1,8 +1,8 @@
-import {stageForCount,noteArticleUrl,imageUrl,TREE_SPOTS,TREE_PAGE_SIZE} from './tree-core.js';
+import {stageForCount,noteArticleUrl,imageUrl,TREE_SPOTS,TREE_CAPACITY,grovePage,treeCountForWorks} from './tree-core.js';
 const el=id=>document.getElementById(id);
 const archiveMode=document.body.dataset.mode==='archive';
 const state={config:null,articles:[],selected:'letter',page:0,query:''};
-const STAGE_NAMES=['芽吹き','若木','大きな木','完成'];
+const STAGE_NAMES=['芽吹き','成長','開花','満開'];
 function text(node,value){node.textContent=String(value);return node;}
 function make(tag,className,value){
  const n=document.createElement(tag);if(className)n.className=className;if(value!==undefined)text(n,value);return n;
@@ -28,7 +28,8 @@ function picture(article){
 }
 function createOrnament(article,index){
  const href=noteArticleUrl(article.url);if(!href)return;
- const point=TREE_SPOTS[index],a=make('a','ornament');
+ const point=TREE_SPOTS[index];if(!point)return null;
+ const a=make('a','ornament');
  a.href=href;a.target='_blank';a.rel='noopener noreferrer';
  a.title=(article.title||'作品')+'｜'+(article.author||'作者');
  a.setAttribute('aria-label',a.title+'（noteへ）');
@@ -40,25 +41,43 @@ function createOrnament(article,index){
 }
 function renderTree(){
  const p=currentProject();if(!p)return;
- const items=articlesFor(p.id),count=items.length,stage=stageForCount(count,state.config.stage_thresholds);
+ const items=articlesFor(p.id),count=items.length;
+ const layout=grovePage(items,state.page);state.page=layout.page;
+ const stage=stageForCount(count,state.config.stage_thresholds);
  el('tree-panel').dataset.theme=p.theme||'rose';
- el('tree-scene').dataset.stage=String(stage);
  text(el('tree-icon'),p.icon);text(el('tree-title'),p.name);text(el('tree-subtitle'),p.subtitle);
- text(el('tree-count'),count+' 作品');text(el('tree-stage'),'第'+stage+'段階・'+STAGE_NAMES[stage-1]);
- const targets=state.config.stage_thresholds,lower=targets[stage-1]||0,upper=targets[stage]??Math.max(1,count);
- const progress=stage===4?100:Math.min(100,Math.max(5,((count-lower)/Math.max(1,upper-lower))*100));
- el('stage-fill').style.width=progress+'%';
- const maxPages=Math.max(1,Math.ceil(count/TREE_PAGE_SIZE));
- state.page=Math.max(0,Math.min(state.page,maxPages-1));
- const start=state.page*TREE_PAGE_SIZE,section=items.slice(start,start+TREE_PAGE_SIZE);
- const layer=el('ornament-layer');layer.replaceChildren();
- section.forEach((article,i)=>{const link=createOrnament(article,i);if(link)layer.append(link);});
- el('tree-empty').hidden=count!==0;
- el('tree-paging').hidden=maxPages<=1;
- text(el('tree-page-label'),(state.page+1)+' / '+maxPages);
- el('prev-tree').disabled=state.page===0;el('next-tree').disabled=state.page>=maxPages-1;
- const cards=document.querySelectorAll('.project-card');for(const card of cards)card.setAttribute('aria-pressed',String(card.dataset.id===p.id));
+ text(el('tree-count'),count+'作品');
+ text(el('tree-stage'),layout.totalTrees+'本のツリー / 1本あたり'+TREE_CAPACITY+'作品');
+ el('stage-fill').style.width=count?((count-1)%TREE_CAPACITY+1)/TREE_CAPACITY*100+'%':'0%';
+ const grove=el('tree-grove');grove.replaceChildren();
+ for(const unit of layout.trees){
+   const card=make('section','tree-unit');
+   const caption=make('div','tree-unit-head');
+   caption.append(make('span','tree-sequence','TREE '+String(unit.number).padStart(2,'0')),
+                  make('strong','',unit.number+'本目のツリー'),
+                  make('span','tree-work-count',unit.works.length+' / '+TREE_CAPACITY+' 作品'));
+   const stageLabel=unit.works.length===TREE_CAPACITY?'満開':'成長中';
+   const canvas=make('div','tree-canvas');
+   canvas.dataset.growth=stageLabel;
+   const img=new Image();img.className='grand-tree-art';img.loading=unit.number>2?'lazy':'eager';
+   img.alt='';img.src='./assets/royal-tree.svg';canvas.append(img);
+   const ornamentLayer=make('div','ornament-layer');ornamentLayer.setAttribute('aria-label',unit.number+'本目のオーナメント');
+   unit.works.forEach((article,i)=>{const link=createOrnament(article,i);if(link)ornamentLayer.append(link);});
+   canvas.append(ornamentLayer);
+   if(!unit.works.length){
+     const empty=make('div','tree-unit-empty','最初のオーナメントを待っています ✧');
+     canvas.append(empty);
+   }
+   card.append(caption,canvas);grove.append(card);
+ }
+ const paging=el('tree-paging');paging.hidden=layout.pages<=1;
+ text(el('tree-page-label'),(layout.page+1)+' / '+layout.pages+' エリア');
+ el('prev-tree').disabled=layout.page===0;
+ el('next-tree').disabled=layout.page>=layout.pages-1;
+ for(const card of document.querySelectorAll('.project-card'))
+   card.setAttribute('aria-pressed',String(card.dataset.id===p.id));
 }
+
 function renderWorks(){
  const items=articlesFor(state.selected).filter(x=>(String(x.title||'')+' '+String(x.author||'')).toLocaleLowerCase('ja').includes(state.query));
  const list=el('work-list');list.replaceChildren();
@@ -76,7 +95,7 @@ function renderWorks(){
  text(el('work-empty'),state.query?'検索条件に合う作品がありません。':'まだ作品がありません。最初のオーナメントを待っています🌙');
 }
 function render(){
- const uniqueAuthors=new Set(state.articles.map(x=>(x.author||'').trim()).filter(Boolean));
+ const uniqueAuthors=new Set(state.articles.map(x=>(x.author_id||x.author||'').trim()).filter(Boolean));
  text(el('all-works'),state.articles.length);text(el('all-authors'),uniqueAuthors.size);
  text(el('all-trees'),state.config.projects.length);
  buildNavigation();renderTree();renderWorks();
@@ -112,8 +131,8 @@ async function init(){
   if(state.config.projects.some(x=>x.id===target))state.selected=target;
   renderHashtagGuide();
   el('search').addEventListener('input',e=>{state.query=e.target.value.toLocaleLowerCase('ja');renderWorks();});
-  el('prev-tree').addEventListener('click',()=>{state.page--;renderTree();});
-  el('next-tree').addEventListener('click',()=>{state.page++;renderTree();});
+  el('prev-tree').addEventListener('click',()=>{state.page--;renderTree();el('tree-panel').scrollIntoView({behavior:'smooth'});});
+  el('next-tree').addEventListener('click',()=>{state.page++;renderTree();el('tree-panel').scrollIntoView({behavior:'smooth'});});
   try{
    const r=await fetch(archiveMode?'./data/archive.json':'./data/ornaments.json',{cache:'no-store'});
    if(!r.ok)throw Error('ornament data unavailable');
