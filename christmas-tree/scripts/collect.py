@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""note RSS collector: hashtag RSS (best effort), magazine RSS (preferred), manual fallback.
+"""Automated event-tag RSS collection for the Christmas Kingdom multi-tree site.
 
-Uses only the publicly available RSS data: title, author, article URL and thumbnail.
-Never deletes previously found works on a temporary feed failure. No credentials.
+Publishes tagged note thumbnails without operator review. Feed discovery can be delayed
+or incomplete; prior entries persist through temporary failures. No credentials.
 """
 from __future__ import annotations
 
@@ -148,65 +148,87 @@ def iso_now() -> str:
 
 
 def collect(config: dict, previous: dict, fetcher=fetch_feed, now=iso_now) -> dict:
-    saved = {a["url"]: a.copy() for a in previous.get("articles", []) if valid_note_url(a.get("url", ""))}
+    """Collect hashtag RSS for each tree, retain prior ornaments, auto-publish without review.
+
+    The hashtag URL is best-effort, not an official comprehensive search API.
+    A unique event tag per tree is used as the public participation signal.
+    """
+    projects = [(str(p.get("id", "")), str(p.get("hashtag", "")).strip().lstrip("#"))
+                for p in config.get("projects", []) if p.get("id") and p.get("hashtag")]
+    allowed = {pid for pid, _ in projects}
+    saved = {}
+    for article in previous.get("articles", []):
+        pid = str(article.get("project_id", ""))
+        url = valid_note_url(article.get("url", ""))
+        if pid in allowed and url:
+            saved[(pid, url)] = {**article, "project_id": pid, "url": url}
     sources, warnings = [], []
-    feeds = []
-    tag = config.get("hashtag", "").strip().lstrip("#")
-    if tag:
-        feeds.append(("hashtag", f"https://note.com/hashtag/{quote(tag, safe='')}/rss"))
-    for url in config.get("magazine_rss_urls", []):
-        feeds.append(("magazine", str(url)))
-    good_feeds = 0
-    for kind, feed in feeds:
+    checked = 0
+    for pid, tag in projects:
+        feed = f"https://note.com/hashtag/{quote(tag, safe='')}/rss"
         try:
             works = parse_rss(fetcher(feed))
-            if not works:
-                raise ValueError("RSS has no valid note articles")
-            good_feeds += 1
-            for article in works:
-                url = article["url"]
-                if url not in saved:
-                    article["first_seen"] = now()
-                    saved[url] = article
-                else:
-                    saved[url].update({k: v for k, v in article.items() if v})
-            sources.append({"type": kind, "url": feed, "ok": True, "items": len(works)})
-        except (ValueError, ET.ParseError, OSError, TimeoutError) as e:
-            warnings.append(f"{kind}: {str(e)[:160]}")
-            sources.append({"type": kind, "url": feed, "ok": False, "items": 0})
+            checked += 1
+            for work in works:
+                key = (pid, work["url"])
+                prior = saved.get(key, {})
+                saved[key] = {
+                    **prior,
+                    **work,
+                    "project_id": pid,
+                    "first_seen": prior.get("first_seen") or now(),
+                }
+            sources.append({"type": "hashtag", "project_id": pid, "tag": tag, "ok": True, "items": len(works)})
+        except (ValueError, ET.ParseError, OSError, TimeoutError) as error:
+            # A newly invented tag may return 404 until the first public article.
+            # Do not delete previously indexed entries or break a scheduled run.
+            warnings.append(f"{pid}: {str(error)[:120]}")
+            sources.append({"type": "hashtag", "project_id": pid, "tag": tag, "ok": False, "items": 0})
         time.sleep(0.3)
-    manual_added = 0
+
+    # Operator rescue for articles missed by a delayed/incomplete RSS feed.
+    # This is not a participant form, and no approval is required.
     for item in config.get("manual_articles", []):
+        pid = str(item.get("project_id", ""))
         url = valid_note_url(item.get("url", ""))
-        if not url:
-            warnings.append("An invalid manual article URL was ignored")
+        if pid not in allowed or not url:
+            warnings.append("Manual item skipped (invalid project_id or note article URL)")
             continue
-        prior = saved.get(url, {})
-        saved[url] = {
+        key = (pid, url)
+        prior = saved.get(key, {})
+        saved[key] = {
+            **prior,
+            "project_id": pid,
             "url": url,
             "title": str(item.get("title") or prior.get("title") or "無題の作品")[:220],
             "author": str(item.get("author") or prior.get("author") or "noteクリエイター")[:100],
             "thumbnail": valid_image(item.get("thumbnail", "")) or prior.get("thumbnail", ""),
             "published_at": prior.get("published_at", ""),
-            "first_seen": prior.get("first_seen", now()),
+            "first_seen": prior.get("first_seen") or now(),
         }
-        manual_added += 1
-    sources.append({"type": "manual", "url": "config.json", "ok": True, "items": manual_added})
-    for url in config.get("exclude_urls", []):
-        saved.pop(valid_note_url(url), None)
-    picks = {valid_note_url(x.get("url", "")): x for x in config.get("picks", [])}
-    for a in saved.values():
-        chosen = picks.get(a["url"])
-        a["picked_by"] = str(chosen.get("by", ""))[:40] if chosen else ""
-    # Preserve the first discovered ordering, so existing ornaments never move.
-    articles = sorted(saved.values(), key=lambda a: (a.get("first_seen", ""), a.get("published_at", ""), a["url"]))
-    limit = max(1, min(500, int(config.get("max_articles", 200))))
+
+    blocked = {valid_note_url(url) for url in config.get("exclude_urls", [])}
+    blocked_pairs = {(str(item.get("project_id", "")), valid_note_url(item.get("url", "")))
+                     for item in config.get("exclude_by_project", [])}
+    for key in list(saved):
+        if key[1] in blocked or key in blocked_pairs:
+            del saved[key]
+
+    articles = sorted(saved.values(), key=lambda a: (a.get("first_seen", ""), a.get("project_id", ""), a["url"]))
+    limit = max(1, min(3000, int(config.get("max_articles", 1000))))
     articles = articles[:limit]
-    if feeds and not good_feeds and not manual_added:
-        raise RuntimeError("All RSS sources failed. Previous ornaments.json is kept unchanged. " + "; ".join(warnings))
-    if not feeds and not manual_added:
-        warnings.append("No feeds or manual articles are configured")
-    return {"updated_at": now() if good_feeds or manual_added else previous.get("updated_at"), "articles": articles, "sources": sources, "warnings": warnings}
+
+    # Prevent needless Git commits and Cloudflare redeployments when no work changed.
+    changed = articles != previous.get("articles", []) or sources != previous.get("sources", []) or warnings != previous.get("warnings", [])
+    if not projects:
+        warnings.append("No project hashtags configured")
+        changed = True
+    return {
+        "updated_at": now() if changed else previous.get("updated_at"),
+        "articles": articles,
+        "sources": sources,
+        "warnings": warnings,
+    }
 
 
 def main():
