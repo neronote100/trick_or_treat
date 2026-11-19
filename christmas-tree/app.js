@@ -1,5 +1,6 @@
 import {stageForCount,noteArticleUrl,imageUrl,TREE_SPOTS,TREE_PAGE_SIZE} from './tree-core.js';
 const el=id=>document.getElementById(id);
+const archiveMode=document.body.dataset.mode==='archive';
 const state={config:null,articles:[],selected:'letter',page:0,query:''};
 const STAGE_NAMES=['芽吹き','若木','大きな木','完成'];
 function text(node,value){node.textContent=String(value);return node;}
@@ -14,7 +15,7 @@ function buildNavigation(){
    const count=articlesFor(p.id).length,button=make('button','project-card');
    button.type='button';button.dataset.id=p.id;button.setAttribute('aria-pressed',String(p.id===state.selected));
    button.append(make('span','project-icon',p.icon),make('strong','',p.name),make('small','',p.subtitle),make('span','project-count',count+' 作品'));
-   if(!p.accepting) button.append(make('em','coming-soon','企画準備中'));
+   if(!p.accepting && !archiveMode) button.append(make('em','coming-soon','企画準備中'));
    button.addEventListener('click',()=>{state.selected=p.id;state.page=0;history.replaceState(null,'',location.pathname+'?tree='+encodeURIComponent(p.id)+location.hash);render();el('tree-panel').scrollIntoView({behavior:'smooth'});});
    nav.append(button);
  }
@@ -79,8 +80,7 @@ function render(){
  text(el('all-works'),state.articles.length);text(el('all-authors'),uniqueAuthors.size);
  text(el('all-trees'),state.config.projects.length);
  buildNavigation();renderTree();renderWorks();
- const option=el('entry-project').querySelector('option[value="'+state.selected+'"]');
- if(option && !option.disabled)el('entry-project').value=state.selected;
+
 }
 function renderHashtagGuide() {
  const box=el('tag-guide');if(!box)return;
@@ -105,7 +105,9 @@ async function init(){
  try{
   const cfg=await fetch('./config.json',{cache:'no-store'});if(!cfg.ok)throw Error('config unavailable');
   state.config=await cfg.json();
+  if(archiveMode)state.config.projects=state.config.archive_projects;
   if(!Array.isArray(state.config.projects)||!state.config.projects.length)throw Error('projects missing');
+  state.selected=state.config.projects[0].id;
   const target=new URLSearchParams(location.search).get('tree');
   if(state.config.projects.some(x=>x.id===target))state.selected=target;
   renderHashtagGuide();
@@ -113,7 +115,7 @@ async function init(){
   el('prev-tree').addEventListener('click',()=>{state.page--;renderTree();});
   el('next-tree').addEventListener('click',()=>{state.page++;renderTree();});
   try{
-   const r=await fetch('./data/ornaments.json',{cache:'no-store'});
+   const r=await fetch(archiveMode?'./data/archive.json':'./data/ornaments.json',{cache:'no-store'});
    if(!r.ok)throw Error('ornament data unavailable');
    const data=await r.json();
    state.articles=(Array.isArray(data.articles)?data.articles:[]).filter(x=>noteArticleUrl(x.url) && state.config.projects.some(p=>p.id===x.project_id));

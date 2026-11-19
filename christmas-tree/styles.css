@@ -29,3 +29,9 @@ header,main,footer{position:relative;z-index:1}.topbar{max-width:1200px;margin:a
 .common-tag{margin:20px auto 0;text-align:center;font-size:12px;line-height:2;color:#d3d9d5}
 .common-tag a{color:#ffe3b5}.publication-notice{font-size:11px;line-height:2.1;color:#a9bec7;max-width:800px;margin:23px auto}
 @media(max-width:700px){.join-steps{grid-template-columns:1fr}.tag-guide-row{flex-wrap:wrap}.tag-guide-name{flex:1 1 100%}}
+
+/* Historical test page is separate from the live Christmas trees. */
+.archive-explanation{max-width:790px;text-align:center;background:#ffffff08;border:1px solid #ffffff24;border-radius:18px;margin-bottom:70px;padding:30px 24px}
+.archive-explanation h2{font:500 23px "Yu Mincho",serif;color:#f6dcad}
+.archive-explanation p{line-height:2;color:#bdcdd2;font-size:13px}
+.archive-explanation a{color:#ffe0a3}
