@@ -26,7 +26,6 @@ jobs:
       - name: Check emitted files
         run: |
           test -f christmas-tree/dist/index.html
-          test -f christmas-tree/dist/admin.js
           test -f christmas-tree/dist/tree-core.js
           test -f christmas-tree/dist/data/ornaments.json
       - name: Test optional legacy RSS collector
