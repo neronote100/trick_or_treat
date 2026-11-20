@@ -27,31 +27,46 @@ function picture(article){
 }
 
 
-function treeArtworkImage(){
- const img=new Image();
- img.className='tree-facet';
- img.alt='';img.loading='eager';img.decoding='async';img.draggable=false;
- img.src='./assets/royal-tree.avif';
- img.addEventListener('error',()=>{
-   if(!img.src.endsWith('/royal-tree.svg'))img.src='./assets/royal-tree.svg';
- });
- return img;
-}
 function createTurningTree(canvas){
  const scene=make('div','turning-tree-scene');
  scene.setAttribute('aria-hidden','true');
- const environment=make('div','tree-moving-environment');
- const halo=make('div','tree-moving-halo');
- const rotor=make('div','tree-rotor');
- for(const angle of [0,45,90,135]){
-   const facet=treeArtworkImage();
-   facet.style.setProperty('--facet-angle',angle+'deg');
-   facet.setAttribute('aria-hidden','true');
-   rotor.append(facet);
- }
- scene.append(environment,halo,rotor);
- canvas.append(scene);
- return {scene,environment,halo,rotor};
+ const fallback=new Image();
+ fallback.className='tree-3d-fallback';
+ fallback.alt='';fallback.draggable=false;
+ fallback.src='./assets/royal-tree.avif';
+ fallback.onerror=()=>{if(!fallback.src.endsWith('/royal-tree.svg'))fallback.src='./assets/royal-tree.svg';};
+ scene.append(fallback);canvas.append(scene);
+ let engine=null,disposed=false;
+ return {
+   scene,
+   init(ornamentCount){
+     import('./tree3d.js').then(module=>{
+       if(disposed)return;
+       try{
+         engine=module.createRealChristmasTree(scene,canvas,ornamentCount);
+         fallback.hidden=true;
+         canvas.dataset.rendering='webgl-3d';
+       }catch(error){
+         console.warn('3D rendering unavailable. Showing accessible illustration.',error);
+         canvas.dataset.rendering='static-fallback';
+       }
+     }).catch(error=>{
+       console.warn('3D module loading failed. Showing accessible illustration.',error);
+       canvas.dataset.rendering='static-fallback';
+     });
+   },
+   draw(rotation,sways){
+     try{return engine?engine.draw(rotation,sways):null;}
+     catch(error){
+       console.warn('3D renderer fallback',error);
+       engine?.dispose();engine=null;
+       fallback.hidden=false;
+       canvas.dataset.rendering='static-fallback';
+       return null;
+     }
+   },
+   destroy(){disposed=true;engine?.dispose();engine=null;}
+ };
 }
 
 const orbitControllers=[];
@@ -90,33 +105,33 @@ function createOrbitController(canvas,ornaments,number,controls,art){
    toggle.title=reduced?'端末のアニメーション軽減設定が有効です':'';
  }
  function draw(dt=0,angularAcceleration=0,now=0){
-   // Tree canopy, scenery and ornaments all share ONE physical rotation angle.
-   const radians=rotation*Math.PI/180;
-   art.rotor.style.transform='rotateY('+rotation.toFixed(2)+'deg)';
-   art.environment.style.transform='translate3d('+(-3.2*Math.sin(radians)).toFixed(2)+'%,0,0) scale(1.18)';
-   art.halo.style.transform='translate3d('+(5.0*Math.sin(radians)).toFixed(2)+'%,0,0)';
    for(let i=0;i<ornaments.length;i++){
-     const o=ornaments[i],p=projectOrbit(o.orbit,rotation);
+     const o=ornaments[i];
+     if(reduced){
+       o.sway={angle:0,velocity:0};
+       o.hanger.style.transform='rotate(0deg)';
+     }else{
+       o.sway=stepSway(o.sway,velocity,angularAcceleration,dt,o.orbit.weight);
+       const breeze=0.35*Math.sin(now*0.00096+i*2.3);
+       o.hanger.style.transform='rotate('+(o.sway.angle+breeze).toFixed(2)+'deg)';
+     }
+   }
+   // WebGL projects each DOM article link from its real 3D bauble position.
+   const coordinates=art.draw(rotation,ornaments.map(o=>o.sway.angle));
+   for(let i=0;i<ornaments.length;i++){
+     const o=ornaments[i],p=coordinates?.[i]||projectOrbit(o.orbit,rotation);
      o.slot.style.left=p.x.toFixed(3)+'%';
      o.slot.style.top=p.y.toFixed(3)+'%';
      o.slot.style.opacity=p.opacity.toFixed(3);
      o.slot.style.zIndex=String(p.zIndex);
      o.slot.style.transform='translate(-50%,-50%) scale('+p.scale.toFixed(3)+')';
      o.slot.style.pointerEvents=p.interactive?'auto':'none';
-     // Rear ornaments go BEHIND the rotating foliage, rather than floating on top.
      const destination=p.depth<-0.08?art.rear:art.front;
      if(o.slot.parentNode!==destination)destination.append(o.slot);
      if(o.front!==p.interactive){
        o.front=p.interactive;
        o.link.tabIndex=p.interactive?0:-1;
        o.link.setAttribute('aria-hidden',String(!p.interactive));
-     }
-     if(reduced){
-       o.sway={angle:0,velocity:0};o.hanger.style.transform='rotate(0deg)';
-     }else{
-       o.sway=stepSway(o.sway,velocity,angularAcceleration,dt,o.orbit.weight);
-       const breeze=0.38*Math.sin(now*0.00096+i*2.3);
-       o.hanger.style.transform='rotate('+(o.sway.angle+breeze).toFixed(2)+'deg)';
      }
    }
  }
@@ -199,9 +214,10 @@ function createOrbitController(canvas,ornaments,number,controls,art){
  right.addEventListener('click',turnRight);
  toggle.addEventListener('click',toggleAuto);
  motion.addEventListener?.('change',motionChanged);
+ art.init(ornaments.length);
  showToggle();draw();frameId=requestAnimationFrame(frame);
  return {destroy(){
-   disposed=true;cancelAnimationFrame(frameId);observer?.disconnect();
+   disposed=true;cancelAnimationFrame(frameId);observer?.disconnect();art.destroy();
    canvas.removeEventListener('pointerdown',down);
    canvas.removeEventListener('pointermove',move);
    canvas.removeEventListener('pointerup',end);
@@ -256,7 +272,7 @@ function renderTree(){
    left.setAttribute('aria-label',unit.number+'本目を左へ回転');
    right.setAttribute('aria-label',unit.number+'本目を右へ回転');
    controls.append(left,toggle,right);
-   const hint=make('p','orbit-hint','横スワイプで360°回転 · 飾りをタップしてnoteへ');
+   const hint=make('p','orbit-hint','3Dツリーを360°回転 · 飾りをタップしてnoteへ');
    card.append(caption,canvas,controls,hint);grove.append(card);
    orbitControllers.push(createOrbitController(canvas,ornaments,unit.number,{left,toggle,right},{...artwork,rear,front}));
  }
