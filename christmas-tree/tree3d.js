@@ -10,6 +10,37 @@ const DEG=Math.PI/180;
 const UP=new THREE.Vector3(0,1,0);
 const COLORS=[0x0a3a2b,0x104a34,0x16543c,0x1d6546,0x31754d,0x205b43];
 const BAUBLE=[0xc99b64,0xe1c189,0xb58c9d,0x9cb5b5,0xe3ae76,0xc79491];
+/* The historical archive uses the original palette. */
+
+const STORY_PALETTES={
+ 'christmas-card':{
+  foliage:[0x0b3c2d,0x134a35,0x185b43,0x24694d,0x30775a,0x1e6047],
+  needles:[0x267f59,0x32946a,0x1e7355],
+  baubles:[0xb72f48,0xf2c777,0xfff1c9,0xa7cbb7,0xc84c5f,0xe6ad6d],
+  lights:[0xfff1c9,0xf2c777,0xffbac0,0xa9f0ce],
+  metals:[0xf2c777,0xfff1c9],star:[0xffe8ab,0xf2c777],
+  crown:0xf2c777,sky:0xe4edcc,ground:0x6cba9b,
+  ambient:[0xc6f2e0,0x0b2920],key:0xffdfad,fill:0xa8e8cd
+ },
+ 'confession-illustration':{
+  foliage:[0x194542,0x235451,0x286462,0x33716a,0x3a7d76,0x1f5a59],
+  needles:[0x398881,0x4b9a90,0x2e7779],
+  baubles:[0xf2a3cd,0xc6b3fa,0xffe8f4,0xe7b5dc,0xbba8ed,0xf0c4b5],
+  lights:[0xffe8f4,0xf2a3cd,0xc6b3fa,0xffd2b9],
+  metals:[0xf0bfce,0xede0ff],star:[0xffedf9,0xe5a1e8],
+  crown:0xf3b1eb,sky:0xd5c3ff,ground:0x8b86d1,
+  ambient:[0xd3bafc,0x132b35],key:0xffd3e7,fill:0xb9b6ff
+ },
+ 'confession-essay':{
+  foliage:[0x123d3b,0x1a4848,0x255453,0x2c6361,0x356e6c,0x1c5555],
+  needles:[0x307b77,0x3b8582,0x286d6c],
+  baubles:[0xb97691,0x798fbc,0xf0d7ab,0xb7c6e7,0xc895a8,0xe6caaf],
+  lights:[0xf0d7ab,0xb4c8f0,0xb97691,0xe8d9f9],
+  metals:[0xe4c59d,0xb3c8e8],star:[0xf9e9cc,0xe8c793],
+  crown:0xe0cba1,sky:0xabc7ec,ground:0x768da9,
+  ambient:[0xb4c7ee,0x122e32],key:0xf3d7b5,fill:0x9fbaf1
+ }
+};
 function seeded(seed) {
  let n=seed>>>0;
  return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};
@@ -43,10 +74,9 @@ function starGeometry(){
    bevelSegments:2,curveSegments:2,steps:1
  });
 }
-function placeGlow(group,random){
+function placeGlow(group,random,lightColors=null){
  const positions=[],colors=[];
- const shades=[new THREE.Color(0xffe9aa),new THREE.Color(0xffe4be),
-               new THREE.Color(0xb4f0ff),new THREE.Color(0xffb3be)];
+ const shades=(lightColors||[0xffe9aa,0xffe4be,0xb4f0ff,0xffb3be]).map(c=>new THREE.Color(c));
  for(let n=0;n<620;n++){
   const y=.82+random()*5.36;
   const a=random()*Math.PI*2;
@@ -66,9 +96,9 @@ function placeGlow(group,random){
  const points=new THREE.Points(geo,material);group.add(points);
  return texture;
 }
-function buildFoliage(tree,random){
+function buildFoliage(tree,random,foliage=COLORS,needles=[0x368b68,0x2c805e,0x1f7456]){
  // Opaque overlapping cones are real 3D volumes, not flat crossed planes.
- const layerMats=COLORS.map(c=>new THREE.MeshStandardMaterial({
+ const layerMats=foliage.map(c=>new THREE.MeshStandardMaterial({
   color:c,roughness:.92,metalness:0,side:THREE.FrontSide
  }));
  for(let layer=0;layer<8;layer++){
@@ -81,7 +111,7 @@ function buildFoliage(tree,random){
  }
  // Hundreds of five-sided boughs radiate out in three dimensions.
  const geo=new THREE.ConeGeometry(.155,.76,6,1);
- const materials=COLORS.map(c=>new THREE.MeshLambertMaterial({color:c}));
+ const materials=foliage.map(c=>new THREE.MeshLambertMaterial({color:c}));
  const transforms=materials.map(()=>[]);
  const quat=new THREE.Quaternion(),dummy=new THREE.Object3D();
  const direction=new THREE.Vector3();
@@ -112,7 +142,7 @@ function buildFoliage(tree,random){
  }
  // Fine needle clusters give the silhouette volume at side-on angles.
  const needleGeo=new THREE.ConeGeometry(.066,.36,5,1);
- const fineMats=[0x368b68,0x2c805e,0x1f7456].map(color=>new THREE.MeshLambertMaterial({color}));
+ const fineMats=needles.map(color=>new THREE.MeshLambertMaterial({color}));
  for(let materialIndex=0;materialIndex<fineMats.length;materialIndex++){
   const mesh=new THREE.InstancedMesh(needleGeo,fineMats[materialIndex],320);
   for(let n=0;n<320;n++){
@@ -128,9 +158,9 @@ function buildFoliage(tree,random){
   tree.add(mesh);
  }
 }
-function addGarlands(tree){
- const gold=new THREE.MeshStandardMaterial({color:0xf8ca72,metalness:.48,roughness:.3});
- const cream=new THREE.MeshStandardMaterial({color:0xffe9b4,metalness:.32,roughness:.35});
+function addGarlands(tree,metals=[0xf8ca72,0xffe9b4]){
+ const gold=new THREE.MeshStandardMaterial({color:metals[0],metalness:.48,roughness:.3});
+ const cream=new THREE.MeshStandardMaterial({color:metals[1],metalness:.32,roughness:.35});
  for(let strand=0;strand<2;strand++){
   const pts=[];
   const count=380;
@@ -146,9 +176,9 @@ function addGarlands(tree){
   tree.add(new THREE.Mesh(geometry,strand===0?gold:cream));
  }
 }
-function createBaubles(tree,count){
+function createBaubles(tree,count,baubleColors=BAUBLE,trimColor=0xffdf98){
  const entries=[];
- const gold=new THREE.MeshStandardMaterial({color:0xffdf98,roughness:.3,metalness:.68});
+ const gold=new THREE.MeshStandardMaterial({color:trimColor,roughness:.3,metalness:.68});
  const ballGeo=new THREE.SphereGeometry(.158,16,12);
  const hookGeo=cylinder(.021,.021,.23,6);
  const capGeo=cylinder(.08,.075,.055,8);
@@ -163,18 +193,21 @@ function createBaubles(tree,count){
   addMesh(pendulum,hookGeo,gold,0,-.10,0);
   addMesh(pendulum,capGeo,gold,0,-.235,0);
   const material=new THREE.MeshPhysicalMaterial({
-   color:BAUBLE[i%BAUBLE.length],metalness:.59,roughness:.19,
+   color:baubleColors[i%baubleColors.length],metalness:.59,roughness:.19,
    clearcoat:1,clearcoatRoughness:.16,
-   emissive:BAUBLE[i%BAUBLE.length],emissiveIntensity:.045
+   emissive:baubleColors[i%baubleColors.length],emissiveIntensity:.045
   });
   const ball=addMesh(pendulum,ballGeo,material,0,-.445,0);
   entries.push({anchor,pendulum,ball,orbit});
  }
  return entries;
 }
-export function createRealChristmasTree(stage,canvas,ornamentCount){
+export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='rose',variant=0){
  if(!window.WebGLRenderingContext && !window.WebGL2RenderingContext)
   throw new Error('WebGL is unavailable');
+ const palette=STORY_PALETTES[themeKey];
+ const phase=((variant%3)+3)%3;
+ const lights=palette?.lights?.map((_,i)=>palette.lights[(i+phase)%palette.lights.length])||null;
  const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});
  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.45));
  renderer.outputColorSpace=THREE.SRGBColorSpace;
@@ -187,31 +220,31 @@ export function createRealChristmasTree(stage,canvas,ornamentCount){
  const scene=new THREE.Scene();
  const camera=new THREE.PerspectiveCamera(38,1,.1,55);
  camera.position.set(0,3.45,13.2);camera.lookAt(0,3.45,0);
- scene.add(new THREE.HemisphereLight(0xb2d8ff,0x0a1d16,2.3));
- const warm=new THREE.DirectionalLight(0xffdcac,3.3);warm.position.set(3.8,8,6);scene.add(warm);
- const cold=new THREE.DirectionalLight(0xa5e3ff,1.75);cold.position.set(-5,5,-4);scene.add(cold);
+ scene.add(new THREE.HemisphereLight(palette?.ambient?.[0]??0xb2d8ff,palette?.ambient?.[1]??0x0a1d16,2.3));
+ const warm=new THREE.DirectionalLight(palette?.key??0xffdcac,3.3);warm.position.set(3.8,8,6);scene.add(warm);
+ const cold=new THREE.DirectionalLight(palette?.fill??0xa5e3ff,1.75);cold.position.set(-5,5,-4);scene.add(cold);
  const tree=new THREE.Group();scene.add(tree);
  const rand=seeded(20261225);
  const bark=new THREE.MeshStandardMaterial({color:0x704a32,roughness:1});
  addMesh(tree,cylinder(.10,.20,5.9,12),bark,0,3.02,0);
- buildFoliage(tree,rand);
- addGarlands(tree);
+ buildFoliage(tree,rand,palette?.foliage??COLORS,palette?.needles);
+ addGarlands(tree,palette?.metals);
  const starMat=new THREE.MeshPhysicalMaterial({
-  color:0xffe3a5,emissive:0xffd45e,emissiveIntensity:.48,
+  color:palette?.star?.[0]??0xffe3a5,emissive:palette?.star?.[1]??0xffd45e,emissiveIntensity:.48,
   metalness:.55,roughness:.22,clearcoat:1
  });
  const star=addMesh(tree,starGeometry(),starMat,0,6.64,0);
  star.rotation.y=.16;
  // Thin layered ground cover stays stationary, making rotation obvious.
- const glowMap=placeGlow(tree,rand);
+ const glowMap=placeGlow(tree,rand,lights);
  // A luminous crown that remains dimensional as the tree turns.
  const crown=new THREE.Sprite(new THREE.SpriteMaterial({
-   map:glowMap,color:0xffd47a,transparent:true,opacity:.86,
+   map:glowMap,color:palette?.crown??0xffd47a,transparent:true,opacity:.86,
    depthWrite:false,blending:THREE.AdditiveBlending
  }));
  crown.position.set(0,6.70,0);crown.scale.set(1.45,1.45,1);
  tree.add(crown);
- const crownLight=new THREE.PointLight(0xffd28b,5,4.7);
+ const crownLight=new THREE.PointLight(palette?.crown??0xffd28b,5,4.7);
  crownLight.position.set(0,6.60,.1);tree.add(crownLight);
  // Background snowfall is in its OWN depth plane, behind the actual 3D tree.
  const skyPositions=[];
@@ -221,13 +254,13 @@ export function createRealChristmasTree(stage,canvas,ornamentCount){
  const skyGeometry=new THREE.BufferGeometry();
  skyGeometry.setAttribute('position',new THREE.Float32BufferAttribute(skyPositions,3));
  const sky=new THREE.Points(skyGeometry,new THREE.PointsMaterial({
-   map:glowMap,size:.16,color:0xbdd9ff,transparent:true,
+   map:glowMap,size:.16,color:palette?.sky??0xbdd9ff,transparent:true,
    blending:THREE.AdditiveBlending,depthWrite:false,opacity:.54
  }));
  scene.add(sky);
- const balls=createBaubles(tree,Math.max(0,Math.min(48,ornamentCount)));
+ const balls=createBaubles(tree,Math.max(0,Math.min(48,ornamentCount)),palette?.baubles,palette?.metals?.[0]);
  const ground=new THREE.Mesh(new THREE.CircleGeometry(3.2,48),
-   new THREE.MeshBasicMaterial({color:0x9cc7dc,transparent:true,opacity:.10,side:THREE.DoubleSide}));
+   new THREE.MeshBasicMaterial({color:palette?.ground??0x9cc7dc,transparent:true,opacity:.10,side:THREE.DoubleSide}));
  ground.rotation.x=-Math.PI/2;ground.position.y=.11;scene.add(ground);
  let disposed=false,w=0,h=0;
  const working=new THREE.Vector3(),projected=new THREE.Vector3();
