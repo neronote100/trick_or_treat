@@ -118,42 +118,40 @@ header,main,footer{position:relative;z-index:1}.topbar{max-width:1200px;margin:a
 }
 
 
-/* A 2.5D volumetric Christmas tree. Its photo is used as multiple radial
-   texture facets, giving thickness during a full 360-degree turn. */
-.turning-tree-scene{position:absolute;inset:0;z-index:3;perspective:880px;perspective-origin:50% 43%;pointer-events:none;isolation:isolate;overflow:hidden}
-.tree-moving-environment{position:absolute;inset:-8%;z-index:0;background-image:url('./assets/royal-tree.avif');background-position:center;background-size:cover;opacity:.22;filter:blur(38px) brightness(.52) saturate(1.4);will-change:transform}
-.tree-moving-halo{position:absolute;inset:8%;z-index:1;background:radial-gradient(ellipse at 50% 59%,#fce7b82e 0%,#90cad920 29%,transparent 67%);filter:blur(13px);will-change:transform}
-.tree-rotor{position:absolute;inset:0;z-index:2;transform-style:preserve-3d;transform-origin:50% 50%;will-change:transform}
-.tree-facet{
- position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;
- transform:rotateY(var(--facet-angle));transform-origin:50% 50%;
- backface-visibility:visible;opacity:.57;
- mix-blend-mode:screen;
- clip-path:polygon(
-  50% 5%, 53% 10%, 58% 12%, 53% 15%, 52% 19%,
-  55% 25%, 60% 30%, 58% 34%, 66% 39%, 63% 43%,
-  72% 50%, 69% 53%, 77% 61%, 75% 66%, 83% 74%,
-  80% 77%, 89% 87%, 55% 87%, 55% 93%,
-  45% 93%, 45% 87%, 11% 87%, 20% 77%,
-  17% 74%, 25% 66%, 23% 61%, 31% 53%,
-  28% 50%, 37% 43%, 34% 39%, 42% 34%,
-  40% 30%, 45% 25%, 48% 19%, 47% 15%, 42% 12%,47% 10%
- );
- filter:drop-shadow(0 0 18px #ffe1a676);
- pointer-events:none;user-select:none
+
+/* Real volumetric 3D conifer rendered in Three.js/WebGL.
+   HTML circle links are projected from real 3D bauble coordinates. */
+.tree-unit{flex:0 1 540px;width:min(100%,540px)}
+.tree-grove{max-width:1180px}
+.tree-canvas{background:radial-gradient(ellipse at 50% 55%,#263959 0%,#172744 40%,#07172d 98%)}
+.turning-tree-scene{
+  position:absolute;inset:0;z-index:3;
+  overflow:hidden;pointer-events:none;isolation:isolate;
 }
-.tree-facet:nth-child(2){opacity:.43}
-.tree-facet:nth-child(3){opacity:.36}
-.tree-facet:nth-child(4){opacity:.43}
-.tree-canvas{background:radial-gradient(ellipse at 50% 65%,#253960 0%,#111c3c 48%,#081a34 96%)}
+.real-tree-webgl{
+  position:absolute;inset:0;display:block;width:100%;height:100%;
+  pointer-events:none;
+  filter:drop-shadow(0 0 14px #ebda9c19);
+}
+.tree-3d-fallback{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;opacity:.92;pointer-events:none;
+}
+.tree-3d-fallback[hidden]{display:none}
 .orbit-layer-rear{z-index:2}
 .orbit-layer-front{z-index:5}
 .orbit-layer-rear .orbital-slot{pointer-events:none!important}
-@supports not (transform-style: preserve-3d){
- .tree-rotor{transform:none!important}
- .tree-facet:not(:first-child){display:none}
- .tree-facet:first-child{opacity:1;clip-path:none;mix-blend-mode:normal}
+.orbital-slot{width:10%;max-width:56px;min-width:30px}
+.orbital-link{
+  box-shadow:0 0 10px #fff0b59c,0 0 7px #0008,
+             inset 0 0 8px #fff8;
+}
+.tree-canvas[data-rendering="webgl-3d"]{outline:1px solid #dbb66c33}
+@media (max-width:650px){
+  .tree-unit{width:100%;flex-basis:100%}
+  .orbital-slot{width:9.7%;min-width:28px}
 }
 @media(prefers-reduced-motion:reduce){
- .tree-moving-environment,.tree-moving-halo,.tree-rotor{will-change:auto}
+  .orbital-slot{will-change:auto}
+  .real-tree-webgl{filter:none}
 }

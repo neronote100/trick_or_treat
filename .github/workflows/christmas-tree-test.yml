@@ -19,7 +19,10 @@ jobs:
           python-version: '3.12'
       - name: Test Cloudflare/backend and tree growth logic
         working-directory: christmas-tree
-        run: npm test
+        run: |
+          npm test
+          node --check app.js
+          node --check tree3d.js
       - name: Compile Cloudflare Pages static bundle
         working-directory: christmas-tree
         run: npm run build
@@ -27,6 +30,7 @@ jobs:
         run: |
           test -f christmas-tree/dist/index.html
           test -f christmas-tree/dist/tree-core.js
+          test -f christmas-tree/dist/tree3d.js
           test -f christmas-tree/dist/data/ornaments.json
           test -f christmas-tree/dist/data/archive.json
           test -f christmas-tree/dist/archive.html
