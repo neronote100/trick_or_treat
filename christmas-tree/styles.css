@@ -55,3 +55,64 @@ header,main,footer{position:relative;z-index:1}.topbar{max-width:1200px;margin:a
 .tree-unit-empty{position:absolute;left:10%;right:10%;bottom:8%;color:#fff4da;text-align:center;font:500 13px "Yu Mincho",serif;text-shadow:0 1px 14px #071222;padding:10px;background:#0d254a72;border:1px solid #f5d99835;border-radius:99px;z-index:4}
 .tree-paging{margin:24px auto!important}.tree-bottom>p{font-size:13px}
 @media (max-width:650px){.tree-panel{padding:25px 8px 16px;border-radius:21px}.tree-grove{gap:17px;margin-top:23px}.tree-unit{padding:8px;border-radius:18px}.tree-unit-head{gap:7px}.tree-unit-head strong{font-size:16px}.tree-unit .ornament{min-width:34px;border-width:2px}.tree-unit-empty{font-size:11px}}
+
+
+/* 360° orbital ornaments on a richly illustrated fixed tree.
+   Rear items are dim/inert; foreground items remain easy to click. */
+.tree-canvas{touch-action:pan-y;cursor:grab;overscroll-behavior-x:contain}
+.tree-canvas.is-dragging{cursor:grabbing}
+.orbit-layer{position:absolute;inset:0;z-index:4;pointer-events:none;isolation:isolate}
+.orbital-slot{
+ position:absolute;width:13.6%;max-width:64px;min-width:0;aspect-ratio:1;
+ transform-origin:center center;will-change:transform,opacity
+}
+.orbital-hanger{
+ position:relative;width:100%;height:100%;
+ transform-origin:50% -12px;will-change:transform
+}
+.orbital-cord{
+ position:absolute;left:calc(50% - 1px);top:-17px;width:2px;height:19px;
+ border-radius:2px;background:linear-gradient(#f9e9b8,#bb874d);
+ filter:drop-shadow(0 0 4px #ffe5ae);pointer-events:none
+}
+.orbital-link{
+ display:flex;position:absolute;inset:0;border-radius:50%;
+ border:3px solid #ffdfa1;align-items:center;justify-content:center;
+ overflow:hidden;text-decoration:none;background:linear-gradient(145deg,#9a5f72,#422f63);
+ box-shadow:0 0 18px #ffdea794,0 0 8px #0007,inset 0 0 9px #fff8;
+ transition:box-shadow .17s ease,filter .17s ease
+}
+.orbital-link img,.orbital-link .fallback{
+ display:block;width:100%;height:100%;border-radius:50%;object-fit:cover;pointer-events:none
+}
+.orbital-link .fallback{display:grid;place-items:center;color:#fff1c1}
+.orbital-link::after{
+ content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+ background:linear-gradient(135deg,#fff9,transparent 38%,transparent 67%,#fff4)
+}
+.orbital-link.featured{border-color:#ffadd1;box-shadow:0 0 24px #ff92c3}
+.orbital-link:hover,.orbital-link:focus-visible{
+ outline:3px solid #fff4c5;outline-offset:3px;
+ box-shadow:0 0 25px #fff3b5,0 0 15px #0009;filter:brightness(1.15)
+}
+.orbit-controls{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:8px;margin:15px auto 0}
+.orbit-button{
+ border:1px solid #ffe1a26e;border-radius:999px;padding:9px 13px;
+ background:#18384e;color:#ffe6ba;font-size:12px;min-height:39px
+}
+.orbit-button:hover{background:#31536d}
+.orbit-button:focus-visible{outline:3px solid #ffe4a3;outline-offset:2px}
+.orbit-button:disabled{opacity:.58;cursor:default}
+.orbit-auto{background:#2d4256}
+.orbit-hint{margin:10px 0 3px;text-align:center;color:#d4cbd2;font-size:11px;line-height:1.7}
+@media(max-width:650px){
+ .orbital-link{border-width:2px}
+ .orbit-controls{gap:6px}
+ .orbit-button{padding:9px 10px;font-size:11px}
+ .orbital-cord{top:-14px;height:16px}
+ .orbital-hanger{transform-origin:50% -10px}
+}
+@media(prefers-reduced-motion:reduce){
+ .orbital-slot,.orbital-hanger{will-change:auto}
+ .orbital-link{transition:none}
+}
