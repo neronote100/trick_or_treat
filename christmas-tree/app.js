@@ -12,7 +12,7 @@ function buildNavigation(){
  const nav=el('project-nav');nav.replaceChildren();
  for(const p of state.config.projects){
    const count=articlesFor(p.id).length,button=make('button','project-card');
-   button.type='button';button.dataset.id=p.id;button.setAttribute('aria-pressed',String(p.id===state.selected));
+   button.type='button';button.dataset.id=p.id;button.dataset.palette=p.theme||'rose';button.setAttribute('aria-pressed',String(p.id===state.selected));
    button.append(make('span','project-icon',p.icon),make('strong','',p.name),make('small','',p.subtitle),make('span','project-count',count+' 作品'));
    if(!p.accepting && !archiveMode) button.append(make('em','coming-soon','企画準備中'));
    button.addEventListener('click',()=>{state.selected=p.id;state.page=0;history.replaceState(null,'',location.pathname+'?tree='+encodeURIComponent(p.id)+location.hash);render();el('tree-panel').scrollIntoView({behavior:'smooth'});});
@@ -27,7 +27,7 @@ function picture(article){
 }
 
 
-function createTurningTree(canvas){
+function createTurningTree(canvas,theme,variant){
  const scene=make('div','turning-tree-scene');
  scene.setAttribute('aria-hidden','true');
  const fallback=new Image();
@@ -43,7 +43,7 @@ function createTurningTree(canvas){
      import('./tree3d.js').then(module=>{
        if(disposed)return;
        try{
-         engine=module.createRealChristmasTree(scene,canvas,ornamentCount);
+         engine=module.createRealChristmasTree(scene,canvas,ornamentCount,theme,variant);
          // A first WebGL frame MUST be painted before the static artwork hides.
          // This also prevents an empty tree if initialization happens offscreen.
          engine.draw(pendingRotation,pendingSways);
@@ -242,6 +242,8 @@ function renderTree(){
  const items=articlesFor(p.id),count=items.length;
  const layout=grovePage(items,state.page);state.page=layout.page;
  el('tree-panel').dataset.theme=p.theme||'rose';
+  document.body.dataset.theme=p.theme||'rose';
+  document.body.dataset.forestVariant=String(state.page%3);
  text(el('tree-icon'),p.icon);text(el('tree-title'),p.name);text(el('tree-subtitle'),p.subtitle);
  text(el('tree-count'),count+'作品');
  text(el('tree-stage'),layout.totalTrees+'本のツリー / 1本あたり'+TREE_CAPACITY+'作品');
@@ -254,11 +256,13 @@ function renderTree(){
                   make('strong','',unit.number+'本目のツリー'),
                   make('span','tree-work-count',unit.works.length+' / '+TREE_CAPACITY+' 作品'));
    const canvas=make('div','tree-canvas');
+    const treeVariant=(unit.number-1)%3;
+    canvas.dataset.treeVariant=String(treeVariant);
    canvas.dataset.growth=unit.works.length===TREE_CAPACITY?'満開':'成長中';
    canvas.setAttribute('aria-label',unit.number+'本目の360度回転ツリー');
    const rear=make('div','orbit-layer orbit-layer-rear');
    rear.setAttribute('aria-hidden','true');
-   const artwork=createTurningTree(canvas);
+   const artwork=createTurningTree(canvas,p.theme||'rose',treeVariant);
    const front=make('div','orbit-layer orbit-layer-front');
    front.setAttribute('aria-label',unit.number+'本目の360度オーナメント');
    const ornaments=[];
