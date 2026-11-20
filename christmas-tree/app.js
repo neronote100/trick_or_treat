@@ -26,6 +26,34 @@ function picture(article){
  img.src=src;img.onerror=()=>{img.replaceWith(fallback());};return img;
 }
 
+
+function treeArtworkImage(){
+ const img=new Image();
+ img.className='tree-facet';
+ img.alt='';img.loading='eager';img.decoding='async';img.draggable=false;
+ img.src='./assets/royal-tree.avif';
+ img.addEventListener('error',()=>{
+   if(!img.src.endsWith('/royal-tree.svg'))img.src='./assets/royal-tree.svg';
+ });
+ return img;
+}
+function createTurningTree(canvas){
+ const scene=make('div','turning-tree-scene');
+ scene.setAttribute('aria-hidden','true');
+ const environment=make('div','tree-moving-environment');
+ const halo=make('div','tree-moving-halo');
+ const rotor=make('div','tree-rotor');
+ for(const angle of [0,45,90,135]){
+   const facet=treeArtworkImage();
+   facet.style.setProperty('--facet-angle',angle+'deg');
+   facet.setAttribute('aria-hidden','true');
+   rotor.append(facet);
+ }
+ scene.append(environment,halo,rotor);
+ canvas.append(scene);
+ return {scene,environment,halo,rotor};
+}
+
 const orbitControllers=[];
 function disposeOrbitControllers(){
   for(const controller of orbitControllers)controller.destroy();
@@ -46,7 +74,7 @@ function createOrnament(article,index){
  hanger.append(cord,link);slot.append(hanger);
  return {slot,hanger,link,orbit,sway:{angle:0,velocity:0},front:false};
 }
-function createOrbitController(canvas,ornaments,number,controls){
+function createOrbitController(canvas,ornaments,number,controls,art){
  const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
  let reduced=motion.matches,rotation=(number*43)%360,velocity=0,previousVelocity=0;
  let previousFrame=0,frameId=0,visible=true,auto=!reduced,idleUntil=0;
@@ -62,6 +90,11 @@ function createOrbitController(canvas,ornaments,number,controls){
    toggle.title=reduced?'端末のアニメーション軽減設定が有効です':'';
  }
  function draw(dt=0,angularAcceleration=0,now=0){
+   // Tree canopy, scenery and ornaments all share ONE physical rotation angle.
+   const radians=rotation*Math.PI/180;
+   art.rotor.style.transform='rotateY('+rotation.toFixed(2)+'deg)';
+   art.environment.style.transform='translate3d('+(-3.2*Math.sin(radians)).toFixed(2)+'%,0,0) scale(1.18)';
+   art.halo.style.transform='translate3d('+(5.0*Math.sin(radians)).toFixed(2)+'%,0,0)';
    for(let i=0;i<ornaments.length;i++){
      const o=ornaments[i],p=projectOrbit(o.orbit,rotation);
      o.slot.style.left=p.x.toFixed(3)+'%';
@@ -70,6 +103,9 @@ function createOrbitController(canvas,ornaments,number,controls){
      o.slot.style.zIndex=String(p.zIndex);
      o.slot.style.transform='translate(-50%,-50%) scale('+p.scale.toFixed(3)+')';
      o.slot.style.pointerEvents=p.interactive?'auto':'none';
+     // Rear ornaments go BEHIND the rotating foliage, rather than floating on top.
+     const destination=p.depth<-0.08?art.rear:art.front;
+     if(o.slot.parentNode!==destination)destination.append(o.slot);
      if(o.front!==p.interactive){
        o.front=p.interactive;
        o.link.tabIndex=p.interactive?0:-1;
@@ -200,19 +236,17 @@ function renderTree(){
    const canvas=make('div','tree-canvas');
    canvas.dataset.growth=unit.works.length===TREE_CAPACITY?'満開':'成長中';
    canvas.setAttribute('aria-label',unit.number+'本目の360度回転ツリー');
-   const img=new Image();img.className='grand-tree-art';
-   img.loading=unit.number>2?'lazy':'eager';img.alt='';img.draggable=false;
-   img.src='./assets/royal-tree.avif';
-   img.addEventListener('error',()=>{if(!img.src.endsWith('/royal-tree.svg'))img.src='./assets/royal-tree.svg';});
-   canvas.append(img);
-   const layer=make('div','orbit-layer');
-   layer.setAttribute('aria-label',unit.number+'本目の360度オーナメント');
+   const rear=make('div','orbit-layer orbit-layer-rear');
+   rear.setAttribute('aria-hidden','true');
+   const artwork=createTurningTree(canvas);
+   const front=make('div','orbit-layer orbit-layer-front');
+   front.setAttribute('aria-label',unit.number+'本目の360度オーナメント');
    const ornaments=[];
    unit.works.forEach((article,i)=>{
      const entry=createOrnament(article,i);
-     if(entry){ornaments.push(entry);layer.append(entry.slot);}
+     if(entry){ornaments.push(entry);front.append(entry.slot);}
    });
-   canvas.append(layer);
+   canvas.append(rear,front);
    if(!unit.works.length)canvas.append(make('div','tree-unit-empty','最初のオーナメントを待っています ✧'));
    const controls=make('div','orbit-controls');
    const left=make('button','orbit-button','↶ 左に回す');
@@ -224,7 +258,7 @@ function renderTree(){
    controls.append(left,toggle,right);
    const hint=make('p','orbit-hint','横スワイプで360°回転 · 飾りをタップしてnoteへ');
    card.append(caption,canvas,controls,hint);grove.append(card);
-   orbitControllers.push(createOrbitController(canvas,ornaments,unit.number,{left,toggle,right}));
+   orbitControllers.push(createOrbitController(canvas,ornaments,unit.number,{left,toggle,right},{...artwork,rear,front}));
  }
  const paging=el('tree-paging');paging.hidden=layout.pages<=1;
  text(el('tree-page-label'),(layout.page+1)+' / '+layout.pages+' エリア');
