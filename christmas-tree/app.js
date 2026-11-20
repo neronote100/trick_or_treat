@@ -86,7 +86,9 @@ function createOrbitController(canvas,ornaments,number,controls){
  }
  function frame(now){
    if(disposed)return;
-   const dt=previousFrame?Math.min(.05,Math.max(.001,(now-previousFrame)/1000)):1/60;
+   // Cap expensive DOM projection writes to about 30 fps on mobile.
+   if(previousFrame && now-previousFrame<32){frameId=requestAnimationFrame(frame);return;}
+   const dt=previousFrame?Math.min(.05,Math.max(.001,(now-previousFrame)/1000)):1/30;
    previousFrame=now;
    if(visible&&!document.hidden){
      if(!reduced&&!pointer?.dragging&&!canvas.contains(document.activeElement)){
