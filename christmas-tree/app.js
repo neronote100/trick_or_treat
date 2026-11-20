@@ -36,7 +36,7 @@ function createTurningTree(canvas){
  fallback.src='./assets/royal-tree.avif';
  fallback.onerror=()=>{if(!fallback.src.endsWith('/royal-tree.svg'))fallback.src='./assets/royal-tree.svg';};
  scene.append(fallback);canvas.append(scene);
- let engine=null,disposed=false;
+ let engine=null,disposed=false,pendingRotation=0,pendingSways=[];
  return {
    scene,
    init(ornamentCount){
@@ -44,6 +44,9 @@ function createTurningTree(canvas){
        if(disposed)return;
        try{
          engine=module.createRealChristmasTree(scene,canvas,ornamentCount);
+         // A first WebGL frame MUST be painted before the static artwork hides.
+         // This also prevents an empty tree if initialization happens offscreen.
+         engine.draw(pendingRotation,pendingSways);
          fallback.hidden=true;
          canvas.dataset.rendering='webgl-3d';
        }catch(error){
@@ -56,6 +59,7 @@ function createTurningTree(canvas){
      });
    },
    draw(rotation,sways){
+     pendingRotation=rotation;pendingSways=sways;
      try{return engine?engine.draw(rotation,sways):null;}
      catch(error){
        console.warn('3D renderer fallback',error);

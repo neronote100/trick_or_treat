@@ -48,7 +48,14 @@ try{
  assert.equal(state.ornaments,48);
  assert.ok(state.imageLoaded,'Missing 3D WebGL canvas');
  assert.match(state.treeCount,/48作品/);
- // Read-only screenshot of actual generated WebGL pixels for visual review.
+ await page.locator('.tree-canvas').first().scrollIntoViewIfNeeded();
+ await page.waitForFunction(()=>{
+   const c=document.querySelector('.tree-canvas');
+   const gl=c?.querySelector('canvas.real-tree-webgl');
+   return c?.dataset.rotation!==undefined&&gl?.width>0&&gl?.height>0;
+ },null,{timeout:40000});
+ await page.waitForTimeout(1350);
+ // Read-only screenshot of the ACTUALLY PAINTED 3D pixels for visual review.
  const cap=await page.locator('.tree-canvas').first().screenshot({type:'jpeg',quality:47});
  console.log('3D_SCREENSHOT_B64:'+cap.toString('base64'));
  // Check controls move the REAL tree's recorded 3D rotation.
