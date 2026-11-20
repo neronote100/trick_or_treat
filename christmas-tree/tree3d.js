@@ -224,6 +224,7 @@ export function createRealChristmasTree(stage,canvas,ornamentCount){
    draw(rotationDegrees,sways=[]){
     if(disposed)return [];
     resize();
+    canvas.dataset.rotation=rotationDegrees.toFixed(2);
     tree.rotation.y=rotationDegrees*DEG;
     for(let i=0;i<balls.length;i++)balls[i].pendulum.rotation.z=(sways[i]||0)*DEG;
     scene.updateMatrixWorld(true);
