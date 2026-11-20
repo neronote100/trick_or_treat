@@ -18,14 +18,15 @@ export function imageUrl(raw) {
 // Three tapered horizontal rings around the tree, not a flat 24-item grid.
 // Every ornament has its own angle on one of the 360-degree rings.
 export const RING_TIERS=Object.freeze([
-  Object.freeze({count:5, y:35, radius:15, start:8}),
-  Object.freeze({count:8, y:51, radius:23, start:17}),
-  Object.freeze({count:11, y:70, radius:32, start:9}),
+  Object.freeze({count:6, y:28, radius:16, worldY:4.85, worldRadius:1.12, start:0}),
+  Object.freeze({count:10,y:42, radius:24, worldY:3.90, worldRadius:1.58, start:11}),
+  Object.freeze({count:14,y:56, radius:31, worldY:2.80, worldRadius:2.02, start:7}),
+  Object.freeze({count:18,y:72, radius:38, worldY:1.55, worldRadius:2.45, start:3}),
 ]);
 export const TREE_CAPACITY=RING_TIERS.reduce((n,t)=>n+t.count,0);
 export const TREES_PER_PAGE=3;
 export const TREE_PAGE_SIZE=TREE_CAPACITY*TREES_PER_PAGE;
-export const AUTO_ROTATION_DEG_PER_SEC=3.6;
+export const AUTO_ROTATION_DEG_PER_SEC=2.8;
 
 export const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
 
@@ -40,6 +41,8 @@ export function ornamentOrbit(index) {
         angle:t.start+(360*offset)/t.count,
         radius:t.radius,
         y:t.y,
+        worldY:t.worldY,
+        worldRadius:t.worldRadius,
         weight:0.84+((index*7)%9)/20,
       };
     }
