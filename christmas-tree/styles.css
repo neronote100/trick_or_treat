@@ -116,3 +116,42 @@ header,main,footer{position:relative;z-index:1}.topbar{max-width:1200px;margin:a
  .orbital-slot,.orbital-hanger{will-change:auto}
  .orbital-link{transition:none}
 }
+
+
+
+/* Real volumetric 3D conifer rendered in Three.js/WebGL.
+   HTML circle links are projected from real 3D bauble coordinates. */
+.tree-unit{flex:0 1 540px;width:min(100%,540px)}
+.tree-grove{max-width:1180px}
+.tree-canvas{background:radial-gradient(ellipse at 50% 55%,#263959 0%,#172744 40%,#07172d 98%)}
+.turning-tree-scene{
+  position:absolute;inset:0;z-index:3;
+  overflow:hidden;pointer-events:none;isolation:isolate;
+}
+.real-tree-webgl{
+  position:absolute;inset:0;display:block;width:100%;height:100%;
+  pointer-events:none;
+  filter:drop-shadow(0 0 14px #ebda9c19);
+}
+.tree-3d-fallback{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;opacity:.92;pointer-events:none;
+}
+.tree-3d-fallback[hidden]{display:none}
+.orbit-layer-rear{z-index:2}
+.orbit-layer-front{z-index:5}
+.orbit-layer-rear .orbital-slot{pointer-events:none!important}
+.orbital-slot{width:10%;max-width:56px;min-width:30px}
+.orbital-link{
+  box-shadow:0 0 10px #fff0b59c,0 0 7px #0008,
+             inset 0 0 8px #fff8;
+}
+.tree-canvas[data-rendering="webgl-3d"]{outline:1px solid #dbb66c33}
+@media (max-width:650px){
+  .tree-unit{width:100%;flex-basis:100%}
+  .orbital-slot{width:9.7%;min-width:28px}
+}
+@media(prefers-reduced-motion:reduce){
+  .orbital-slot{will-change:auto}
+  .real-tree-webgl{filter:none}
+}

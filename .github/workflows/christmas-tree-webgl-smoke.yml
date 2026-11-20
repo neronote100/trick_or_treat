@@ -1,0 +1,24 @@
+name: Christmas Kingdom - true 3D browser smoke
+on:
+  pull_request:
+    paths:
+      - 'christmas-tree/**'
+      - '.github/workflows/christmas-tree-webgl-smoke.yml'
+  workflow_dispatch:
+jobs:
+  webgl:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install headless Chromium test runner
+        working-directory: christmas-tree
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.56.1
+          npx playwright install chromium
+      - name: Verify actual three-dimensional tree on Cloudflare preview
+        working-directory: christmas-tree
+        run: node scripts/browser3d-smoke.mjs
