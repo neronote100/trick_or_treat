@@ -155,3 +155,85 @@ header,main,footer{position:relative;z-index:1}.topbar{max-width:1200px;margin:a
   .orbital-slot{will-change:auto}
   .real-tree-webgl{filter:none}
 }
+
+/* CHRISTMAS STORY PALETTES 2026
+   Keep every Christmas page legible, preserve historical-archive palettes,
+   and avoid adding texture downloads or animation work to the existing 3D scene. */
+body[data-theme="christmas-card"] {
+ --night:#092f29;--gold:#f2c777;--accent:#b72f48;
+ --muted:#d1dad3;--ink:#fff6e5;
+ background:radial-gradient(ellipse at 50% 19%,#295d50 0%,#10382f 40%,#071f1d 81%);
+}
+body[data-theme="confession-illustration"] {
+ --night:#221a43;--gold:#f6c9df;--accent:#f2a3cd;
+ --muted:#d7c9e7;--ink:#fff2fa;
+ background:radial-gradient(ellipse at 50% 19%,#514779 0%,#2b2451 41%,#17152d 81%);
+}
+body[data-theme="confession-essay"] {
+ --night:#101c39;--gold:#f0d7ab;--accent:#b97691;
+ --muted:#c0cce3;--ink:#f7f1f7;
+ background:radial-gradient(ellipse at 50% 19%,#394f74 0%,#1e3154 40%,#0e1933 82%);
+}
+body[data-theme="christmas-card"] .starfield {opacity:.60;filter:sepia(.18) saturate(1.18)}
+body[data-theme="confession-illustration"] .starfield {opacity:.72;filter:hue-rotate(80deg)}
+body[data-theme="confession-essay"] .starfield {opacity:.43;filter:hue-rotate(25deg)}
+/* Every project card advertises its own world even before selection. */
+.project-card[data-palette="christmas-card"] {
+ border-color:#e5bd775c;background:linear-gradient(160deg,#245547ee,#102e2ce8);
+}
+.project-card[data-palette="confession-illustration"] {
+ border-color:#c6b3fa67;background:linear-gradient(160deg,#514477ee,#292143ed);
+}
+.project-card[data-palette="confession-essay"] {
+ border-color:#9fb3de6b;background:linear-gradient(160deg,#364a72ee,#192746ed);
+}
+.project-card[data-palette="christmas-card"][aria-pressed="true"] {border-color:#f2c777;box-shadow:0 0 22px #f2c77739}
+.project-card[data-palette="confession-illustration"][aria-pressed="true"] {border-color:#f2a3cd;box-shadow:0 0 22px #f2a3cd49}
+.project-card[data-palette="confession-essay"][aria-pressed="true"] {border-color:#b5c8ef;box-shadow:0 0 22px #b5c8ef3c}
+.tree-panel[data-theme="christmas-card"] {
+ --accent:#b72f48;--scene-center:#285c50;--scene-middle:#153a35;--scene-edge:#071e22;
+ --scene-tint:#cfa65b35;
+ border-color:#f2c77775;
+ background:radial-gradient(ellipse at 50% 1%,var(--page-glow,#f2c77720),transparent 54%),linear-gradient(180deg,#193e37f2,#0c2929ed 60%,#081d21f2);
+}
+.tree-panel[data-theme="confession-illustration"] {
+ --accent:#f2a3cd;--scene-center:#675789;--scene-middle:#383158;--scene-edge:#191832;
+ --scene-tint:#f2a3cd26;
+ border-color:#c6b3fa80;
+ background:radial-gradient(ellipse at 50% 1%,var(--page-glow,#f2a3cd25),transparent 54%),linear-gradient(180deg,#413662f2,#292347ef 60%,#1b1835f2);
+}
+.tree-panel[data-theme="confession-essay"] {
+ --accent:#b97691;--scene-center:#41587b;--scene-middle:#263a5c;--scene-edge:#101c39;
+ --scene-tint:#a8bce434;
+ border-color:#9ab1d672;
+ background:radial-gradient(ellipse at 50% 1%,var(--page-glow,#a8bce422),transparent 54%),linear-gradient(180deg,#263b5ff3,#1b2d4bed 60%,#101b37f4);
+}
+/* Turn each next forest into a different hour of the same winter night. */
+body[data-forest-variant="0"] .tree-panel {--page-glow:#fff2ce22}
+body[data-forest-variant="1"] .tree-panel {--page-glow:#c2b8ff2e}
+body[data-forest-variant="2"] .tree-panel {--page-glow:#d89bb52a}
+.tree-panel[data-theme="christmas-card"] .tree-canvas,
+.tree-panel[data-theme="confession-illustration"] .tree-canvas,
+.tree-panel[data-theme="confession-essay"] .tree-canvas {
+ background:radial-gradient(ellipse at 50% 49%,var(--scene-center) 0%,var(--scene-middle) 43%,var(--scene-edge) 96%);
+}
+.tree-panel[data-theme="christmas-card"] .tree-unit,
+.tree-panel[data-theme="confession-illustration"] .tree-unit,
+.tree-panel[data-theme="confession-essay"] .tree-unit {
+ border-color:var(--accent);background:linear-gradient(180deg,#ffffff12,#080f1b66);
+}
+.tree-panel[data-theme="christmas-card"] .orbital-link,
+.tree-panel[data-theme="confession-illustration"] .orbital-link,
+.tree-panel[data-theme="confession-essay"] .orbital-link {
+ border-color:var(--accent);box-shadow:0 0 13px var(--accent),0 0 6px #0008,inset 0 0 8px #fff8;
+}
+/* Faint environmental glows add tree-to-tree variety with no extra sprites. */
+.tree-canvas[data-tree-variant="1"]::after {
+ background:radial-gradient(ellipse at 28% 36%,#e2b0f019,transparent 60%),radial-gradient(ellipse at 50% 48%,transparent 48%,#060f2873 100%);
+}
+.tree-canvas[data-tree-variant="2"]::after {
+ background:radial-gradient(ellipse at 77% 38%,#ffe3a11c,transparent 60%),radial-gradient(ellipse at 50% 48%,transparent 48%,#060f2873 100%);
+}
+@media(prefers-reduced-motion:reduce){
+ body[data-theme="christmas-card"],body[data-theme="confession-illustration"],body[data-theme="confession-essay"] {scroll-behavior:auto}
+}
