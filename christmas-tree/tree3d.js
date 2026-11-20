@@ -8,8 +8,8 @@ import {ornamentOrbit} from './tree-core.js';
 
 const DEG=Math.PI/180;
 const UP=new THREE.Vector3(0,1,0);
-const COLORS=[0x0b493b,0x0d5b43,0x146b4f,0x1e7957,0x317e56,0x1e634b];
-const BAUBLE=[0xaa455e,0xe3ae61,0x8d8acc,0x72a9bd,0xb58a54,0xb54960];
+const COLORS=[0x0a3a2b,0x104a34,0x16543c,0x1d6546,0x31754d,0x205b43];
+const BAUBLE=[0xc99b64,0xe1c189,0xb58c9d,0x9cb5b5,0xe3ae76,0xc79491];
 function seeded(seed) {
  let n=seed>>>0;
  return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};
@@ -47,7 +47,7 @@ function placeGlow(group,random){
  const positions=[],colors=[];
  const shades=[new THREE.Color(0xffe9aa),new THREE.Color(0xffe4be),
                new THREE.Color(0xb4f0ff),new THREE.Color(0xffb3be)];
- for(let n=0;n<410;n++){
+ for(let n=0;n<620;n++){
   const y=.82+random()*5.36;
   const a=random()*Math.PI*2;
   const r=radiusAt(y)*(0.99+random()*.07);
@@ -60,8 +60,8 @@ function placeGlow(group,random){
  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
  const texture=createGlitterMap();
  const material=new THREE.PointsMaterial({
-  size:.23,map:texture,transparent:true,vertexColors:true,depthWrite:false,
-  blending:THREE.AdditiveBlending,sizeAttenuation:true,opacity:.92
+  size:.30,map:texture,transparent:true,vertexColors:true,depthWrite:false,
+  blending:THREE.AdditiveBlending,sizeAttenuation:true,opacity:1
  });
  const points=new THREE.Points(geo,material);group.add(points);
  return texture;
@@ -80,7 +80,7 @@ function buildFoliage(tree,random){
   cone.rotation.y=random()*Math.PI;
  }
  // Hundreds of five-sided boughs radiate out in three dimensions.
- const geo=new THREE.ConeGeometry(.20,.93,5,1);
+ const geo=new THREE.ConeGeometry(.155,.76,6,1);
  const materials=COLORS.map(c=>new THREE.MeshLambertMaterial({color:c}));
  const transforms=materials.map(()=>[]);
  const quat=new THREE.Quaternion(),dummy=new THREE.Object3D();
@@ -111,11 +111,11 @@ function buildFoliage(tree,random){
   tree.add(mesh);
  }
  // Fine needle clusters give the silhouette volume at side-on angles.
- const needleGeo=new THREE.ConeGeometry(.092,.44,4,1);
+ const needleGeo=new THREE.ConeGeometry(.066,.36,5,1);
  const fineMats=[0x368b68,0x2c805e,0x1f7456].map(color=>new THREE.MeshLambertMaterial({color}));
  for(let materialIndex=0;materialIndex<fineMats.length;materialIndex++){
-  const mesh=new THREE.InstancedMesh(needleGeo,fineMats[materialIndex],235);
-  for(let n=0;n<235;n++){
+  const mesh=new THREE.InstancedMesh(needleGeo,fineMats[materialIndex],320);
+  for(let n=0;n<320;n++){
    const y=.75+random()*5.48,a=random()*Math.PI*2;
    const r=radiusAt(y)*(.83+random()*.19);
    dummy.position.set(Math.sin(a)*r,y,Math.cos(a)*r);
@@ -149,7 +149,7 @@ function addGarlands(tree){
 function createBaubles(tree,count){
  const entries=[];
  const gold=new THREE.MeshStandardMaterial({color:0xffdf98,roughness:.3,metalness:.68});
- const ballGeo=new THREE.SphereGeometry(.215,14,10);
+ const ballGeo=new THREE.SphereGeometry(.158,16,12);
  const hookGeo=cylinder(.021,.021,.23,6);
  const capGeo=cylinder(.08,.075,.055,8);
  for(let i=0;i<count;i++){
@@ -163,7 +163,7 @@ function createBaubles(tree,count){
   addMesh(pendulum,hookGeo,gold,0,-.10,0);
   addMesh(pendulum,capGeo,gold,0,-.235,0);
   const material=new THREE.MeshPhysicalMaterial({
-   color:BAUBLE[i%BAUBLE.length],metalness:.38,roughness:.19,
+   color:BAUBLE[i%BAUBLE.length],metalness:.59,roughness:.19,
    clearcoat:1,clearcoatRoughness:.16,
    emissive:BAUBLE[i%BAUBLE.length],emissiveIntensity:.045
   });
@@ -204,6 +204,27 @@ export function createRealChristmasTree(stage,canvas,ornamentCount){
  star.rotation.y=.16;
  // Thin layered ground cover stays stationary, making rotation obvious.
  const glowMap=placeGlow(tree,rand);
+ // A luminous crown that remains dimensional as the tree turns.
+ const crown=new THREE.Sprite(new THREE.SpriteMaterial({
+   map:glowMap,color:0xffd47a,transparent:true,opacity:.86,
+   depthWrite:false,blending:THREE.AdditiveBlending
+ }));
+ crown.position.set(0,6.70,0);crown.scale.set(1.45,1.45,1);
+ tree.add(crown);
+ const crownLight=new THREE.PointLight(0xffd28b,5,4.7);
+ crownLight.position.set(0,6.60,.1);tree.add(crownLight);
+ // Background snowfall is in its OWN depth plane, behind the actual 3D tree.
+ const skyPositions=[];
+ for(let n=0;n<210;n++){
+   skyPositions.push((rand()-.5)*11,rand()*8.2,-3.4-rand()*5.6);
+ }
+ const skyGeometry=new THREE.BufferGeometry();
+ skyGeometry.setAttribute('position',new THREE.Float32BufferAttribute(skyPositions,3));
+ const sky=new THREE.Points(skyGeometry,new THREE.PointsMaterial({
+   map:glowMap,size:.16,color:0xbdd9ff,transparent:true,
+   blending:THREE.AdditiveBlending,depthWrite:false,opacity:.54
+ }));
+ scene.add(sky);
  const balls=createBaubles(tree,Math.max(0,Math.min(48,ornamentCount)));
  const ground=new THREE.Mesh(new THREE.CircleGeometry(3.2,48),
    new THREE.MeshBasicMaterial({color:0x9cc7dc,transparent:true,opacity:.10,side:THREE.DoubleSide}));
