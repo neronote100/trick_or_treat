@@ -414,3 +414,6 @@ body[data-mode="archive"] .hero .eyebrow{color:#f1cc95}
  .topbar .logo small{font-size:9px}
  .hero-brand{font-size:clamp(36px,10vw,58px);letter-spacing:0;margin-top:17px}
 }
+
+/* Explain temporary hashtag compatibility until event tags are finalized. */
+.provisional-tag-notice{max-width:710px;margin:13px auto 0;color:#e1c9ae;font-size:11px;line-height:1.85;text-align:center}
