@@ -237,3 +237,141 @@ body[data-forest-variant="2"] .tree-panel {--page-glow:#d89bb52a}
 @media(prefers-reduced-motion:reduce){
  body[data-theme="christmas-card"],body[data-theme="confession-illustration"],body[data-theme="confession-essay"] {scroll-behavior:auto}
 }
+
+/* SANTA'S GIFT FOREST: an evergreen night with real unwrappable boxes. */
+body[data-theme="santa-gifts"]{
+ --night:#0b2521;--ink:#fff5e4;--gold:#f5d39a;--accent:#d75364;--muted:#bcd5cc;
+ background:radial-gradient(ellipse at 50% 20%,#2c5749 0%,#153a34 40%,#091d1f 82%);
+}
+.project-card[data-palette="santa-gifts"]{
+ border-color:#e8c18b87;background:linear-gradient(160deg,#2c5947,#152a30);
+}
+.project-card[data-palette="santa-gifts"][aria-pressed="true"]{
+ border-color:#f4d39a;box-shadow:0 0 25px #f4d39a36;
+}
+.tree-panel[data-theme="santa-gifts"]{
+ --accent:#d75364;
+ border-color:#f5d39a77;
+ background:radial-gradient(ellipse at 50% 2%,#ccad6550,transparent 51%),linear-gradient(180deg,#173c35f2,#0c272ae9 60%,#0b202af3);
+}
+.tree-panel[data-theme="santa-gifts"] .tree-canvas{
+ background:radial-gradient(ellipse at 50% 52%,#305f54 0%,#183b40 47%,#0a1d2c 97%);
+}
+.tree-panel[data-theme="santa-gifts"] .tree-unit{
+ border-color:#ead3a449;background:linear-gradient(180deg,#31544470,#0d262bdd);
+}
+.tree-panel[data-display="gifts"] .tree-grove{gap:30px}
+.tree-panel[data-display="gifts"] .tree-unit{flex-basis:505px}
+.tree-panel[data-display="gifts"] .tree-canvas::after{
+ background:radial-gradient(ellipse at 50% 88%,#ffefcf21 0%,transparent 43%),radial-gradient(ellipse at 50% 47%,transparent 53%,#06181c71 100%);
+}
+.santa-gift-floor{
+ position:relative;z-index:7;
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:end;
+ gap:10px 9px;
+ min-height:152px;margin:-28px 1px 0;
+ padding:30px 12px 17px;border-radius:18px;
+ border:1px solid #ead5aa40;
+ background:radial-gradient(ellipse at 50% 1%,#e3f3e93e 0%,transparent 60%),linear-gradient(180deg,#34544aeb,#142a2dea 75%,#0b1d23f4);
+ box-shadow:0 -9px 35px #b7dfd91b,0 17px 28px #0005;
+}
+.santa-gift-floor::before{
+ content:"";position:absolute;left:5%;right:5%;top:2px;height:15px;pointer-events:none;
+ border-radius:50%;background:radial-gradient(ellipse,#eaf8e77a,transparent 70%);
+}
+.santa-gift{
+ --wrap:#aa3d50;--ribbon:#f9dd9f;--wrap-edge:#5c203b;
+ position:relative;min-width:0;height:178px;
+ display:flex;justify-content:flex-end;align-items:center;flex-direction:column;
+ animation:santa-delivery .48s ease-out backwards;
+}
+.santa-gift[data-wrap="1"]{--wrap:#278e83;--ribbon:#f8db9c;--wrap-edge:#175e5b}
+.santa-gift[data-wrap="2"]{--wrap:#e0bb73;--ribbon:#a43855;--wrap-edge:#92723c}
+.santa-gift[data-wrap="3"]{--wrap:#81619e;--ribbon:#f6d3a0;--wrap-edge:#44365f}
+.santa-gift[data-wrap="4"]{--wrap:#c16c65;--ribbon:#ffe7b0;--wrap-edge:#743e46}
+.santa-gift[data-wrap="5"]{--wrap:#4b86ab;--ribbon:#fff2c6;--wrap-edge:#275171}
+.santa-gift:nth-child(2n){animation-delay:.06s}
+.santa-gift:nth-child(3n){animation-delay:.12s}
+@keyframes santa-delivery{
+ from{opacity:0;transform:translateY(-13px) scale(.91)}
+ to{opacity:1;transform:translateY(0) scale(1)}
+}
+.gift-box{
+ position:absolute;inset:0;width:100%;height:100%;
+ padding:0;background:none;border:0;cursor:pointer;
+ filter:drop-shadow(0 7px 5px #0006);
+}
+.gift-box:focus-visible{outline:3px solid #ffe2a3;outline-offset:2px;border-radius:7px}
+.gift-box:disabled{opacity:1;cursor:default}
+.gift-body,.gift-lid,.gift-ribbon-v,.gift-ribbon-h,.gift-bow{position:absolute;display:block;pointer-events:none}
+.gift-body{
+ left:10%;right:10%;bottom:26px;height:62px;
+ background:linear-gradient(120deg,var(--wrap),var(--wrap-edge));
+ border:1px solid #fff5ca55;border-radius:3px 3px 8px 8px;
+ box-shadow:inset 0 -6px 0 #0002,inset 2px 0 #fff5;
+}
+.gift-lid{
+ z-index:4;left:6%;right:6%;bottom:82px;height:22px;
+ background:linear-gradient(115deg,var(--wrap),var(--wrap-edge));
+ border:1px solid #fff8d18a;border-radius:5px 5px 2px 2px;
+ box-shadow:0 3px 6px #0004;
+ transform-origin:16% 85%;
+ transition:transform .68s cubic-bezier(.16,.82,.27,1.07);
+}
+.gift-ribbon-v{
+ z-index:2;left:46%;width:8%;bottom:26px;height:78px;
+ background:linear-gradient(90deg,#0002,var(--ribbon),#fff5);
+}
+.gift-ribbon-h{
+ z-index:2;left:9%;right:9%;bottom:55px;height:12px;
+ background:linear-gradient(#fff6,var(--ribbon) 35%,#0001);
+}
+.gift-bow{
+ z-index:5;left:50%;bottom:104px;width:16px;height:12px;
+ transform:translateX(-50%);border-radius:50%;background:var(--ribbon);
+ box-shadow:-11px -3px 0 -2px var(--ribbon),11px -3px 0 -2px var(--ribbon);
+ transition:transform .68s cubic-bezier(.16,.82,.27,1.07);
+}
+.gift-reveal{
+ position:absolute;z-index:3;top:3px;left:12%;right:12%;
+ opacity:0;transform:translateY(36px) scale(.74);pointer-events:none;
+ transition:opacity .4s ease .18s,transform .58s cubic-bezier(.2,.8,.2,1) .13s;
+}
+.gift-article{display:block;color:#fff5e6;text-decoration:none;outline-offset:5px}
+.gift-thumbnail{
+ display:block;width:100%;aspect-ratio:1;border:2px solid #ffe1aa;
+ border-radius:6px;box-shadow:0 4px 16px #0009,0 0 13px #ffe1aa53;
+ overflow:hidden;background:#62546c;
+}
+.gift-thumbnail img,.gift-thumbnail .fallback{display:block;width:100%;height:100%;object-fit:cover}
+.gift-thumbnail .fallback{display:grid;place-items:center;font-size:20px}
+.gift-article-title{
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+ color:#fff3df;font-size:10px;line-height:1.3;margin-top:3px;min-height:25px;
+ overflow-wrap:anywhere;text-shadow:0 1px 4px #000;
+}
+.gift-number{font:10px Georgia,serif;letter-spacing:.08em;color:#f7dca8;margin-top:5px;z-index:5}
+.santa-gift.is-open .gift-lid{transform:translateY(-87px) rotate(-14deg)}
+.santa-gift.is-open .gift-bow{transform:translate(-50%,-87px) rotate(-14deg)}
+.santa-gift.is-open .gift-reveal{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.santa-gift.gift-restored,.santa-gift.gift-restored *{animation:none!important;transition:none!important}
+.santa-gift-empty{
+ grid-column:1 / -1;text-align:center;color:#ffe6b7;
+ font-size:13px;line-height:1.8;padding:36px 8px;margin:0;
+}
+@media(max-width:650px){
+ .santa-gift-floor{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:29px 6px 13px;margin-top:-18px}
+ .santa-gift{height:153px}
+ .gift-body{height:52px;bottom:26px}
+ .gift-lid{bottom:72px;height:18px}
+ .gift-ribbon-v{bottom:26px;height:63px}
+ .gift-ribbon-h{bottom:47px;height:10px}
+ .gift-bow{bottom:89px;width:14px}
+ .santa-gift.is-open .gift-lid{transform:translateY(-65px) rotate(-14deg)}
+ .santa-gift.is-open .gift-bow{transform:translate(-50%,-65px) rotate(-14deg)}
+ .gift-article-title{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){
+ .santa-gift{animation:none}
+ .santa-gift .gift-lid,.santa-gift .gift-bow,.santa-gift .gift-reveal{transition:none}
+}
