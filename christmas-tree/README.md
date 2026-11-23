@@ -63,7 +63,7 @@
 
 ## 自動収集の実行・テスト
 
-- GitHub Actions → **Christmas Kingdom - auto-publish tagged note articles** → Run workflow で手動試験可能（`main`）。
+- GitHub Actions → **HEARTFUL TREE - auto-publish tagged note articles** → Run workflow で手動試験可能（`main`）。
 - 定期実行は毎時13分・43分（実際はGitHubの混雑で遅延あり）。
 - 検証：`cd christmas-tree && npm test && npm run build && python3 -m unittest discover -s tests -v`
 - 公開JSON： `https://christmas-kingdom-2026.pages.dev/data/ornaments.json`
