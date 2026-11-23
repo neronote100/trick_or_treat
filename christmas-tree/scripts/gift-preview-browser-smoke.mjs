@@ -44,7 +44,10 @@ try{
  }));
  console.log('P1_GIFT_PREVIEW_DIAGNOSTICS',JSON.stringify({diag,errors}));
  const firstCount=await page.locator('.santa-gift').count();
- assert.ok(firstCount>0&&firstCount<=12,'First tree must show between 1 and 12 presents');
+ assert.ok(firstCount>0,'First forest page should contain Santa presents');
+ const perTree=await page.locator('.tree-unit').evaluateAll(units=>units.map(u=>u.querySelectorAll('.santa-gift').length));
+ assert.equal(perTree.reduce((n,c)=>n+c,0),firstCount);
+ assert.ok(perTree.every(c=>c>=0&&c<=12),'Each individual tree must have at most 12 gifts');
  assert.equal(await page.locator('.santa-gift.is-open').count(),0);
  const first=page.locator('.santa-gift').first();
  await first.locator('button.gift-box').click();
