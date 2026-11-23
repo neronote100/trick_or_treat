@@ -1,4 +1,4 @@
-name: Christmas Tree - test and build
+name: HEARTFUL TREE - test and build
 on:
   pull_request:
     paths:
