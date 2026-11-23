@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
  stageForCount,noteArticleUrl,RING_TIERS,TREE_CAPACITY,TREES_PER_PAGE,TREE_PAGE_SIZE,
- treeCountForWorks,grovePage,ornamentOrbit,projectOrbit,stepSway
+ treeCountForWorks,grovePage,ornamentOrbit,projectOrbit,stepSway,SANTA_GIFT_CAPACITY
 } from '../tree-core.js';
 test('tree stays in four growth stages',()=>{
  for(const [n,expected] of [[0,1],[8,2],[20,3],[40,4],[999,4]])
@@ -59,4 +59,19 @@ test('a new tree is planted after 48 works, three trees per garden page',()=>{
 test('note article links are origin restricted',()=>{
  assert.equal(noteArticleUrl('https://note.com/alice/n/n123456'),'https://note.com/alice/n/n123456');
  assert.equal(noteArticleUrl('https://bad.com/n/n123'),null);
+});
+
+test('Santa gifts accumulate beneath trees, 12 gifts at a time, without changing ornament pagination',()=>{
+ assert.equal(SANTA_GIFT_CAPACITY,12);
+ for(const [n,trees] of [[0,1],[1,1],[12,1],[13,2],[36,3],[37,4],[144,12]])
+  assert.equal(treeCountForWorks(n,SANTA_GIFT_CAPACITY),trees);
+ const gifts=Array.from({length:40},(_,i)=>({url:'https://note.com/example/n/n'+i,first_seen:String(i).padStart(3,'0')}));
+ const first=grovePage(gifts,0,SANTA_GIFT_CAPACITY);
+ const second=grovePage(gifts,1,SANTA_GIFT_CAPACITY);
+ assert.deepEqual(first.trees.map(t=>t.works.length),[12,12,12]);
+ assert.deepEqual(second.trees.map(t=>t.works.length),[4]);
+ assert.equal(first.pages,2);
+ assert.equal(first.trees[0].works[0],gifts[0]);
+ assert.equal(second.trees[0].works[3],gifts[39]);
+ assert.equal(grovePage(gifts,1).page,0); // Legacy 48-ornament behavior remains unchanged.
 });
