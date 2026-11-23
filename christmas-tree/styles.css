@@ -378,3 +378,39 @@ body[data-forest-variant="2"] .tree-panel {--page-glow:#d89bb52a}
  .santa-gift{animation:none}
  .santa-gift .gift-lid,.santa-gift .gift-bow,.santa-gift .gift-reveal{transition:none}
 }
+
+/* HEARTFUL TREE — warm starlight wordmark inspired by the official visual.
+   Use text rather than a baked-in image to remain crisp on mobile. */
+.topbar .logo{
+ display:inline-flex;flex-direction:column;align-items:flex-start;
+ gap:3px;letter-spacing:.025em;
+ min-width:0;
+}
+.topbar .logo .site-brand{
+ font-family:"Times New Roman",Georgia,"Yu Mincho",serif;
+ font-size:clamp(20px,2.25vw,29px);
+ font-weight:500;line-height:1.12;letter-spacing:.035em;
+ color:#ffe6b4;
+ text-shadow:0 0 8px #ffbb6d9c,0 0 24px #ffbb6d51;
+ white-space:nowrap;
+}
+.topbar .logo small{
+ font-family:"Yu Mincho",Georgia,serif;
+ font-size:11px;font-weight:400;
+ color:#e6cba2;letter-spacing:.12em;
+}
+.hero-brand{
+ display:block;width:fit-content;max-width:100%;
+ margin:14px auto 5px;
+ font:400 clamp(39px,7vw,86px)/1.03 "Times New Roman",Georgia,"Yu Mincho",serif;
+ letter-spacing:.025em;color:#ffe5ae;
+ text-shadow:0 0 8px #ffb862bd,0 0 30px #ffae665e,0 0 58px #ffc87333;
+ text-wrap:balance;
+}
+.hero .hero-brand + h1{margin-top:24px}
+body[data-mode="archive"] .hero .eyebrow{color:#f1cc95}
+@media(max-width:540px){
+ .topbar .logo .site-brand{font-size:19px}
+ .topbar .logo small{font-size:9px}
+ .hero-brand{font-size:clamp(36px,10vw,58px);letter-spacing:0;margin-top:17px}
+}
