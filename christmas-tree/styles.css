@@ -238,32 +238,35 @@ body[data-forest-variant="2"] .tree-panel {--page-glow:#d89bb52a}
  body[data-theme="christmas-card"],body[data-theme="confession-illustration"],body[data-theme="confession-essay"] {scroll-behavior:auto}
 }
 
-/* SANTA'S GIFT FOREST: an evergreen night with real unwrappable boxes. */
-body[data-theme="santa-gifts"]{
- --night:#0b2521;--ink:#fff5e4;--gold:#f5d39a;--accent:#d75364;--muted:#bcd5cc;
- background:radial-gradient(ellipse at 50% 20%,#2c5749 0%,#153a34 40%,#091d1f 82%);
+/* Santa does not own a fourth tree. Wrapped parcels live beneath the three
+   pre-existing, individually colored ornament forests. */
+@media(min-width:851px){
+ body:not([data-mode="archive"]) .project-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-.project-card[data-palette="santa-gifts"]{
- border-color:#e8c18b87;background:linear-gradient(160deg,#2c5947,#152a30);
+.project-gift-count,.tree-gift-count{
+ color:#fff0cb;background:#9b36523b;border:1px solid #f0bf8a77;
+ border-radius:999px;padding:5px 11px;font-size:11px;font-weight:600;
 }
-.project-card[data-palette="santa-gifts"][aria-pressed="true"]{
- border-color:#f4d39a;box-shadow:0 0 25px #f4d39a36;
+.tree-gift-count{white-space:nowrap}
+.tree-panel[data-has-gifts="true"] .tree-grove{gap:30px}
+.tree-panel .tree-canvas[data-has-gifts="true"]::after{
+ background:radial-gradient(ellipse at 50% 88%,#ffefcf21 0%,transparent 43%),
+  radial-gradient(ellipse at 50% 47%,transparent 53%,#06181c71 100%);
 }
-.tree-panel[data-theme="santa-gifts"]{
- --accent:#d75364;
- border-color:#f5d39a77;
- background:radial-gradient(ellipse at 50% 2%,#ccad6550,transparent 51%),linear-gradient(180deg,#173c35f2,#0c272ae9 60%,#0b202af3);
+.tree-panel[data-theme="confession-essay"] .santa-gift-floor{
+ border-color:#a4b7dd74;
+ background:radial-gradient(ellipse at 50% 1%,#e4d0ed35,transparent 61%),
+  linear-gradient(180deg,#38486aeb,#192940ec 75%,#101b37f4);
 }
-.tree-panel[data-theme="santa-gifts"] .tree-canvas{
- background:radial-gradient(ellipse at 50% 52%,#305f54 0%,#183b40 47%,#0a1d2c 97%);
+.tree-panel[data-theme="confession-illustration"] .santa-gift-floor{
+ border-color:#d9b5e889;
+ background:radial-gradient(ellipse at 50% 1%,#f7d7eb50,transparent 63%),
+  linear-gradient(180deg,#5b477deb,#312a50f0 74%,#1b1836f4);
 }
-.tree-panel[data-theme="santa-gifts"] .tree-unit{
- border-color:#ead3a449;background:linear-gradient(180deg,#31544470,#0d262bdd);
-}
-.tree-panel[data-display="gifts"] .tree-grove{gap:30px}
-.tree-panel[data-display="gifts"] .tree-unit{flex-basis:505px}
-.tree-panel[data-display="gifts"] .tree-canvas::after{
- background:radial-gradient(ellipse at 50% 88%,#ffefcf21 0%,transparent 43%),radial-gradient(ellipse at 50% 47%,transparent 53%,#06181c71 100%);
+.tree-panel[data-theme="christmas-card"] .santa-gift-floor{
+ border-color:#efcd8c88;
+ background:radial-gradient(ellipse at 50% 1%,#fff4cd40,transparent 61%),
+  linear-gradient(180deg,#315d4cdb,#193a35ed 74%,#0d2424f5);
 }
 .santa-gift-floor{
  position:relative;z-index:7;
