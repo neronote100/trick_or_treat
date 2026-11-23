@@ -37,6 +37,17 @@
       "theme": "christmas-card",
       "accepting": false,
       "hashtag": "キングダムカード2026"
+    },
+    {
+      "id": "santa",
+      "icon": "🎅",
+      "name": "サンタさん企画",
+      "subtitle": "ツリーの下に届く、誰かからの贈り物",
+      "hosts": "企画準備中",
+      "theme": "santa-gifts",
+      "display": "gifts",
+      "accepting": false,
+      "hashtag": "キングダムサンタ2026"
     }
   ],
   "manual_articles": [],
