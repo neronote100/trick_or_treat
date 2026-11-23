@@ -1,4 +1,4 @@
-name: Christmas Kingdom - auto-publish tagged note articles
+name: HEARTFUL TREE - auto-publish tagged note articles
 on:
   workflow_dispatch:
   schedule:
