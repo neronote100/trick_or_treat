@@ -417,3 +417,33 @@ body[data-mode="archive"] .hero .eyebrow{color:#f1cc95}
 
 /* Explain temporary hashtag compatibility until event tags are finalized. */
 .provisional-tag-notice{max-width:710px;margin:13px auto 0;color:#e1c9ae;font-size:11px;line-height:1.85;text-align:center}
+
+/* Isolated P1 gift preview, designed for repeated real-thumbnail verification. */
+.gift-preview-hero{padding-bottom:52px}
+.gift-preview-hero .hero-desc{max-width:770px;margin-left:auto;margin-right:auto}
+.gift-preview-hero .hero-desc strong{color:#ffe4ad}
+.preview-disclaimer{
+ max-width:720px;margin:24px auto 12px;padding:14px 20px;border-radius:14px;
+ background:#152d3dd9;border:1px solid #f3d5a75e;color:#e8dbcb;
+ font-size:12px;line-height:1.95;
+}
+.preview-disclaimer strong{color:#ffe6b1}
+.gift-preview-actions{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:27px auto 0}
+.gift-preview-actions .primary-pill{margin:0}
+.gift-preview-actions .orbit-button{min-height:43px;font-size:12px}
+.preview-asof{font-size:11px;color:#b6cbd0;margin:22px auto 0;line-height:1.8}
+body[data-mode="gift-preview"] .tree-unit{
+ border-color:#e6c8935b;
+}
+body[data-mode="gift-preview"] .project-card{
+ min-height:190px;
+}
+body[data-mode="gift-preview"] .santa-gift-floor{
+ margin-top:-23px;
+}
+@media(max-width:650px){
+ .gift-preview-actions{flex-direction:column}
+ .gift-preview-actions .primary-pill,.gift-preview-actions .orbit-button{width:min(100%,300px);justify-content:center}
+ .preview-disclaimer{margin:20px 10px 10px;padding:13px}
+ .gift-preview-hero{padding-bottom:39px}
+}
