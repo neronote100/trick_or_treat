@@ -1,9 +1,13 @@
-import {noteArticleUrl,imageUrl,TREE_CAPACITY,SANTA_GIFT_CAPACITY,grovePage,ornamentOrbit,projectOrbit,stepSway,clamp,AUTO_ROTATION_DEG_PER_SEC} from './tree-core.js';
+import {noteArticleUrl,imageUrl,TREE_CAPACITY,SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftsForForest,grovePage,ornamentOrbit,projectOrbit,stepSway,clamp,AUTO_ROTATION_DEG_PER_SEC} from './tree-core.js';
 const el=id=>document.getElementById(id);
 const archiveMode=document.body.dataset.mode==='archive';
 const GIFT_STORAGE_KEY='christmas-kingdom-2026:santa-opened:v1';
 const state={config:null,articles:[],selected:'letter',page:0,query:'',openedGifts:new Set()};
-function isSanta(p){return !archiveMode&&p?.display==='gifts';}
+function visibleForests(){return state.config?.projects.filter(p=>p.display!=='gifts')||[];}
+function giftsForForest(forestId){
+ if(archiveMode||!SANTA_FOREST_IDS.includes(forestId))return [];
+ return santaGiftsForForest(state.articles,forestId);
+}
 function readOpenedGifts(){
  try{
   const saved=JSON.parse(localStorage.getItem(GIFT_STORAGE_KEY)||'[]');
@@ -22,19 +26,31 @@ function text(node,value){node.textContent=String(value);return node;}
 function make(tag,className,value){
  const n=document.createElement(tag);if(className)n.className=className;if(value!==undefined)text(n,value);return n;
 }
-function currentProject(){return state.config?.projects.find(x=>x.id===state.selected)||state.config?.projects[0];}
+function currentProject(){return visibleForests().find(x=>x.id===state.selected)||visibleForests()[0];}
 function articlesFor(project){return state.articles.filter(x=>x.project_id===project);}
 function buildNavigation(){
  const nav=el('project-nav');nav.replaceChildren();
- for(const p of state.config.projects){
-   const count=articlesFor(p.id).length,button=make('button','project-card');
-   button.type='button';button.dataset.id=p.id;button.dataset.palette=p.theme||'rose';button.setAttribute('aria-pressed',String(p.id===state.selected));
-   button.append(make('span','project-icon',p.icon),make('strong','',p.name),make('small','',p.subtitle),make('span','project-count',count+' 作品'));
-   if(!p.accepting && !archiveMode) button.append(make('em','coming-soon','企画準備中'));
-   button.addEventListener('click',()=>{state.selected=p.id;state.page=0;history.replaceState(null,'',location.pathname+'?tree='+encodeURIComponent(p.id)+location.hash);render();el('tree-panel').scrollIntoView({behavior:'smooth'});});
-   nav.append(button);
+ for(const p of visibleForests()){
+  const count=articlesFor(p.id).length;
+  const gifts=giftsForForest(p.id).length;
+  const button=make('button','project-card');
+  button.type='button';button.dataset.id=p.id;button.dataset.palette=p.theme||'rose';
+  button.setAttribute('aria-pressed',String(p.id===state.selected));
+  button.append(make('span','project-icon',p.icon),
+                make('strong','',p.name),
+                make('small','',p.subtitle),
+                make('span','project-count',count+' 作品'));
+  if(gifts)button.append(make('span','project-gift-count','🎁 '+gifts+' 個のプレゼント'));
+  if(!p.accepting&&!archiveMode)button.append(make('em','coming-soon','企画準備中'));
+  button.addEventListener('click',()=>{
+   state.selected=p.id;state.page=0;
+   history.replaceState(null,'',location.pathname+'?tree='+encodeURIComponent(p.id)+location.hash);
+   render();el('tree-panel').scrollIntoView({behavior:'smooth'});
+  });
+  nav.append(button);
  }
 }
+
 function fallback(){return make('span','fallback','✦');}
 function picture(article){
  const src=imageUrl(article.thumbnail);if(!src)return fallback();
@@ -278,7 +294,7 @@ function createSantaGift(article,index){
   const image=make('span','gift-thumbnail');image.append(picture(article));
   const caption=make('span','gift-article-title',article.title||'記事を読む');
   link.append(image,caption);revealed.append(link);
-  if(!restoring){rememberOpenedGift(url);renderWorks();}
+  if(!restoring)rememberOpenedGift(url);
  }
  box.addEventListener('click',()=>unwrap(false));
  if(wasGiftOpened(article))unwrap(true);
@@ -288,84 +304,90 @@ function createSantaGift(article,index){
 function renderTree(){
  const p=currentProject();if(!p)return;
  disposeOrbitControllers();
- const items=articlesFor(p.id),count=items.length;
- const santa=isSanta(p);
- const capacity=santa?SANTA_GIFT_CAPACITY:TREE_CAPACITY;
- const layout=grovePage(items,state.page,capacity);state.page=layout.page;
+ const items=articlesFor(p.id);
+ const count=items.length;
+ const gifts=giftsForForest(p.id);
+ // Santa gifts never replace ornaments: each tree may hold 48 articles and 12 boxes.
+ // Additional gift-filled trees remain part of this same ornament forest.
+ const giftTreeCount=Math.max(1,Math.ceil(gifts.length/SANTA_GIFT_CAPACITY));
+ const layout=grovePage(items,state.page,TREE_CAPACITY,giftTreeCount);state.page=layout.page;
  el('tree-panel').dataset.theme=p.theme||'rose';
- el('tree-panel').dataset.display=santa?'gifts':'ornaments';
-  document.body.dataset.theme=p.theme||'rose';
-  document.body.dataset.forestVariant=String(state.page%3);
+ el('tree-panel').dataset.hasGifts=String(gifts.length>0);
+ document.body.dataset.theme=p.theme||'rose';
+ document.body.dataset.forestVariant=String(state.page%3);
  text(el('tree-icon'),p.icon);text(el('tree-title'),p.name);text(el('tree-subtitle'),p.subtitle);
- text(el('tree-count'),count+(santa?'個のプレゼント':'作品'));
- text(el('tree-stage'),layout.totalTrees+'本のツリー / 1本あたり'+capacity+(santa?'個のプレゼント':'作品'));
- el('stage-fill').style.width=count?((count-1)%capacity+1)/capacity*100+'%':'0%';
+ text(el('tree-count'),count+'作品'+(gifts.length?' · 🎁 '+gifts.length+'個':''));
+ text(el('tree-stage'),layout.totalTrees+'本のツリー / 1本48作品・12プレゼントまで');
+ el('stage-fill').style.width=count?((count-1)%TREE_CAPACITY+1)/TREE_CAPACITY*100+'%':'0%';
  const description=document.querySelector('.tree-bottom>p');
- if(description)text(description,santa?'✦ プレゼントをタップして開けよう。開封するとnoteの記事が現れるよ ✦':'✦ 本物の3Dツリーを360°回転。オーナメントをタップして作者のnoteへ ✦');
- text(el('works-title'),santa?'開封したプレゼントたち':'このツリーに飾られた作品');
+ if(description)text(description,'✦ 3Dツリーを360°回転。飾りはnoteへ、足元のプレゼントはタップして開封 ✦');
+ text(el('works-title'),'このツリーに飾られた作品');
  const grove=el('tree-grove');grove.replaceChildren();
  for(const unit of layout.trees){
-   const card=make('section','tree-unit');
-   const caption=make('div','tree-unit-head');
-   caption.append(make('span','tree-sequence','TREE '+String(unit.number).padStart(2,'0')),
-                  make('strong','',unit.number+'本目のツリー'),
-                  make('span','tree-work-count',unit.works.length+' / '+capacity+(santa?' ギフト':' 作品')));
-   const canvas=make('div','tree-canvas');
-    const treeVariant=(unit.number-1)%3;
-    canvas.dataset.treeVariant=String(treeVariant);
-   canvas.dataset.growth=unit.works.length===capacity?'満開':'成長中';
-   canvas.setAttribute('aria-label',unit.number+'本目の360度回転ツリー');
-   const rear=make('div','orbit-layer orbit-layer-rear');
-   rear.setAttribute('aria-hidden','true');
-   const artwork=createTurningTree(canvas,p.theme||'rose',treeVariant);
-   const front=make('div','orbit-layer orbit-layer-front');
-   front.setAttribute('aria-label',unit.number+'本目の360度オーナメント');
-   const ornaments=[];
-   if(!santa){
-    unit.works.forEach((article,i)=>{
-     const entry=createOrnament(article,i);
-     if(entry){ornaments.push(entry);front.append(entry.slot);}
-    });
-   }
-   canvas.append(rear,front);
-   if(!unit.works.length&&!santa)canvas.append(make('div','tree-unit-empty','最初のオーナメントを待っています ✧'));
-   const controls=make('div','orbit-controls');
-   const left=make('button','orbit-button','↶ 左に回す');
-   const toggle=make('button','orbit-button orbit-auto','⏸ 自動回転を止める');
-   const right=make('button','orbit-button','右に回す ↷');
-   for(const button of [left,toggle,right])button.type='button';
-   left.setAttribute('aria-label',unit.number+'本目を左へ回転');
-   right.setAttribute('aria-label',unit.number+'本目を右へ回転');
-   controls.append(left,toggle,right);
-   const hint=make('p','orbit-hint',santa?'ツリーの下の贈り物を開けて、サンタさんの届けた物語を読もう':'3Dツリーを360°回転 · 飾りをタップしてnoteへ');
-   card.append(caption,canvas);
-   if(santa){
-    const floor=make('div','santa-gift-floor');
-    floor.setAttribute('aria-label',unit.number+'本目のツリーに届いたプレゼント');
-    if(unit.works.length){
-     unit.works.forEach((article,i)=>{
-      const gift=createSantaGift(article,(unit.number-1)*capacity+i);
-      if(gift)floor.append(gift);
-     });
-    }else floor.append(make('p','santa-gift-empty','まだプレゼントは届いていません。サンタさんを待っていよう🎅'));
-    card.append(floor);
-   }
-   card.append(controls,hint);grove.append(card);
-   orbitControllers.push(createOrbitController(canvas,ornaments,unit.number,{left,toggle,right},{...artwork,rear,front}));
+  const unitGifts=gifts.slice((unit.number-1)*SANTA_GIFT_CAPACITY,unit.number*SANTA_GIFT_CAPACITY);
+  const card=make('section','tree-unit');
+  const caption=make('div','tree-unit-head');
+  caption.append(make('span','tree-sequence','TREE '+String(unit.number).padStart(2,'0')),
+                 make('strong','',unit.number+'本目のツリー'),
+                 make('span','tree-work-count',unit.works.length+' / '+TREE_CAPACITY+' 作品'));
+  if(unitGifts.length)caption.append(make('span','tree-gift-count','🎁 '+unitGifts.length+' プレゼント'));
+  const canvas=make('div','tree-canvas');
+  const treeVariant=(unit.number-1)%3;
+  canvas.dataset.treeVariant=String(treeVariant);
+  canvas.dataset.hasGifts=String(unitGifts.length>0);
+  canvas.dataset.growth=unit.works.length===TREE_CAPACITY?'満開':'成長中';
+  canvas.setAttribute('aria-label',unit.number+'本目の360度回転オーナメントツリー');
+  const rear=make('div','orbit-layer orbit-layer-rear');
+  rear.setAttribute('aria-hidden','true');
+  const artwork=createTurningTree(canvas,p.theme||'rose',treeVariant);
+  const front=make('div','orbit-layer orbit-layer-front');
+  front.setAttribute('aria-label',unit.number+'本目の360度オーナメント');
+  const ornaments=[];
+  unit.works.forEach((article,i)=>{
+   const entry=createOrnament(article,i);
+   if(entry){ornaments.push(entry);front.append(entry.slot);}
+  });
+  canvas.append(rear,front);
+  if(!unit.works.length&&!unitGifts.length)
+   canvas.append(make('div','tree-unit-empty','最初のオーナメントを待っています ✧'));
+  const controls=make('div','orbit-controls');
+  const left=make('button','orbit-button','↶ 左に回す');
+  const toggle=make('button','orbit-button orbit-auto','⏸ 自動回転を止める');
+  const right=make('button','orbit-button','右に回す ↷');
+  for(const button of [left,toggle,right])button.type='button';
+  left.setAttribute('aria-label',unit.number+'本目を左へ回転');
+  right.setAttribute('aria-label',unit.number+'本目を右へ回転');
+  controls.append(left,toggle,right);
+  const hint=make('p','orbit-hint',unitGifts.length
+   ?'ツリーを回してオーナメントを見つけよう。下のプレゼントはタップで開封！'
+   :'3Dツリーを360°回転 · 飾りをタップしてnoteへ');
+  card.append(caption,canvas);
+  if(unitGifts.length){
+   const floor=make('div','santa-gift-floor');
+   floor.setAttribute('aria-label',p.name+'のツリーに届いた'+unitGifts.length+'個のプレゼント');
+   unitGifts.forEach((article,i)=>{
+    const gift=createSantaGift(article,(unit.number-1)*SANTA_GIFT_CAPACITY+i);
+    if(gift)floor.append(gift);
+   });
+   card.append(floor);
+  }
+  card.append(controls,hint);grove.append(card);
+  orbitControllers.push(createOrbitController(canvas,ornaments,unit.number,
+   {left,toggle,right},{...artwork,rear,front}));
  }
  const paging=el('tree-paging');paging.hidden=layout.pages<=1;
  text(el('tree-page-label'),(layout.page+1)+' / '+layout.pages+' エリア');
  el('prev-tree').disabled=layout.page===0;
  el('next-tree').disabled=layout.page>=layout.pages-1;
  for(const card of document.querySelectorAll('.project-card'))
-   card.setAttribute('aria-pressed',String(card.dataset.id===p.id));
+  card.setAttribute('aria-pressed',String(card.dataset.id===p.id));
 }
 
 function renderWorks(){
- const all=articlesFor(state.selected);
- const santa=isSanta(currentProject());
- const opened=santa?all.filter(wasGiftOpened):all;
- const items=opened.filter(x=>(String(x.title||'')+' '+String(x.author||'')).toLocaleLowerCase('ja').includes(state.query));
+ // Santa articles are intentionally excluded here until a person opens a box.
+ // Their links and thumbnails are revealed inside their assigned gift box only.
+ const items=articlesFor(state.selected).filter(x=>
+  (String(x.title||'')+' '+String(x.author||'')).toLocaleLowerCase('ja').includes(state.query));
  const list=el('work-list');list.replaceChildren();
  for(const a of items){
   const url=noteArticleUrl(a.url);if(!url)continue;
@@ -376,10 +398,12 @@ function renderWorks(){
   if(a.featured_by)detail.append(make('em','featured-note','✦ '+a.featured_by+'さんのおすすめ'));
   link.append(thumb,detail);list.append(link);
  }
- text(el('work-total'),santa?opened.length+' / '+all.length+' 個 開封済み':items.length+' 作品');
+ text(el('work-total'),items.length+' 作品');
  el('work-empty').hidden=items.length!==0;
- text(el('work-empty'),state.query?'検索条件に合う作品がありません。':santa?'プレゼントを開けると、ここに作品が増えていきます🎁':'まだ作品がありません。最初のオーナメントを待っています🌙');
+ text(el('work-empty'),state.query?'検索条件に合う作品がありません。':
+  'このツリーのオーナメント作品を待っています。サンタのプレゼントはツリーの下に届きます🎁');
 }
+
 function render(){
  const uniqueAuthors=new Set(state.articles.map(x=>(x.author_id||x.author||'').trim()).filter(Boolean));
  text(el('all-works'),state.articles.length);text(el('all-authors'),uniqueAuthors.size);
@@ -428,9 +452,9 @@ async function init(){
   state.openedGifts=readOpenedGifts();
   if(archiveMode)state.config.projects=state.config.archive_projects;
   if(!Array.isArray(state.config.projects)||!state.config.projects.length)throw Error('projects missing');
-  state.selected=state.config.projects[0].id;
+  state.selected=visibleForests()[0].id;
   const target=new URLSearchParams(location.search).get('tree');
-  if(state.config.projects.some(x=>x.id===target))state.selected=target;
+  if(visibleForests().some(x=>x.id===target))state.selected=target;
   renderHashtagGuide();
   el('search').addEventListener('input',e=>{state.query=e.target.value.toLocaleLowerCase('ja');renderWorks();});
   el('prev-tree').addEventListener('click',()=>{state.page--;renderTree();el('tree-panel').scrollIntoView({behavior:'smooth'});});
