@@ -1,7 +1,9 @@
 import {noteArticleUrl,imageUrl,TREE_CAPACITY,SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftsForForest,grovePage,ornamentOrbit,projectOrbit,stepSway,clamp,AUTO_ROTATION_DEG_PER_SEC} from './tree-core.js';
 const el=id=>document.getElementById(id);
 const archiveMode=document.body.dataset.mode==='archive';
-const GIFT_STORAGE_KEY='christmas-kingdom-2026:santa-opened:v1';
+const giftPreviewMode=document.body.dataset.mode==='gift-preview';
+// The P1 demonstration must never affect real Santa open-state history.
+const GIFT_STORAGE_KEY=giftPreviewMode?'heartful-tree:p1-gift-preview:opened:v1':'christmas-kingdom-2026:santa-opened:v1';
 const state={config:null,articles:[],selected:'letter',page:0,query:'',openedGifts:new Set()};
 function visibleForests(){return state.config?.projects.filter(p=>p.display!=='gifts')||[];}
 function giftsForForest(forestId){
@@ -41,7 +43,7 @@ function buildNavigation(){
                 make('small','',p.subtitle),
                 make('span','project-count',count+' 作品'));
   if(gifts)button.append(make('span','project-gift-count','🎁 '+gifts+' 個のプレゼント'));
-  if(!p.accepting&&!archiveMode)button.append(make('em','coming-soon','企画準備中'));
+  if(!p.accepting&&!archiveMode&&!giftPreviewMode)button.append(make('em','coming-soon','企画準備中'));
   button.addEventListener('click',()=>{
    state.selected=p.id;state.page=0;
    history.replaceState(null,'',location.pathname+'?tree='+encodeURIComponent(p.id)+location.hash);
@@ -294,7 +296,7 @@ function createSantaGift(article,index){
   const image=make('span','gift-thumbnail');image.append(picture(article));
   const caption=make('span','gift-article-title',article.title||'記事を読む');
   link.append(image,caption);revealed.append(link);
-  if(!restoring)rememberOpenedGift(url);
+  if(!restoring){rememberOpenedGift(url);if(giftPreviewMode)renderWorks();}
  }
  box.addEventListener('click',()=>unwrap(false));
  if(wasGiftOpened(article))unwrap(true);
@@ -386,7 +388,8 @@ function renderTree(){
 function renderWorks(){
  // Santa articles are intentionally excluded here until a person opens a box.
  // Their links and thumbnails are revealed inside their assigned gift box only.
- const items=articlesFor(state.selected).filter(x=>
+ const all=giftPreviewMode?state.articles.filter(wasGiftOpened):articlesFor(state.selected);
+ const items=all.filter(x=>
   (String(x.title||'')+' '+String(x.author||'')).toLocaleLowerCase('ja').includes(state.query));
  const list=el('work-list');list.replaceChildren();
  for(const a of items){
@@ -398,16 +401,16 @@ function renderWorks(){
   if(a.featured_by)detail.append(make('em','featured-note','✦ '+a.featured_by+'さんのおすすめ'));
   link.append(thumb,detail);list.append(link);
  }
- text(el('work-total'),items.length+' 作品');
+ text(el('work-total'),giftPreviewMode?all.length+' / '+state.articles.length+' 個 開封済み':items.length+' 作品');
  el('work-empty').hidden=items.length!==0;
  text(el('work-empty'),state.query?'検索条件に合う作品がありません。':
-  'このツリーのオーナメント作品を待っています。サンタのプレゼントはツリーの下に届きます🎁');
+  giftPreviewMode?'プレゼントを開けると、その記事がここにも表示されます🎁':'このツリーのオーナメント作品を待っています。サンタのプレゼントはツリーの下に届きます🎁');
 }
 
 function render(){
  const uniqueAuthors=new Set(state.articles.map(x=>(x.author_id||x.author||'').trim()).filter(Boolean));
  text(el('all-works'),state.articles.length);text(el('all-authors'),uniqueAuthors.size);
- text(el('all-trees'),state.config.projects.length);
+ text(el('all-trees'),giftPreviewMode?visibleForests().length:state.config.projects.length);
  buildNavigation();renderTree();renderWorks();
 
 }
@@ -434,7 +437,7 @@ function renderHashtagGuide() {
 async function checkForNewDeliveries(){
  if(document.hidden||!state.config)return;
  try{
-  const response=await fetch(archiveMode?'./data/archive.json':'./data/ornaments.json',{cache:'no-store'});
+  const response=await fetch(archiveMode?'./data/archive.json':giftPreviewMode?'./data/gift-preview-p1.json':'./data/ornaments.json',{cache:'no-store'});
   if(!response.ok)return;
   const data=await response.json();
   const next=(Array.isArray(data.articles)?data.articles:[]).filter(x=>noteArticleUrl(x.url)&&state.config.projects.some(p=>p.id===x.project_id));
@@ -460,7 +463,7 @@ async function init(){
   el('prev-tree').addEventListener('click',()=>{state.page--;renderTree();el('tree-panel').scrollIntoView({behavior:'smooth'});});
   el('next-tree').addEventListener('click',()=>{state.page++;renderTree();el('tree-panel').scrollIntoView({behavior:'smooth'});});
   try{
-   const r=await fetch(archiveMode?'./data/archive.json':'./data/ornaments.json',{cache:'no-store'});
+   const r=await fetch(archiveMode?'./data/archive.json':giftPreviewMode?'./data/gift-preview-p1.json':'./data/ornaments.json',{cache:'no-store'});
    if(!r.ok)throw Error('ornament data unavailable');
    const data=await r.json();
    state.articles=(Array.isArray(data.articles)?data.articles:[]).filter(x=>noteArticleUrl(x.url) && state.config.projects.some(p=>p.id===x.project_id));
@@ -469,7 +472,19 @@ async function init(){
    document.querySelector('.forest').append(info);
   }
   render();
-  if(!archiveMode){
+  if(giftPreviewMode){
+   el('open-all-preview-gifts')?.addEventListener('click',()=>{
+    state.openedGifts=new Set(state.articles.map(a=>noteArticleUrl(a.url)).filter(Boolean));
+    try{localStorage.setItem(GIFT_STORAGE_KEY,JSON.stringify([...state.openedGifts]));}catch{}
+    render();
+   });
+   el('reset-preview-gifts')?.addEventListener('click',()=>{
+    state.openedGifts=new Set();
+    try{localStorage.removeItem(GIFT_STORAGE_KEY);}catch{}
+    render();
+   });
+  }
+  if(!archiveMode&&!giftPreviewMode){
    window.setInterval(checkForNewDeliveries,5*60*1000);
    document.addEventListener('visibilitychange',()=>{
     if(!document.hidden)checkForNewDeliveries();

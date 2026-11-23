@@ -29,6 +29,8 @@ jobs:
       - name: Check emitted files
         run: |
           test -f christmas-tree/dist/index.html
+          test -f christmas-tree/dist/gift-preview.html
+          test -f christmas-tree/dist/data/gift-preview-p1.json
           test -f christmas-tree/dist/tree-core.js
           test -f christmas-tree/dist/tree3d.js
           test -f christmas-tree/dist/data/ornaments.json
