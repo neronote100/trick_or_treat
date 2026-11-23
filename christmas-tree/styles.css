@@ -237,3 +237,183 @@ body[data-forest-variant="2"] .tree-panel {--page-glow:#d89bb52a}
 @media(prefers-reduced-motion:reduce){
  body[data-theme="christmas-card"],body[data-theme="confession-illustration"],body[data-theme="confession-essay"] {scroll-behavior:auto}
 }
+
+/* Santa does not own a fourth tree. Wrapped parcels live beneath the three
+   pre-existing, individually colored ornament forests. */
+@media(min-width:851px){
+ body:not([data-mode="archive"]) .project-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+.project-gift-count,.tree-gift-count{
+ color:#fff0cb;background:#9b36523b;border:1px solid #f0bf8a77;
+ border-radius:999px;padding:5px 11px;font-size:11px;font-weight:600;
+}
+.tree-gift-count{white-space:nowrap}
+.tree-panel[data-has-gifts="true"] .tree-grove{gap:30px}
+.tree-panel .tree-canvas[data-has-gifts="true"]::after{
+ background:radial-gradient(ellipse at 50% 88%,#ffefcf21 0%,transparent 43%),
+  radial-gradient(ellipse at 50% 47%,transparent 53%,#06181c71 100%);
+}
+.tree-panel[data-theme="confession-essay"] .santa-gift-floor{
+ border-color:#a4b7dd74;
+ background:radial-gradient(ellipse at 50% 1%,#e4d0ed35,transparent 61%),
+  linear-gradient(180deg,#38486aeb,#192940ec 75%,#101b37f4);
+}
+.tree-panel[data-theme="confession-illustration"] .santa-gift-floor{
+ border-color:#d9b5e889;
+ background:radial-gradient(ellipse at 50% 1%,#f7d7eb50,transparent 63%),
+  linear-gradient(180deg,#5b477deb,#312a50f0 74%,#1b1836f4);
+}
+.tree-panel[data-theme="christmas-card"] .santa-gift-floor{
+ border-color:#efcd8c88;
+ background:radial-gradient(ellipse at 50% 1%,#fff4cd40,transparent 61%),
+  linear-gradient(180deg,#315d4cdb,#193a35ed 74%,#0d2424f5);
+}
+.santa-gift-floor{
+ position:relative;z-index:7;
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:end;
+ gap:10px 9px;
+ min-height:152px;margin:-28px 1px 0;
+ padding:30px 12px 17px;border-radius:18px;
+ border:1px solid #ead5aa40;
+ background:radial-gradient(ellipse at 50% 1%,#e3f3e93e 0%,transparent 60%),linear-gradient(180deg,#34544aeb,#142a2dea 75%,#0b1d23f4);
+ box-shadow:0 -9px 35px #b7dfd91b,0 17px 28px #0005;
+}
+.santa-gift-floor::before{
+ content:"";position:absolute;left:5%;right:5%;top:2px;height:15px;pointer-events:none;
+ border-radius:50%;background:radial-gradient(ellipse,#eaf8e77a,transparent 70%);
+}
+.santa-gift{
+ --wrap:#aa3d50;--ribbon:#f9dd9f;--wrap-edge:#5c203b;
+ position:relative;min-width:0;height:178px;
+ display:flex;justify-content:flex-end;align-items:center;flex-direction:column;
+ animation:santa-delivery .48s ease-out backwards;
+}
+.santa-gift[data-wrap="1"]{--wrap:#278e83;--ribbon:#f8db9c;--wrap-edge:#175e5b}
+.santa-gift[data-wrap="2"]{--wrap:#e0bb73;--ribbon:#a43855;--wrap-edge:#92723c}
+.santa-gift[data-wrap="3"]{--wrap:#81619e;--ribbon:#f6d3a0;--wrap-edge:#44365f}
+.santa-gift[data-wrap="4"]{--wrap:#c16c65;--ribbon:#ffe7b0;--wrap-edge:#743e46}
+.santa-gift[data-wrap="5"]{--wrap:#4b86ab;--ribbon:#fff2c6;--wrap-edge:#275171}
+.santa-gift:nth-child(2n){animation-delay:.06s}
+.santa-gift:nth-child(3n){animation-delay:.12s}
+@keyframes santa-delivery{
+ from{opacity:0;transform:translateY(-13px) scale(.91)}
+ to{opacity:1;transform:translateY(0) scale(1)}
+}
+.gift-box{
+ position:absolute;inset:0;width:100%;height:100%;
+ padding:0;background:none;border:0;cursor:pointer;
+ filter:drop-shadow(0 7px 5px #0006);
+}
+.gift-box:focus-visible{outline:3px solid #ffe2a3;outline-offset:2px;border-radius:7px}
+.gift-box:disabled{opacity:1;cursor:default}
+.gift-body,.gift-lid,.gift-ribbon-v,.gift-ribbon-h,.gift-bow{position:absolute;display:block;pointer-events:none}
+.gift-body{
+ left:10%;right:10%;bottom:26px;height:62px;
+ background:linear-gradient(120deg,var(--wrap),var(--wrap-edge));
+ border:1px solid #fff5ca55;border-radius:3px 3px 8px 8px;
+ box-shadow:inset 0 -6px 0 #0002,inset 2px 0 #fff5;
+}
+.gift-lid{
+ z-index:4;left:6%;right:6%;bottom:82px;height:22px;
+ background:linear-gradient(115deg,var(--wrap),var(--wrap-edge));
+ border:1px solid #fff8d18a;border-radius:5px 5px 2px 2px;
+ box-shadow:0 3px 6px #0004;
+ transform-origin:16% 85%;
+ transition:transform .68s cubic-bezier(.16,.82,.27,1.07);
+}
+.gift-ribbon-v{
+ z-index:2;left:46%;width:8%;bottom:26px;height:78px;
+ background:linear-gradient(90deg,#0002,var(--ribbon),#fff5);
+}
+.gift-ribbon-h{
+ z-index:2;left:9%;right:9%;bottom:55px;height:12px;
+ background:linear-gradient(#fff6,var(--ribbon) 35%,#0001);
+}
+.gift-bow{
+ z-index:5;left:50%;bottom:104px;width:16px;height:12px;
+ transform:translateX(-50%);border-radius:50%;background:var(--ribbon);
+ box-shadow:-11px -3px 0 -2px var(--ribbon),11px -3px 0 -2px var(--ribbon);
+ transition:transform .68s cubic-bezier(.16,.82,.27,1.07);
+}
+.gift-reveal{
+ position:absolute;z-index:3;top:3px;left:12%;right:12%;
+ opacity:0;transform:translateY(36px) scale(.74);pointer-events:none;
+ transition:opacity .4s ease .18s,transform .58s cubic-bezier(.2,.8,.2,1) .13s;
+}
+.gift-article{display:block;color:#fff5e6;text-decoration:none;outline-offset:5px}
+.gift-thumbnail{
+ display:block;width:100%;aspect-ratio:1;border:2px solid #ffe1aa;
+ border-radius:6px;box-shadow:0 4px 16px #0009,0 0 13px #ffe1aa53;
+ overflow:hidden;background:#62546c;
+}
+.gift-thumbnail img,.gift-thumbnail .fallback{display:block;width:100%;height:100%;object-fit:cover}
+.gift-thumbnail .fallback{display:grid;place-items:center;font-size:20px}
+.gift-article-title{
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+ color:#fff3df;font-size:10px;line-height:1.3;margin-top:3px;min-height:25px;
+ overflow-wrap:anywhere;text-shadow:0 1px 4px #000;
+}
+.gift-number{font:10px Georgia,serif;letter-spacing:.08em;color:#f7dca8;margin-top:5px;z-index:5}
+.santa-gift.is-open .gift-lid{transform:translateY(-87px) rotate(-14deg)}
+.santa-gift.is-open .gift-bow{transform:translate(-50%,-87px) rotate(-14deg)}
+.santa-gift.is-open .gift-reveal{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.santa-gift.gift-restored,.santa-gift.gift-restored *{animation:none!important;transition:none!important}
+.santa-gift-empty{
+ grid-column:1 / -1;text-align:center;color:#ffe6b7;
+ font-size:13px;line-height:1.8;padding:36px 8px;margin:0;
+}
+@media(max-width:650px){
+ .santa-gift-floor{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:29px 6px 13px;margin-top:-18px}
+ .santa-gift{height:153px}
+ .gift-body{height:52px;bottom:26px}
+ .gift-lid{bottom:72px;height:18px}
+ .gift-ribbon-v{bottom:26px;height:63px}
+ .gift-ribbon-h{bottom:47px;height:10px}
+ .gift-bow{bottom:89px;width:14px}
+ .santa-gift.is-open .gift-lid{transform:translateY(-65px) rotate(-14deg)}
+ .santa-gift.is-open .gift-bow{transform:translate(-50%,-65px) rotate(-14deg)}
+ .gift-article-title{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){
+ .santa-gift{animation:none}
+ .santa-gift .gift-lid,.santa-gift .gift-bow,.santa-gift .gift-reveal{transition:none}
+}
+
+/* HEARTFUL TREE — warm starlight wordmark inspired by the official visual.
+   Use text rather than a baked-in image to remain crisp on mobile. */
+.topbar .logo{
+ display:inline-flex;flex-direction:column;align-items:flex-start;
+ gap:3px;letter-spacing:.025em;
+ min-width:0;
+}
+.topbar .logo .site-brand{
+ font-family:"Times New Roman",Georgia,"Yu Mincho",serif;
+ font-size:clamp(20px,2.25vw,29px);
+ font-weight:500;line-height:1.12;letter-spacing:.035em;
+ color:#ffe6b4;
+ text-shadow:0 0 8px #ffbb6d9c,0 0 24px #ffbb6d51;
+ white-space:nowrap;
+}
+.topbar .logo small{
+ font-family:"Yu Mincho",Georgia,serif;
+ font-size:11px;font-weight:400;
+ color:#e6cba2;letter-spacing:.12em;
+}
+.hero-brand{
+ display:block;width:fit-content;max-width:100%;
+ margin:14px auto 5px;
+ font:400 clamp(39px,7vw,86px)/1.03 "Times New Roman",Georgia,"Yu Mincho",serif;
+ letter-spacing:.025em;color:#ffe5ae;
+ text-shadow:0 0 8px #ffb862bd,0 0 30px #ffae665e,0 0 58px #ffc87333;
+ text-wrap:balance;
+}
+.hero .hero-brand + h1{margin-top:24px}
+body[data-mode="archive"] .hero .eyebrow{color:#f1cc95}
+@media(max-width:540px){
+ .topbar .logo .site-brand{font-size:19px}
+ .topbar .logo small{font-size:9px}
+ .hero-brand{font-size:clamp(36px,10vw,58px);letter-spacing:0;margin-top:17px}
+}
+
+/* Explain temporary hashtag compatibility until event tags are finalized. */
+.provisional-tag-notice{max-width:710px;margin:13px auto 0;color:#e1c9ae;font-size:11px;line-height:1.85;text-align:center}

@@ -1,4 +1,4 @@
-name: Christmas Kingdom - true 3D browser smoke
+name: HEARTFUL TREE - true 3D browser smoke
 on:
   pull_request:
     paths:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Automated note hashtag API collection for Christmas Kingdom, with RSS fallback.
+"""Automated note hashtag API collection for HEARTFUL TREE, with RSS fallback.
 
 Publishes tagged note thumbnails without operator review. Feed discovery can be delayed
 or incomplete; prior entries persist through temporary failures. No credentials.

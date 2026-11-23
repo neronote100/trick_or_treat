@@ -24,6 +24,28 @@ export const RING_TIERS=Object.freeze([
   Object.freeze({count:18,y:72, radius:38, worldY:1.55, worldRadius:2.45, start:3}),
 ]);
 export const TREE_CAPACITY=RING_TIERS.reduce((n,t)=>n+t.count,0);
+// Santa gifts sit on the snowy ground rather than on ornament orbits.
+export const SANTA_GIFT_CAPACITY=12;
+// Santa articles are mapped to one of the three existing ornament forests.
+// A stable hash makes the "random" delivery independent of reloading or device.
+export const SANTA_FOREST_IDS=Object.freeze(['letter','confession','card']);
+export function santaGiftDestination(articleUrl,forestIds=SANTA_FOREST_IDS){
+ if(!Array.isArray(forestIds)||!forestIds.length)return null;
+ const url=noteArticleUrl(articleUrl);
+ if(!url)return null;
+ let hash=2166136261;
+ for(const char of url){
+  hash=Math.imul(hash^char.codePointAt(0),16777619)>>>0;
+ }
+ return forestIds[hash%forestIds.length];
+}
+export function santaGiftsForForest(articles,forestId,forestIds=SANTA_FOREST_IDS){
+ if(!forestIds.includes(forestId))return [];
+ return (Array.isArray(articles)?articles:[]).filter(a=>
+  a?.project_id==='santa'&&santaGiftDestination(a.url,forestIds)===forestId
+ );
+}
+
 export const TREES_PER_PAGE=3;
 export const TREE_PAGE_SIZE=TREE_CAPACITY*TREES_PER_PAGE;
 export const AUTO_ROTATION_DEG_PER_SEC=2.8;
@@ -77,17 +99,20 @@ export function stepSway(state, angularVelocity, angularAcceleration, dt, weight
   return {angle:clamp((state.angle||0)+v*d,-10,10),velocity:v};
 }
 
-export function treeCountForWorks(count) {
-  return Math.max(1,Math.ceil(Math.max(0,Number(count)||0)/TREE_CAPACITY));
+export function treeCountForWorks(count,capacity=TREE_CAPACITY) {
+  const size=Number.isFinite(capacity)&&capacity>0?Math.floor(capacity):TREE_CAPACITY;
+  return Math.max(1,Math.ceil(Math.max(0,Number(count)||0)/size));
 }
-export function grovePage(items,page=0) {
+export function grovePage(items,page=0,capacity=TREE_CAPACITY,minimumTrees=1) {
+  const size=Number.isFinite(capacity)&&capacity>0?Math.floor(capacity):TREE_CAPACITY;
   const all=Array.isArray(items)?items:[];
-  const totalTrees=treeCountForWorks(all.length);
+  const extraTrees=Number.isFinite(minimumTrees)?Math.max(1,Math.ceil(minimumTrees)):1;
+  const totalTrees=Math.max(treeCountForWorks(all.length,size),extraTrees);
   const pages=Math.max(1,Math.ceil(totalTrees/TREES_PER_PAGE));
   const safePage=Math.max(0,Math.min(pages-1,Math.trunc(Number(page)||0)));
   const trees=[];
   for(let tree=safePage*TREES_PER_PAGE;tree<Math.min(totalTrees,(safePage+1)*TREES_PER_PAGE);tree++){
-    const works=all.slice(tree*TREE_CAPACITY,(tree+1)*TREE_CAPACITY);
+    const works=all.slice(tree*size,(tree+1)*size);
     trees.push({number:tree+1,works});
   }
   return {page:safePage,pages,totalTrees,trees};

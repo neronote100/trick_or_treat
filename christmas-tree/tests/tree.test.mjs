@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
  stageForCount,noteArticleUrl,RING_TIERS,TREE_CAPACITY,TREES_PER_PAGE,TREE_PAGE_SIZE,
- treeCountForWorks,grovePage,ornamentOrbit,projectOrbit,stepSway
+ treeCountForWorks,grovePage,ornamentOrbit,projectOrbit,stepSway,
+ SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftDestination,santaGiftsForForest
 } from '../tree-core.js';
 test('tree stays in four growth stages',()=>{
  for(const [n,expected] of [[0,1],[8,2],[20,3],[40,4],[999,4]])
@@ -59,4 +60,49 @@ test('a new tree is planted after 48 works, three trees per garden page',()=>{
 test('note article links are origin restricted',()=>{
  assert.equal(noteArticleUrl('https://note.com/alice/n/n123456'),'https://note.com/alice/n/n123456');
  assert.equal(noteArticleUrl('https://bad.com/n/n123'),null);
+});
+
+test('Santa delivers to one of three original forests, in a stable random-looking pattern',()=>{
+ assert.deepEqual(SANTA_FOREST_IDS,['letter','confession','card']);
+ const gifts=Array.from({length:120},(_,i)=>({
+  project_id:'santa',url:'https://note.com/creator/n/n'+String(i).padStart(6,'0'),
+  first_seen:String(i).padStart(6,'0')
+ }));
+ const groups=SANTA_FOREST_IDS.map(id=>santaGiftsForForest(gifts,id));
+ assert.equal(groups.reduce((n,g)=>n+g.length,0),120);
+ assert.deepEqual(new Set(groups.flat().map(g=>g.url)).size,120);
+ for(const group of groups)assert.ok(group.length>10,'Santa should visit every original forest');
+ for(const gift of gifts){
+  const destination=santaGiftDestination(gift.url);
+  assert.ok(SANTA_FOREST_IDS.includes(destination));
+  assert.equal(santaGiftDestination(gift.url),destination);
+  assert.ok(santaGiftsForForest(gifts,destination).includes(gift));
+ }
+ const additional={project_id:'santa',url:'https://note.com/creator/n/n999999'};
+ for(const gift of gifts)assert.equal(santaGiftDestination(gift.url),santaGiftDestination(gift.url));
+ for(const id of SANTA_FOREST_IDS)
+  assert.deepEqual(santaGiftsForForest([...gifts,additional],id).slice(0,groups[SANTA_FOREST_IDS.indexOf(id)].length),
+                   groups[SANTA_FOREST_IDS.indexOf(id)]);
+ assert.equal(santaGiftDestination('javascript:alert(1)'),null);
+ assert.equal(santaGiftsForForest(gifts,'santa').length,0); // No fourth gift-only forest.
+});
+test('Santa boxes and normal ornaments coexist without overflow or lost gifts',()=>{
+ assert.equal(SANTA_GIFT_CAPACITY,12);
+ for(const [giftCount,requiredTrees] of [[0,1],[1,1],[12,1],[13,2],[36,3],[37,4],[144,12]])
+  assert.equal(treeCountForWorks(giftCount,SANTA_GIFT_CAPACITY),requiredTrees);
+ const ornaments=[{id:1},{id:2}];
+ const gifts=Array.from({length:41},(_,i)=>({id:'gift-'+i}));
+ const minTrees=treeCountForWorks(gifts.length,SANTA_GIFT_CAPACITY);
+ const first=grovePage(ornaments,0,TREE_CAPACITY,minTrees);
+ const second=grovePage(ornaments,1,TREE_CAPACITY,minTrees);
+ assert.equal(first.totalTrees,4);
+ assert.equal(first.pages,2);
+ assert.deepEqual(first.trees.map(t=>t.works.length),[2,0,0]);
+ assert.equal(second.trees[0].number,4);
+ assert.deepEqual(second.trees[0].works,[]);
+ const distributed=[...first.trees,...second.trees].flatMap(t=>
+  gifts.slice((t.number-1)*SANTA_GIFT_CAPACITY,t.number*SANTA_GIFT_CAPACITY));
+ assert.deepEqual(distributed,gifts);
+ assert.equal(grovePage(ornaments,0).totalTrees,1);
+ assert.equal(grovePage(Array.from({length:98},(_,i)=>({id:i})),0,TREE_CAPACITY,2).totalTrees,3);
 });
