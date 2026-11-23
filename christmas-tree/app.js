@@ -472,6 +472,18 @@ async function init(){
    document.querySelector('.forest').append(info);
   }
   render();
+  if(giftPreviewMode){
+   el('open-all-preview-gifts')?.addEventListener('click',()=>{
+    state.openedGifts=new Set(state.articles.map(a=>noteArticleUrl(a.url)).filter(Boolean));
+    try{localStorage.setItem(GIFT_STORAGE_KEY,JSON.stringify([...state.openedGifts]));}catch{}
+    render();
+   });
+   el('reset-preview-gifts')?.addEventListener('click',()=>{
+    state.openedGifts=new Set();
+    try{localStorage.removeItem(GIFT_STORAGE_KEY);}catch{}
+    render();
+   });
+  }
   if(!archiveMode&&!giftPreviewMode){
    window.setInterval(checkForNewDeliveries,5*60*1000);
    document.addEventListener('visibilitychange',()=>{
