@@ -406,6 +406,21 @@ function renderHashtagGuide() {
  }
 }
 
+// Check the static note feed after new deployments, without forcing a page reload.
+async function checkForNewDeliveries(){
+ if(document.hidden||!state.config)return;
+ try{
+  const response=await fetch(archiveMode?'./data/archive.json':'./data/ornaments.json',{cache:'no-store'});
+  if(!response.ok)return;
+  const data=await response.json();
+  const next=(Array.isArray(data.articles)?data.articles:[]).filter(x=>noteArticleUrl(x.url)&&state.config.projects.some(p=>p.id===x.project_id));
+  const signature=works=>works.map(a=>a.project_id+':'+a.url).join('|');
+  if(signature(next)!==signature(state.articles)){
+   state.articles=next;render();
+  }
+ }catch(error){console.warn('Periodic note article refresh failed',error);}
+}
+
 async function init(){
  try{
   const cfg=await fetch('./config.json',{cache:'no-store'});if(!cfg.ok)throw Error('config unavailable');
@@ -430,6 +445,12 @@ async function init(){
    document.querySelector('.forest').append(info);
   }
   render();
+  if(!archiveMode){
+   window.setInterval(checkForNewDeliveries,5*60*1000);
+   document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden)checkForNewDeliveries();
+   });
+  }
  }catch(e){console.warn(e);text(el('forest-title'),'ただいま準備中です');}
 }
 init();
