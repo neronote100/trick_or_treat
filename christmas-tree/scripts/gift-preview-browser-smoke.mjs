@@ -32,6 +32,17 @@ try{
  await page.goto('http://127.0.0.1:'+address.port+'/gift-preview.html',{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>document.getElementById('all-works')?.textContent==='35',null,{timeout:65000});
  assert.equal(await page.locator('.project-card').count(),3,'Three forests only');
+ await page.waitForSelector('.santa-gift',{timeout:10000}).catch(()=>{});
+ const diag=await page.evaluate(()=>({
+  mode:document.body.dataset.mode,
+  total:document.getElementById('all-works')?.textContent,
+  cards:document.querySelectorAll('.project-card').length,
+  treeUnits:document.querySelectorAll('.tree-unit').length,
+  gifts:document.querySelectorAll('.santa-gift').length,
+  stage:document.getElementById('tree-stage')?.textContent,
+  panel:document.getElementById('tree-panel')?.textContent?.slice(0,270)
+ }));
+ console.log('P1_GIFT_PREVIEW_DIAGNOSTICS',JSON.stringify({diag,errors}));
  const firstCount=await page.locator('.santa-gift').count();
  assert.ok(firstCount>0&&firstCount<=12,'First tree must show between 1 and 12 presents');
  assert.equal(await page.locator('.santa-gift.is-open').count(),0);
