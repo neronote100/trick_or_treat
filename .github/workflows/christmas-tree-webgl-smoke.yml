@@ -22,3 +22,9 @@ jobs:
       - name: Verify actual three-dimensional tree on Cloudflare preview
         working-directory: christmas-tree
         run: node scripts/browser3d-smoke.mjs
+      - name: Build local pages for real gift-box interaction tests
+        working-directory: christmas-tree
+        run: npm run build
+      - name: Verify P1 gifts open and persist across reload in Chromium
+        working-directory: christmas-tree
+        run: node scripts/gift-preview-browser-smoke.mjs
