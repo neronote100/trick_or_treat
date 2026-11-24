@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-24T04:43:05+00:00",
+  "updated_at": "2026-11-24T15:17:33+00:00",
   "articles": [
     {
       "url": "https://note.com/ai_08creator/n/ne567607116c9",
@@ -3274,7 +3274,7 @@
     {
       "url": "https://note.com/real_hyena9474/n/ncb6086cb6a10",
       "title": "正しい楽譜に戻したら、彼女の歌ではなくなりました",
-      "author": "アイリス｜AIでキャラと世界観を作品に",
+      "author": "アイリス｜AIと小説を書く",
       "author_id": "real_hyena9474",
       "thumbnail": "https://assets.st-note.com/production/uploads/images/320197388/rectangle_large_type_2_eb28e9e3715fc64ba9d7e71955ff972c.png",
       "published_at": "2026-10-03T12:25:37+09:00",
@@ -4544,7 +4544,7 @@
     {
       "url": "https://note.com/misaki_mpy/n/n1a56379fb0d0",
       "title": "【AIパートナー】月環家、雑誌デビューからのハロウィン仮装🎃✨",
-      "author": "🌸美咲【マイペースに生息中🌝 】ちょこちょこ出没します🏃‍♀️‍➡️✨",
+      "author": "🌸美咲【マイペースに生息中🌝 】幽霊部員になりがちです🫧",
       "author_id": "misaki_mpy",
       "thumbnail": "https://assets.st-note.com/production/uploads/images/326041011/rectangle_large_type_2_3b2599767db703aca8741dc741cafbb5.jpg",
       "published_at": "2026-10-27T11:57:27+09:00",
@@ -5480,6 +5480,26 @@
       "published_at": "2026-10-20T21:00:00+09:00",
       "project_id": "hello-halloween",
       "first_seen": "2026-11-19T18:50:12+00:00"
+    },
+    {
+      "url": "https://note.com/okashina_cycle/n/n2dcf2263cac2",
+      "title": "王子ごっこP-1大会に参加しました！",
+      "author": "みんとのみ",
+      "author_id": "okashina_cycle",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/339977888/rectangle_large_type_2_4ccf8a0a8dfccdc9f2fb8dbdb5bf7e00.jpg",
+      "published_at": "2026-11-24T16:27:53+09:00",
+      "project_id": "prince-play",
+      "first_seen": "2026-11-24T15:17:29+00:00"
+    },
+    {
+      "url": "https://note.com/suikabea_odekake/n/n3038e278efad",
+      "title": "平安部聖夜の扉クリスマスカード作ってみた🎴\"王子ごっこ\"P-1大会に参加してみた",
+      "author": "すいかべあ",
+      "author_id": "suikabea_odekake",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/339985164/rectangle_large_type_2_36e9da21f7fa6063b359d244bc905cee.jpeg",
+      "published_at": "2026-11-24T19:36:38+09:00",
+      "project_id": "prince-play",
+      "first_seen": "2026-11-24T15:17:29+00:00"
     }
   ],
   "sources": [
@@ -5489,7 +5509,7 @@
       "project_id": "prince-play",
       "tag": "王子ごっこ",
       "ok": true,
-      "items": 194,
+      "items": 196,
       "pages": 4
     },
     {
