@@ -26,14 +26,20 @@ export const RING_TIERS=Object.freeze([
 export const TREE_CAPACITY=RING_TIERS.reduce((n,t)=>n+t.count,0);
 // Santa gifts sit on the snowy ground rather than on ornament orbits.
 export const SANTA_GIFT_CAPACITY=12;
-// These gift positions are tied to the SAME Y-axis rotation as the real 3D tree.
-// The fallback projection mirrors the WebGL camera (38° FOV, camera z=13.2).
+// A visible central trunk separates the ornaments from the gifts on the ground.
+// Camera and positioning constants are shared with the Three.js renderer.
+export const TREE_CANOPY_LIFT=0.96;
+export const TREE_CAMERA=Object.freeze({y:3.88,z:14,fov:38});
+export const GIFT_GROUND_Y=0.13;
+
+// 12 modest-size boxes circle the lower TRUNK, not the bottom ornament tier.
+// These world coordinates denote the BASE of each box on the snow.
 export function santaGiftOrbit(index){
  if(!Number.isInteger(index)||index<0||index>=SANTA_GIFT_CAPACITY)return null;
  return {
   angle:8+index*360/SANTA_GIFT_CAPACITY,
-  worldRadius:2.25+(index%3)*0.09,
-  worldY:0.38+(index%2)*0.05
+  worldRadius:1.62+(index%3)*0.16,
+  worldY:GIFT_GROUND_Y
  };
 }
 export function projectSantaGift(orbit,rotationDegrees=0,aspect=850/1250){
@@ -41,14 +47,15 @@ export function projectSantaGift(orbit,rotationDegrees=0,aspect=850/1250){
  const rad=(orbit.angle+rotationDegrees)*Math.PI/180;
  const x3d=orbit.worldRadius*Math.sin(rad);
  const depth=orbit.worldRadius*Math.cos(rad);
- const dist=13.2-depth, halfY=dist*Math.tan(19*Math.PI/180);
+ const dist=TREE_CAMERA.z-depth;
+ const halfY=dist*Math.tan(TREE_CAMERA.fov*Math.PI/360);
  const x=50+50*x3d/(halfY*aspect);
- const y=50+50*(3.45-orbit.worldY)/halfY;
- const interactive=depth>-.08&&x>7&&x<93&&y>61&&y<97;
+ const y=50+50*(TREE_CAMERA.y-orbit.worldY)/halfY;
+ const interactive=depth>-.08&&x>7&&x<93&&y>73&&y<99;
  return {
   x,y,depth,interactive,
-  opacity:depth>-.08?1:.45,
-  scale:Math.min(1.17,Math.max(.74,.94*13.2/dist)),
+  opacity:depth>-.08?1:.25,
+  scale:Math.min(1.18,Math.max(.72,.94*TREE_CAMERA.z/dist)),
   zIndex:Math.round(50+depth*12)
  };
 }
