@@ -129,22 +129,38 @@ try{
  await page.waitForFunction(()=>document.querySelectorAll('.work-card').length===35,null,{timeout:15000});
  assert.equal(await page.locator('.santa-gift.is-open').count(),await page.locator('.santa-gift').count(),'All visible gifts open');
 
- // Regression fixture: show 48 REAL archived note thumbnails as ornaments
- // alongside P1's actual presents, to prove the raised canopy prevents overlap.
- const preview=JSON.parse(await readFile(path.join(root,'data','gift-preview-p1.json'),'utf8'));
- const archive=JSON.parse(await readFile(path.join(root,'data','archive.json'),'utf8'));
- const baubles=archive.articles.filter(a=>a.thumbnail).slice(0,48).map(a=>({...a,project_id:'letter'}));
- assert.equal(baubles.length,48);
+ // Match the actual user-facing mixed preview URL: all 133 real
+ // #秋読コレクション ornaments (48+48+37), plus 35 #王子ごっこP1 presents.
+ const autumn=JSON.parse(await readFile(path.join(root,'data','archive.json'),'utf8'))
+  .articles.filter(a=>a.project_id==='autumn-reading'&&a.thumbnail);
+ assert.equal(autumn.length,133,'Expected archived Autumn Reading thumbnails');
  const mixedPage=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+ const mixedErrors=[];
+ mixedPage.on('pageerror',error=>mixedErrors.push(error.message));
  try{
-  await mixedPage.route('**/data/gift-preview-p1.json',route=>route.fulfill({
-   status:200,contentType:'application/json',
-   body:JSON.stringify({...preview,articles:[...preview.articles,...baubles]})
-  }));
-  await mixedPage.goto('http://127.0.0.1:'+address.port+'/gift-preview.html',{waitUntil:'domcontentloaded'});
-  await mixedPage.waitForFunction(()=>document.querySelector('.tree-unit .orbital-slot')?.style.left?.endsWith('%'),
-   null,{timeout:30000});
-  await mixedPage.waitForFunction(()=>document.querySelector('.tree-canvas')?.dataset.rendering==='webgl-3d',
+  await mixedPage.goto('http://127.0.0.1:'+address.port+
+   '/gift-preview.html?ornaments=autumn',{waitUntil:'domcontentloaded'});
+  await mixedPage.waitForFunction(()=>
+   document.querySelector('.tree-canvas .orbital-slot')?.style.left?.endsWith('%'),
+   null,{timeout:35000});
+  await mixedPage.waitForFunction(()=>
+   document.querySelector('.tree-canvas')?.dataset.rendering==='webgl-3d',
+   null,{timeout:40000});
+  assert.equal(await mixedPage.locator('#all-works').innerText(),'35',
+   'The Santa gift count must not include Autumn ornaments');
+  assert.match(await mixedPage.locator('#autumn-preview-info').innerText(),
+   /秋読コレクション 133作品/);
+  const ornamentsInForests=[];
+  for(let n=0;n<3;n++){
+   await mixedPage.locator('.project-card').nth(n).click();
+   await mixedPage.waitForFunction(()=>
+    document.querySelector('.tree-unit')?.querySelectorAll('.orbital-slot').length>0);
+   ornamentsInForests.push(await mixedPage.locator('.tree-unit').first().locator('.orbital-slot').count());
+  }
+  assert.deepEqual(ornamentsInForests,[48,48,37]);
+  await mixedPage.locator('.project-card').first().click();
+  await mixedPage.waitForFunction(()=>
+   document.querySelector('.tree-canvas')?.dataset.rendering==='webgl-3d',
    null,{timeout:40000});
   const tree=mixedPage.locator('.tree-unit').first();
   await tree.locator('.tree-canvas').scrollIntoViewIfNeeded();
@@ -161,16 +177,27 @@ try{
     const h=Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
     if(w*h>4)overlap++;
    }
-   return {ornamentCount:c.querySelectorAll('.orbital-slot').length,
+   const rimContainer=c.getBoundingClientRect();
+   const giftBottoms=gifts.map(g=>
+    (g.getBoundingClientRect().bottom-rimContainer.top)/rimContainer.height*100);
+   return {
+    ornamentCount:c.querySelectorAll('.orbital-slot').length,
     giftCount:c.querySelectorAll('.santa-gift').length,
-    frontOrnaments:ornaments.length,frontGifts:gifts.length,overlap};
+    frontOrnaments:ornaments.length,frontGifts:gifts.length,overlap,
+    giftBottoms,decorativeOval:getComputedStyle(c,'::before').content
+   };
   });
-  console.log('GROUNDED_48_ORNAMENTS_12_PRESENTS',JSON.stringify(collision));
+  console.log('AUTUMN_ORNAMENTS_P1_PRESENTS_ON_CIRCLE',JSON.stringify(collision));
   assert.equal(collision.ornamentCount,48);
   assert.equal(collision.giftCount,12);
-  assert.equal(collision.overlap,0,'Grounded presents must not cover hanging note ornaments');
-  const photo=await tree.locator('.tree-canvas').screenshot({type:'jpeg',quality:54});
-  console.log('GROUNDED_MIXED_JPEG_B64:'+photo.toString('base64'));
+  assert.equal(collision.overlap,0,'Grounded presents must not cover hanging Autumn ornaments');
+  assert.ok(collision.giftBottoms.every(y=>y>70&&y<97),
+   'Every present bottom must stay within the visible ground area');
+  assert.ok(collision.decorativeOval==='none'||collision.decorativeOval==='normal',
+   'Fake CSS snow ellipse must not cover actual Three.js circular ground');
+  assert.deepEqual(mixedErrors,[],'Mixed preview must not throw JavaScript errors');
+  const photo=await tree.locator('.tree-canvas').screenshot({type:'jpeg',quality:67});
+  console.log('AUTUMN_GIFTS_CIRCLE_JPEG_B64:'+photo.toString('base64'));
  }finally{await mixedPage.close();}
 
  assert.equal(errors.length,0,'Unexpected page errors: '+JSON.stringify(errors));
