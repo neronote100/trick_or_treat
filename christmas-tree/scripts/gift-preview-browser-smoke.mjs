@@ -49,6 +49,27 @@ try{
  assert.equal(perTree.reduce((n,c)=>n+c,0),firstCount);
  assert.ok(perTree.every(c=>c>=0&&c<=12),'Each individual tree must have at most 12 gifts');
  assert.equal(await page.locator('.santa-gift.is-open').count(),0);
+
+ // The gift is a small grounded square, not a tall box with an upward lid.
+ await page.waitForFunction(()=>document.querySelector('.tree-canvas')?.dataset.rendering==='webgl-3d',
+  null,{timeout:40000});
+ assert.equal(await page.locator('.gift-lid').count(),0,'No upward opening lids remain');
+ assert.equal(await page.locator('.gift-flip').count(),firstCount);
+ const placement=await page.locator('.gift-orbit-front .santa-gift').first().evaluate(g=>{
+  const box=g.getBoundingClientRect();
+  const canvas=g.closest('.tree-canvas').getBoundingClientRect();
+  return {
+   baseline:(box.bottom-canvas.top)/canvas.height*100,
+   dimension:box.width/box.height,
+   imageFace:!!g.querySelector('.gift-reveal .gift-thumbnail'),
+   canopyLift:g.closest('.tree-canvas').dataset.canopyLift||''
+  };
+ });
+ console.log('GROUNDED_PRESENT',JSON.stringify(placement));
+ assert.ok(placement.baseline>77&&placement.baseline<100,
+  'Gift base should touch the lower snow surface, not float among baubles');
+ assert.ok(placement.dimension>.55&&placement.dimension<1.5,
+  'Gift should be compact and square, not a tall pillar');
  // The 3D gifts must live INSIDE the canvas, not in the old fixed floor grid.
  assert.equal(await page.locator('.santa-gift-floor').count(),0);
  assert.equal(await page.locator('.tree-canvas .santa-gift').count(),firstCount);
@@ -69,6 +90,19 @@ try{
  const href=await first.locator('a.gift-article').getAttribute('href');
  const image=await first.locator('a.gift-article img').getAttribute('src');
  const title=await first.locator('.gift-article-title').innerText();
+ const faceState=await first.evaluate(g=>{
+  const flip=g.querySelector('.gift-flip'),face=g.querySelector('.gift-reveal'),image=g.querySelector('.gift-thumbnail');
+  const a=face.getBoundingClientRect(),b=image.getBoundingClientRect();
+  return {
+   flipped:getComputedStyle(flip).transform,
+   thumbnailCoversFace:Math.abs(a.width-b.width)<3&&Math.abs(a.height-b.height)<3,
+   lidCount:g.querySelectorAll('.gift-lid').length
+  };
+ });
+ assert.equal(faceState.lidCount,0);
+ assert.ok(faceState.thumbnailCoversFace,'Opened present should show a full-face thumbnail');
+ assert.notEqual(faceState.flipped,'none','Present front must rotate to reveal its image');
+
  assert.match(href,/^https:\/\/note\.com\/[a-zA-Z0-9_-]+\/n\/n[a-zA-Z0-9]+$/);
  assert.match(image,/^https:\/\/assets\.st-note\.com\//);
  assert.ok(title.length>0);
