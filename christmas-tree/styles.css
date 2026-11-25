@@ -410,10 +410,14 @@ body[data-mode="gift-preview"] .santa-gift-floor{
 .gift-orbit-layer .gift-box{touch-action:pan-y}
 .gift-orbit-layer .gift-flip{bottom:0}
 .gift-orbit-layer .gift-number{bottom:4px}
-.tree-canvas[data-has-gifts="true"]::before{
- content:"";position:absolute;left:7%;right:7%;bottom:1.5%;height:18%;
+/* Do not paint a separate CSS oval over the actual WebGL snow platform.
+   The previous 2D oval occupied different coordinates and made gifts look
+   as if they were floating outside of the round ground. */
+.tree-canvas[data-has-gifts="true"]::before{content:none}
+.tree-canvas[data-has-gifts="true"][data-rendering="static-fallback"]::before{
+ content:"";position:absolute;left:11%;right:11%;top:78%;height:15%;
  z-index:1;pointer-events:none;border-radius:50%;
- background:radial-gradient(ellipse,#e7f0e575 0%,#cadfe04b 32%,transparent 71%);
+ background:radial-gradient(ellipse,#dcebe184 0%,#b9d2cd52 57%,transparent 77%);
 }
 @media(max-width:650px){
  .gift-orbit-layer .santa-gift{width:12.8%;max-width:52px;min-width:28px;height:48px}
