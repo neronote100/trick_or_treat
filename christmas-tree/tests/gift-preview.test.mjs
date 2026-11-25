@@ -4,6 +4,8 @@ import {readFileSync} from 'node:fs';
 import {noteArticleUrl,imageUrl,santaGiftsForForest,SANTA_FOREST_IDS,SANTA_GIFT_CAPACITY,grovePage,TREE_CAPACITY} from '../tree-core.js';
 
 const sample=JSON.parse(readFileSync(new URL('../data/gift-preview-p1.json',import.meta.url),'utf8'));
+const autumnArchive=JSON.parse(readFileSync(new URL('../data/archive.json',import.meta.url),'utf8'));
+const autumnOrnaments=autumnArchive.articles.filter(a=>a.project_id==='autumn-reading');
 const html=readFileSync(new URL('../gift-preview.html',import.meta.url),'utf8');
 const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
 
@@ -42,4 +44,20 @@ test('P1 preview page is clearly separated from real events and search indexing'
  assert.match(app,/heartful-tree:p1-gift-preview:opened:v1/);
  assert.match(app,/data\/gift-preview-p1\.json/);
  assert.match(app,/if\(!archiveMode&&!giftPreviewMode\)/);
+});
+
+test('Actual 133 秋読コレクション articles populate the same 3 forests as the P1 gift boxes',()=>{
+ assert.equal(autumnOrnaments.length,133);
+ assert.equal(new Set(autumnOrnaments.map(a=>a.url)).size,133);
+ assert.ok(autumnOrnaments.every(a=>a.thumbnail&&imageUrl(a.thumbnail)&&noteArticleUrl(a.url)));
+ assert.equal(autumnOrnaments.slice(0,48).length,48);
+ assert.equal(autumnOrnaments.slice(48,96).length,48);
+ assert.equal(autumnOrnaments.slice(96,144).length,37);
+ assert.match(app,/history\.articles/);
+ assert.match(app,/project_id==='autumn-reading'/);
+ assert.match(app,/demo_source_hashtag:'秋読コレクション'/);
+ assert.match(html,/秋読コレクション/);
+ assert.match(html,/id="preview-ornament-count"/);
+ assert.match(html,/id="preview-present-count"/);
+ assert.match(app,/state\.articles\.filter\(a=>a\.project_id==='santa'&&wasGiftOpened\(a\)\)/);
 });
