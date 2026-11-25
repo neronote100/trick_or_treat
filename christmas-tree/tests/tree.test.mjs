@@ -4,7 +4,7 @@ import {
  stageForCount,noteArticleUrl,RING_TIERS,TREE_CAPACITY,TREES_PER_PAGE,TREE_PAGE_SIZE,
  treeCountForWorks,grovePage,ornamentOrbit,projectOrbit,stepSway,
  SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftDestination,santaGiftsForForest,
- santaGiftOrbit,projectSantaGift
+ santaGiftOrbit,projectSantaGift,TREE_CANOPY_LIFT,TREE_CAMERA,GIFT_GROUND_Y
 } from '../tree-core.js';
 test('tree stays in four growth stages',()=>{
  for(const [n,expected] of [[0,1],[8,2],[20,3],[40,4],[999,4]])
@@ -111,7 +111,9 @@ test('Santa boxes and normal ornaments coexist without overflow or lost gifts',(
 test('Santa gifts are grounded on the real tree rotation axis, never in a static grid',()=>{
  const gifts=Array.from({length:SANTA_GIFT_CAPACITY},(_,i)=>santaGiftOrbit(i));
  assert.equal(gifts.length,12);
- assert.ok(gifts.every(g=>g&&g.worldY<.5&&g.worldRadius>2));
+ assert.ok(gifts.every(g=>g&&Math.abs(g.worldY-GIFT_GROUND_Y)<1e-9&&g.worldRadius>1.4&&g.worldRadius<2.1));
+ assert.ok(TREE_CANOPY_LIFT>=.8&&TREE_CANOPY_LIFT<=1.25);
+ assert.ok(TREE_CAMERA.y>3.5&&TREE_CAMERA.z>=13.5);
  assert.equal(new Set(gifts.map(g=>g.angle)).size,12);
  assert.equal(santaGiftOrbit(-1),null);
  assert.equal(santaGiftOrbit(12),null);
@@ -121,6 +123,9 @@ test('Santa gifts are grounded on the real tree rotation axis, never in a static
  const opposite=projectSantaGift(orbit,180);
  const fullTurn=projectSantaGift(orbit,360);
  assert.ok(initial.interactive,'front-facing present is tappable');
+ assert.ok(initial.y>85&&initial.y<99,'present bottom must sit on the ground line');
+ assert.ok(1.55+TREE_CANOPY_LIFT-GIFT_GROUND_Y>2,
+  'bottom-tier ornaments must hang more than two world units above the gift bases');
  assert.equal(opposite.interactive,false,'present behind tree cannot be tapped');
  assert.ok(Math.abs(initial.x-quarter.x)>12,'turning moves presents horizontally');
  assert.ok(Math.abs(initial.x-fullTurn.x)<1e-9);
