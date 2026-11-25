@@ -419,7 +419,7 @@ function renderTree(){
 function renderWorks(){
  // Santa articles are intentionally excluded here until a person opens a box.
  // Their links and thumbnails are revealed inside their assigned gift box only.
- const all=giftPreviewMode?state.articles.filter(wasGiftOpened):articlesFor(state.selected);
+ const all=giftPreviewMode?state.articles.filter(a=>a.project_id==='santa'&&wasGiftOpened(a)):articlesFor(state.selected);
  const items=all.filter(x=>
   (String(x.title||'')+' '+String(x.author||'')).toLocaleLowerCase('ja').includes(state.query));
  const list=el('work-list');list.replaceChildren();
@@ -432,7 +432,7 @@ function renderWorks(){
   if(a.featured_by)detail.append(make('em','featured-note','✦ '+a.featured_by+'さんのおすすめ'));
   link.append(thumb,detail);list.append(link);
  }
- text(el('work-total'),giftPreviewMode?all.length+' / '+state.articles.length+' 個 開封済み':items.length+' 作品');
+ text(el('work-total'),giftPreviewMode?all.length+' / '+state.articles.filter(a=>a.project_id==='santa').length+' 個 開封済み':items.length+' 作品');
  el('work-empty').hidden=items.length!==0;
  text(el('work-empty'),state.query?'検索条件に合う作品がありません。':
   giftPreviewMode?'プレゼントを開けると、その記事がここにも表示されます🎁':'このツリーのオーナメント作品を待っています。サンタのプレゼントはツリーの下に届きます🎁');
@@ -441,6 +441,13 @@ function renderWorks(){
 function render(){
  const uniqueAuthors=new Set(state.articles.map(x=>(x.author_id||x.author||'').trim()).filter(Boolean));
  text(el('all-works'),state.articles.length);text(el('all-authors'),uniqueAuthors.size);
+ if(giftPreviewMode){
+  const countOrnaments=state.articles.filter(a=>a.project_id!=='santa').length;
+  const countGifts=state.articles.filter(a=>a.project_id==='santa').length;
+  const countA=el('preview-ornament-count'),countG=el('preview-present-count');
+  if(countA)text(countA,countOrnaments);
+  if(countG)text(countG,countGifts);
+ }
  text(el('all-trees'),giftPreviewMode?visibleForests().length:state.config.projects.length);
  buildNavigation();renderTree();renderWorks();
 
@@ -497,7 +504,24 @@ async function init(){
    const r=await fetch(archiveMode?'./data/archive.json':giftPreviewMode?'./data/gift-preview-p1.json':'./data/ornaments.json',{cache:'no-store'});
    if(!r.ok)throw Error('ornament data unavailable');
    const data=await r.json();
-   state.articles=(Array.isArray(data.articles)?data.articles:[]).filter(x=>noteArticleUrl(x.url) && state.config.projects.some(p=>p.id===x.project_id));
+   state.articles=(Array.isArray(data.articles)?data.articles:[])
+    .filter(x=>noteArticleUrl(x.url)&&state.config.projects.some(p=>p.id===x.project_id));
+   if(giftPreviewMode){
+    // Preview only: REAL public 秋読コレクション thumbnails hang as ornaments.
+    // Keep P1 gift articles separate; neither dataset becomes event entries.
+    const archived=await fetch('./data/archive.json',{cache:'no-store'});
+    if(!archived.ok)throw Error('autumn archive unavailable');
+    const history=await archived.json();
+    const autumn=(Array.isArray(history.articles)?history.articles:[])
+     .filter(a=>a.project_id==='autumn-reading'&&noteArticleUrl(a.url))
+     .slice(0,SANTA_FOREST_IDS.length*TREE_CAPACITY)
+     .map((a,i)=>({...a,
+      project_id:SANTA_FOREST_IDS[Math.min(SANTA_FOREST_IDS.length-1,Math.floor(i/TREE_CAPACITY))],
+      demo_source_hashtag:'秋読コレクション'
+     }));
+    if(!autumn.length)throw Error('No 秋読コレクション articles in archive');
+    state.articles.push(...autumn);
+   }
   }catch{
    const info=make('p','system-notice','作品データを読み込めませんでした。時間をおいて再読み込みしてください。');
    document.querySelector('.forest').append(info);
@@ -505,7 +529,7 @@ async function init(){
   render();
   if(giftPreviewMode){
    el('open-all-preview-gifts')?.addEventListener('click',()=>{
-    state.openedGifts=new Set(state.articles.map(a=>noteArticleUrl(a.url)).filter(Boolean));
+    state.openedGifts=new Set(state.articles.filter(a=>a.project_id==='santa').map(a=>noteArticleUrl(a.url)).filter(Boolean));
     try{localStorage.setItem(GIFT_STORAGE_KEY,JSON.stringify([...state.openedGifts]));}catch{}
     render();
    });
