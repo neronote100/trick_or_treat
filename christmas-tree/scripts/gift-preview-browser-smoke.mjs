@@ -49,6 +49,27 @@ try{
  assert.equal(perTree.reduce((n,c)=>n+c,0),firstCount);
  assert.ok(perTree.every(c=>c>=0&&c<=12),'Each individual tree must have at most 12 gifts');
  assert.equal(await page.locator('.santa-gift.is-open').count(),0);
+
+ // The gift is a small grounded square, not a tall box with an upward lid.
+ await page.waitForFunction(()=>document.querySelector('.tree-canvas')?.dataset.rendering==='webgl-3d',
+  null,{timeout:40000});
+ assert.equal(await page.locator('.gift-lid').count(),0,'No upward opening lids remain');
+ assert.equal(await page.locator('.gift-flip').count(),firstCount);
+ const placement=await page.locator('.gift-orbit-front .santa-gift').first().evaluate(g=>{
+  const box=g.getBoundingClientRect();
+  const canvas=g.closest('.tree-canvas').getBoundingClientRect();
+  return {
+   baseline:(box.bottom-canvas.top)/canvas.height*100,
+   dimension:box.width/box.height,
+   imageFace:!!g.querySelector('.gift-reveal .gift-thumbnail'),
+   canopyLift:g.closest('.tree-canvas').dataset.canopyLift||''
+  };
+ });
+ console.log('GROUNDED_PRESENT',JSON.stringify(placement));
+ assert.ok(placement.baseline>77&&placement.baseline<100,
+  'Gift base should touch the lower snow surface, not float among baubles');
+ assert.ok(placement.dimension>.55&&placement.dimension<1.5,
+  'Gift should be compact and square, not a tall pillar');
  // The 3D gifts must live INSIDE the canvas, not in the old fixed floor grid.
  assert.equal(await page.locator('.santa-gift-floor').count(),0);
  assert.equal(await page.locator('.tree-canvas .santa-gift').count(),firstCount);
@@ -69,6 +90,19 @@ try{
  const href=await first.locator('a.gift-article').getAttribute('href');
  const image=await first.locator('a.gift-article img').getAttribute('src');
  const title=await first.locator('.gift-article-title').innerText();
+ const faceState=await first.evaluate(g=>{
+  const flip=g.querySelector('.gift-flip'),face=g.querySelector('.gift-reveal'),image=g.querySelector('.gift-thumbnail');
+  const a=face.getBoundingClientRect(),b=image.getBoundingClientRect();
+  return {
+   flipped:getComputedStyle(flip).transform,
+   thumbnailCoversFace:Math.abs(a.width-b.width)<3&&Math.abs(a.height-b.height)<3,
+   lidCount:g.querySelectorAll('.gift-lid').length
+  };
+ });
+ assert.equal(faceState.lidCount,0);
+ assert.ok(faceState.thumbnailCoversFace,'Opened present should show a full-face thumbnail');
+ assert.notEqual(faceState.flipped,'none','Present front must rotate to reveal its image');
+
  assert.match(href,/^https:\/\/note\.com\/[a-zA-Z0-9_-]+\/n\/n[a-zA-Z0-9]+$/);
  assert.match(image,/^https:\/\/assets\.st-note\.com\//);
  assert.ok(title.length>0);
@@ -94,6 +128,51 @@ try{
  await page.locator('#open-all-preview-gifts').click();
  await page.waitForFunction(()=>document.querySelectorAll('.work-card').length===35,null,{timeout:15000});
  assert.equal(await page.locator('.santa-gift.is-open').count(),await page.locator('.santa-gift').count(),'All visible gifts open');
+
+ // Regression fixture: show 48 REAL archived note thumbnails as ornaments
+ // alongside P1's actual presents, to prove the raised canopy prevents overlap.
+ const preview=JSON.parse(await readFile(path.join(root,'data','gift-preview-p1.json'),'utf8'));
+ const archive=JSON.parse(await readFile(path.join(root,'data','archive.json'),'utf8'));
+ const baubles=archive.articles.filter(a=>a.thumbnail).slice(0,48).map(a=>({...a,project_id:'letter'}));
+ assert.equal(baubles.length,48);
+ const mixedPage=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+ try{
+  await mixedPage.route('**/data/gift-preview-p1.json',route=>route.fulfill({
+   status:200,contentType:'application/json',
+   body:JSON.stringify({...preview,articles:[...preview.articles,...baubles]})
+  }));
+  await mixedPage.goto('http://127.0.0.1:'+address.port+'/gift-preview.html',{waitUntil:'domcontentloaded'});
+  await mixedPage.waitForFunction(()=>document.querySelector('.tree-unit .orbital-slot')?.style.left?.endsWith('%'),
+   null,{timeout:30000});
+  await mixedPage.waitForFunction(()=>document.querySelector('.tree-canvas')?.dataset.rendering==='webgl-3d',
+   null,{timeout:40000});
+  const tree=mixedPage.locator('.tree-unit').first();
+  await tree.locator('.tree-canvas').scrollIntoViewIfNeeded();
+  const collision=await tree.evaluate(unit=>{
+   const c=unit.querySelector('.tree-canvas');
+   const ornaments=[...c.querySelectorAll('.orbit-layer-front .orbital-slot')]
+    .filter(el=>el.style.pointerEvents==='auto');
+   const gifts=[...c.querySelectorAll('.gift-orbit-front .santa-gift')]
+    .filter(el=>el.dataset.facing==='front');
+   let overlap=0;
+   for(const o of ornaments)for(const g of gifts){
+    const a=o.getBoundingClientRect(),b=g.getBoundingClientRect();
+    const w=Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left));
+    const h=Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
+    if(w*h>4)overlap++;
+   }
+   return {ornamentCount:c.querySelectorAll('.orbital-slot').length,
+    giftCount:c.querySelectorAll('.santa-gift').length,
+    frontOrnaments:ornaments.length,frontGifts:gifts.length,overlap};
+  });
+  console.log('GROUNDED_48_ORNAMENTS_12_PRESENTS',JSON.stringify(collision));
+  assert.equal(collision.ornamentCount,48);
+  assert.equal(collision.giftCount,12);
+  assert.equal(collision.overlap,0,'Grounded presents must not cover hanging note ornaments');
+  const photo=await tree.locator('.tree-canvas').screenshot({type:'jpeg',quality:54});
+  console.log('GROUNDED_MIXED_JPEG_B64:'+photo.toString('base64'));
+ }finally{await mixedPage.close();}
+
  assert.equal(errors.length,0,'Unexpected page errors: '+JSON.stringify(errors));
  console.log('GIFT_PREVIEW_BROWSER_PASS',JSON.stringify({sample:35,forests:forestCounts,rotationX:[xBefore,xAfter],firstTitle:title,firstHref:href,image}));
 }finally{

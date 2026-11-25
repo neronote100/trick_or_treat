@@ -299,11 +299,13 @@ function createSantaGift(article,index){
  const box=make('button','gift-box');
  box.type='button';
  box.setAttribute('aria-label',(index+1)+'番目のプレゼントを開ける');
- for(const className of ['gift-body','gift-lid','gift-ribbon-v','gift-ribbon-h','gift-bow'])
+ for(const className of ['gift-body','gift-ribbon-v','gift-ribbon-h','gift-bow'])
   box.append(make('span',className));
  const revealed=make('div','gift-reveal');
  const number=make('span','gift-number','GIFT '+String(index+1).padStart(2,'0'));
- gift.append(box,revealed,number);
+ const face=make('div','gift-flip');
+ face.append(box,revealed);
+ gift.append(face,number);
  function unwrap(restoring=false){
   if(gift.classList.contains('is-open'))return;
   gift.classList.add('is-open');
@@ -343,7 +345,7 @@ function renderTree(){
  text(el('tree-stage'),layout.totalTrees+'本のツリー / 1本48作品・12プレゼントまで');
  el('stage-fill').style.width=count?((count-1)%TREE_CAPACITY+1)/TREE_CAPACITY*100+'%':'0%';
  const description=document.querySelector('.tree-bottom>p');
- if(description)text(description,'✦ ツリーとプレゼントが一緒に360°回転。正面に来たプレゼントをタップして開封 ✦');
+ if(description)text(description,'✦ 伸びた幹の根元に並ぶプレゼント。ツリーと一緒に360°回り、箱の正面が記事サムネイルに変わります ✦');
  text(el('works-title'),'このツリーに飾られた作品');
  const grove=el('tree-grove');grove.replaceChildren();
  for(const unit of layout.trees){
@@ -382,7 +384,7 @@ function renderTree(){
   right.setAttribute('aria-label',unit.number+'本目を右へ回転');
   controls.append(left,toggle,right);
   const hint=make('p','orbit-hint',unitGifts.length
-   ?'ツリーと一緒にプレゼントも回転！ 正面に来た箱をタップして開封しよう'
+   ?'幹の根元に届いたプレゼントも一緒に回転。箱をタップすると正面がサムネイルに変わるよ'
    :'3Dツリーを360°回転 · 飾りをタップしてnoteへ');
   const giftEntries=[];
   const giftRear=make('div','gift-orbit-layer gift-orbit-rear');
