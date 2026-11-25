@@ -191,6 +191,8 @@ try{
  assert.ok(collision.snowFar>72&&collision.snowNear<97,
   'Full real snow-platform disc must fit within mobile canvas');
  assert.ok(collision.snowNear>collision.snowFar,'3D snow circle must be correctly projected');
+ assert.ok(collision.giftPositions.every(g=>g.computedPosition==='absolute'),
+  'All parcel positions must be absolute, not relative in normal document flow');
  assert.equal(collision.outsidePlatform,0,'Presents must be grounded INSIDE the real 3D snow circle');
  assert.equal(collision.overlap,0,'Autumn note ornaments must not overlap P1 presents');
 
