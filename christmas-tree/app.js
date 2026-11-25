@@ -181,11 +181,17 @@ function createOrbitController(canvas,ornaments,number,controls,art,gifts=[]){
      const g=gifts[i],p=projectedGifts?.[i]||
       projectSantaGift(g.orbit,rotation,canvas.clientWidth/canvas.clientHeight);
      if(!p)continue;
+     // Each gift MUST be absolutely positioned in the same canvas,
+     // otherwise successive boxes stack 48px below the snow platform.
+     // Anchor its BASE with CSS bottom, avoiding an extra Y translation.
+     g.slot.style.position='absolute';
      g.slot.style.left=p.x.toFixed(3)+'%';
-     g.slot.style.top=p.y.toFixed(3)+'%';
+     g.slot.style.top='auto';
+     g.slot.style.bottom=(100-p.y).toFixed(3)+'%';
+     g.slot.style.transformOrigin='50% 100%';
      g.slot.style.opacity=p.opacity.toFixed(3);
      g.slot.style.zIndex=String(p.zIndex);
-     g.slot.style.transform='translate(-50%,-100%) scale('+p.scale.toFixed(3)+')';
+     g.slot.style.transform='translateX(-50%) scale('+p.scale.toFixed(3)+')';
      g.slot.style.pointerEvents=p.interactive?'auto':'none';
      const destination=p.depth>-.08?art.giftFront:art.giftRear;
      if(destination&&g.slot.parentNode!==destination)destination.append(g.slot);
