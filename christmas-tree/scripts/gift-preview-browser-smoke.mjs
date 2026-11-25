@@ -180,11 +180,23 @@ try{
    const rimContainer=c.getBoundingClientRect();
    const giftBottoms=gifts.map(g=>
     (g.getBoundingClientRect().bottom-rimContainer.top)/rimContainer.height*100);
+   const giftDebug=gifts.map(g=>{
+    const rect=g.getBoundingClientRect();
+    const parent=g.parentElement.getBoundingClientRect();
+    return {
+     topStyle:g.style.top,transform:g.style.transform,
+     cssHeight:getComputedStyle(g).height,
+     visualTop:(rect.top-rimContainer.top)/rimContainer.height*100,
+     visualBottom:(rect.bottom-rimContainer.top)/rimContainer.height*100,
+     parentTop:(parent.top-rimContainer.top)/rimContainer.height*100,
+     parentHeight:parent.height
+    };
+   });
    return {
     ornamentCount:c.querySelectorAll('.orbital-slot').length,
     giftCount:c.querySelectorAll('.santa-gift').length,
     frontOrnaments:ornaments.length,frontGifts:gifts.length,overlap,
-    giftBottoms,decorativeOval:getComputedStyle(c,'::before').content
+    giftBottoms,giftDebug,decorativeOval:getComputedStyle(c,'::before').content
    };
   });
   console.log('AUTUMN_ORNAMENTS_P1_PRESENTS_ON_CIRCLE',JSON.stringify(collision));
