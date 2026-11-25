@@ -166,7 +166,10 @@ try{
    const baseline=(gr.bottom-rect.top)/rect.height*100;
    giftPositions.push({id:g.querySelector('.gift-number')?.textContent,
     cssTop:g.style.top,cssLeft:g.style.left,baseline,
-    boxHeight:gr.height,transform:g.style.transform});
+    boxHeight:gr.height,computedPosition:getComputedStyle(g).position,
+    offsetTop:g.offsetTop,offsetParent:g.offsetParent?.className,
+    parent:g.parentElement?.className,parentTop:g.parentElement?.getBoundingClientRect().top,
+    transform:g.style.transform});
    if(baseline>snowNear+.6||baseline<snowFar-.6)outsidePlatform++;
    for(const o of ornaments){
     const a=o.getBoundingClientRect();
