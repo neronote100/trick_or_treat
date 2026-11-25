@@ -184,7 +184,8 @@ try{
     const rect=g.getBoundingClientRect();
     const parent=g.parentElement.getBoundingClientRect();
     return {
-     topStyle:g.style.top,transform:g.style.transform,
+     topStyle:g.style.top,bottomStyle:g.style.bottom,
+     computedPosition:getComputedStyle(g).position,transform:g.style.transform,
      cssHeight:getComputedStyle(g).height,
      visualTop:(rect.top-rimContainer.top)/rimContainer.height*100,
      visualBottom:(rect.bottom-rimContainer.top)/rimContainer.height*100,
@@ -203,6 +204,8 @@ try{
   assert.equal(collision.ornamentCount,48);
   assert.equal(collision.giftCount,12);
   assert.equal(collision.overlap,0,'Grounded presents must not cover hanging Autumn ornaments');
+  assert.ok(collision.giftDebug.every(g=>g.computedPosition==='absolute'),
+   'Gift boxes must be absolute and not stacked in document flow');
   assert.ok(collision.giftBottoms.every(y=>y>70&&y<97),
    'Every present bottom must stay within the visible ground area');
   assert.ok(collision.decorativeOval==='none'||collision.decorativeOval==='normal',
