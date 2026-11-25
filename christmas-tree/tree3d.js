@@ -4,7 +4,7 @@
 // The note article images remain DOM links projected from matching 3D anchors
 // so they can open in the browser without cross-origin canvas texture problems.
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import {ornamentOrbit,santaGiftOrbit} from './tree-core.js';
+import {ornamentOrbit,santaGiftOrbit,TREE_CAMERA,TREE_CANOPY_LIFT,GIFT_GROUND_Y} from './tree-core.js';
 
 const DEG=Math.PI/180;
 const UP=new THREE.Vector3(0,1,0);
@@ -218,34 +218,42 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
  renderer.domElement.setAttribute('aria-hidden','true');
  stage.append(renderer.domElement);
  const scene=new THREE.Scene();
- const camera=new THREE.PerspectiveCamera(38,1,.1,55);
- camera.position.set(0,3.45,13.2);camera.lookAt(0,3.45,0);
+ const camera=new THREE.PerspectiveCamera(TREE_CAMERA.fov,1,.1,55);
+ camera.position.set(0,TREE_CAMERA.y,TREE_CAMERA.z);
+ camera.lookAt(0,TREE_CAMERA.y,0);
  scene.add(new THREE.HemisphereLight(palette?.ambient?.[0]??0xb2d8ff,palette?.ambient?.[1]??0x0a1d16,2.3));
  const warm=new THREE.DirectionalLight(palette?.key??0xffdcac,3.3);warm.position.set(3.8,8,6);scene.add(warm);
  const cold=new THREE.DirectionalLight(palette?.fill??0xa5e3ff,1.75);cold.position.set(-5,5,-4);scene.add(cold);
  const tree=new THREE.Group();scene.add(tree);
  const rand=seeded(20261225);
- const bark=new THREE.MeshStandardMaterial({color:0x704a32,roughness:1});
- addMesh(tree,cylinder(.10,.20,5.9,12),bark,0,3.02,0);
- buildFoliage(tree,rand,palette?.foliage??COLORS,palette?.needles);
- addGarlands(tree,palette?.metals);
+ const bark=new THREE.MeshStandardMaterial({color:0x65432f,roughness:1});
+ const trunk=addMesh(tree,cylinder(.21,.34,6.3,18),bark,0,3.16,0);
+ trunk.name='visible-central-trunk';
+ // Expose nearly a full meter of real trunk before the first foliage tier.
+ // The needles, hanging ornaments, stars, garlands and lights move upward TOGETHER.
+ const canopy=new THREE.Group();
+ canopy.name='raised-ornament-canopy';
+ canopy.position.y=TREE_CANOPY_LIFT;
+ tree.add(canopy);
+ buildFoliage(canopy,rand,palette?.foliage??COLORS,palette?.needles);
+ addGarlands(canopy,palette?.metals);
  const starMat=new THREE.MeshPhysicalMaterial({
   color:palette?.star?.[0]??0xffe3a5,emissive:palette?.star?.[1]??0xffd45e,emissiveIntensity:.48,
   metalness:.55,roughness:.22,clearcoat:1
  });
- const star=addMesh(tree,starGeometry(),starMat,0,6.64,0);
+ const star=addMesh(canopy,starGeometry(),starMat,0,6.64,0);
  star.rotation.y=.16;
  // Thin layered ground cover stays stationary, making rotation obvious.
- const glowMap=placeGlow(tree,rand,lights);
+ const glowMap=placeGlow(canopy,rand,lights);
  // A luminous crown that remains dimensional as the tree turns.
  const crown=new THREE.Sprite(new THREE.SpriteMaterial({
    map:glowMap,color:palette?.crown??0xffd47a,transparent:true,opacity:.86,
    depthWrite:false,blending:THREE.AdditiveBlending
  }));
  crown.position.set(0,6.70,0);crown.scale.set(1.45,1.45,1);
- tree.add(crown);
+ canopy.add(crown);
  const crownLight=new THREE.PointLight(palette?.crown??0xffd28b,5,4.7);
- crownLight.position.set(0,6.60,.1);tree.add(crownLight);
+ crownLight.position.set(0,6.60,.1);canopy.add(crownLight);
  // Background snowfall is in its OWN depth plane, behind the actual 3D tree.
  const skyPositions=[];
  for(let n=0;n<210;n++){
@@ -258,7 +266,7 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
    blending:THREE.AdditiveBlending,depthWrite:false,opacity:.54
  }));
  scene.add(sky);
- const balls=createBaubles(tree,Math.max(0,Math.min(48,ornamentCount)),palette?.baubles,palette?.metals?.[0]);
+ const balls=createBaubles(canopy,Math.max(0,Math.min(48,ornamentCount)),palette?.baubles,palette?.metals?.[0]);
  // Invisible world-space anchors: DOM gift boxes remain clickable and keep their
  // open state, but travel with the real 3D tree instead of a fixed 2D grid.
  const giftAnchors=[];
@@ -270,7 +278,7 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
  }
  const ground=new THREE.Mesh(new THREE.CircleGeometry(3.2,48),
    new THREE.MeshBasicMaterial({color:palette?.ground??0x9cc7dc,transparent:true,opacity:.10,side:THREE.DoubleSide}));
- ground.rotation.x=-Math.PI/2;ground.position.y=.11;scene.add(ground);
+ ground.rotation.x=-Math.PI/2;ground.position.y=GIFT_GROUND_Y-.025;scene.add(ground);
  let disposed=false,w=0,h=0;
  const working=new THREE.Vector3(),projected=new THREE.Vector3();
  function resize(){
@@ -310,13 +318,13 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
      projected.copy(working).project(camera);
      const depth=working.z;
      const x=(projected.x+1)*50,y=(1-projected.y)*50;
-     const dist=13.2-depth;
+     const dist=TREE_CAMERA.z-depth;
      return {
       x,y,depth,
-      interactive:depth>-.08&&projected.z<1&&projected.z>-1&&x>7&&x<93&&y>61&&y<97,
-      opacity:depth>-.08?1:.45,
+      interactive:depth>-.08&&projected.z<1&&projected.z>-1&&x>7&&x<93&&y>73&&y<99,
+      opacity:depth>-.08?1:.25,
       zIndex:Math.round(50+depth*12),
-      scale:Math.min(1.17,Math.max(.74,.94*13.2/dist))
+      scale:Math.min(1.18,Math.max(.72,.94*TREE_CAMERA.z/dist))
      };
     });
     return {ornaments:projectedOrnaments,gifts:projectedGifts};
