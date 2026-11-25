@@ -128,6 +128,51 @@ try{
  await page.locator('#open-all-preview-gifts').click();
  await page.waitForFunction(()=>document.querySelectorAll('.work-card').length===35,null,{timeout:15000});
  assert.equal(await page.locator('.santa-gift.is-open').count(),await page.locator('.santa-gift').count(),'All visible gifts open');
+
+ // Regression fixture: show 48 REAL archived note thumbnails as ornaments
+ // alongside P1's actual presents, to prove the raised canopy prevents overlap.
+ const preview=JSON.parse(await readFile(path.join(root,'data','gift-preview-p1.json'),'utf8'));
+ const archive=JSON.parse(await readFile(path.join(root,'data','archive.json'),'utf8'));
+ const baubles=archive.articles.filter(a=>a.thumbnail).slice(0,48).map(a=>({...a,project_id:'letter'}));
+ assert.equal(baubles.length,48);
+ const mixedPage=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+ try{
+  await mixedPage.route('**/data/gift-preview-p1.json',route=>route.fulfill({
+   status:200,contentType:'application/json',
+   body:JSON.stringify({...preview,articles:[...preview.articles,...baubles]})
+  }));
+  await mixedPage.goto('http://127.0.0.1:'+address.port+'/gift-preview.html',{waitUntil:'domcontentloaded'});
+  await mixedPage.waitForFunction(()=>document.querySelector('.tree-unit .orbital-slot')?.style.left?.endsWith('%'),
+   null,{timeout:30000});
+  await mixedPage.waitForFunction(()=>document.querySelector('.tree-canvas')?.dataset.rendering==='webgl-3d',
+   null,{timeout:40000});
+  const tree=mixedPage.locator('.tree-unit').first();
+  await tree.locator('.tree-canvas').scrollIntoViewIfNeeded();
+  const collision=await tree.evaluate(unit=>{
+   const c=unit.querySelector('.tree-canvas');
+   const ornaments=[...c.querySelectorAll('.orbit-layer-front .orbital-slot')]
+    .filter(el=>el.style.pointerEvents==='auto');
+   const gifts=[...c.querySelectorAll('.gift-orbit-front .santa-gift')]
+    .filter(el=>el.dataset.facing==='front');
+   let overlap=0;
+   for(const o of ornaments)for(const g of gifts){
+    const a=o.getBoundingClientRect(),b=g.getBoundingClientRect();
+    const w=Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left));
+    const h=Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));
+    if(w*h>4)overlap++;
+   }
+   return {ornamentCount:c.querySelectorAll('.orbital-slot').length,
+    giftCount:c.querySelectorAll('.santa-gift').length,
+    frontOrnaments:ornaments.length,frontGifts:gifts.length,overlap};
+  });
+  console.log('GROUNDED_48_ORNAMENTS_12_PRESENTS',JSON.stringify(collision));
+  assert.equal(collision.ornamentCount,48);
+  assert.equal(collision.giftCount,12);
+  assert.equal(collision.overlap,0,'Grounded presents must not cover hanging note ornaments');
+  const photo=await tree.locator('.tree-canvas').screenshot({type:'jpeg',quality:54});
+  console.log('GROUNDED_MIXED_JPEG_B64:'+photo.toString('base64'));
+ }finally{await mixedPage.close();}
+
  assert.equal(errors.length,0,'Unexpected page errors: '+JSON.stringify(errors));
  console.log('GIFT_PREVIEW_BROWSER_PASS',JSON.stringify({sample:35,forests:forestCounts,rotationX:[xBefore,xAfter],firstTitle:title,firstHref:href,image}));
 }finally{
