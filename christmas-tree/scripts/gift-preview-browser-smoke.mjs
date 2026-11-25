@@ -85,6 +85,27 @@ try{
  assert.ok(await page.locator('.gift-orbit-rear .santa-gift').count()>0);
  assert.ok(await page.locator('.gift-orbit-front .santa-gift').count()>0);
  const first=page.locator('.gift-orbit-front .santa-gift').first();
+ // Ribbons and the bow must be visually rendered on small unopened gifts.
+ const wrapping=await first.evaluate(g=>{
+  const box=g.querySelector('.gift-box');
+  const vertical=box.querySelector('.gift-ribbon-v');
+  const horizontal=box.querySelector('.gift-ribbon-h');
+  const bow=box.querySelector('.gift-bow');
+  const a=box.getBoundingClientRect(),v=vertical.getBoundingClientRect(),
+        h=horizontal.getBoundingClientRect();
+  return {
+   verticalVisible:getComputedStyle(vertical).display!=='none'&&v.width>3&&v.height>3,
+   horizontalVisible:getComputedStyle(horizontal).display!=='none'&&h.width>3&&h.height>3,
+   crossCentered:Math.abs((v.left+v.width/2)-(a.left+a.width/2))<2
+     &&Math.abs((h.top+h.height/2)-(a.top+a.height/2))<2,
+   bowVisible:bow.getBoundingClientRect().width>3
+     &&getComputedStyle(bow,'::before').content!=='none'
+     &&getComputedStyle(bow,'::after').content!=='none'
+  };
+ });
+ console.log('GIFT_RIBBON_RENDER',JSON.stringify(wrapping));
+ assert.ok(wrapping.verticalVisible&&wrapping.horizontalVisible&&wrapping.crossCentered
+   &&wrapping.bowVisible,'Unopened present must display crossed satin bands and a visible two-loop bow');
  await first.locator('button.gift-box').click();
  await page.waitForFunction(()=>document.querySelector('.santa-gift.is-open .gift-article img')?.src?.includes('assets.st-note.com'),null,{timeout:15000});
  const href=await first.locator('a.gift-article').getAttribute('href');
