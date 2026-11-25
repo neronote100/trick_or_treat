@@ -63,7 +63,7 @@ try{
  // Back-facing presents are hidden behind the tree and cannot be activated.
  assert.ok(await page.locator('.gift-orbit-rear .santa-gift').count()>0);
  assert.ok(await page.locator('.gift-orbit-front .santa-gift').count()>0);
- const first=page.locator('.gift-orbit-front .santa-gift:not(.is-open)').first();
+ const first=page.locator('.gift-orbit-front .santa-gift').first();
  await first.locator('button.gift-box').click();
  await page.waitForFunction(()=>document.querySelector('.santa-gift.is-open .gift-article img')?.src?.includes('assets.st-note.com'),null,{timeout:15000});
  const href=await first.locator('a.gift-article').getAttribute('href');
