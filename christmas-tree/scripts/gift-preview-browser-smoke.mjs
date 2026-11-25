@@ -160,9 +160,13 @@ try{
   const snowNear=parseFloat(c.dataset.snowFrontY);
   const snowFar=parseFloat(c.dataset.snowBackY);
   let overlap=0,outsidePlatform=0;
+  const giftPositions=[];
   for(const g of gifts){
    const gr=g.getBoundingClientRect();
    const baseline=(gr.bottom-rect.top)/rect.height*100;
+   giftPositions.push({id:g.querySelector('.gift-number')?.textContent,
+    cssTop:g.style.top,cssLeft:g.style.left,baseline,
+    boxHeight:gr.height,transform:g.style.transform});
    if(baseline>snowNear+.6||baseline<snowFar-.6)outsidePlatform++;
    for(const o of ornaments){
     const a=o.getBoundingClientRect();
@@ -174,9 +178,11 @@ try{
   return {ornamentCount:c.querySelectorAll('.orbital-slot').length,
    giftCount:c.querySelectorAll('.santa-gift').length,
    frontOrnaments:ornaments.length,frontGifts:gifts.length,
-   snowNear,snowFar,outsidePlatform,overlap};
+   snowNear,snowFar,outsidePlatform,overlap,giftPositions};
  });
  console.log('AUTUMN_P1_REAL_COMBINATION',JSON.stringify(collision));
+ const photo=await tree.locator('.tree-canvas').screenshot({type:'jpeg',quality:62});
+ console.log('AUTUMN_P1_REAL_COMBINATION_JPEG_B64:'+photo.toString('base64'));
  assert.equal(collision.ornamentCount,48);
  assert.equal(collision.giftCount,12);
  assert.ok(collision.snowFar>72&&collision.snowNear<97,
@@ -184,8 +190,7 @@ try{
  assert.ok(collision.snowNear>collision.snowFar,'3D snow circle must be correctly projected');
  assert.equal(collision.outsidePlatform,0,'Presents must be grounded INSIDE the real 3D snow circle');
  assert.equal(collision.overlap,0,'Autumn note ornaments must not overlap P1 presents');
- const photo=await tree.locator('.tree-canvas').screenshot({type:'jpeg',quality:62});
- console.log('AUTUMN_P1_REAL_COMBINATION_JPEG_B64:'+photo.toString('base64'));
+
 
  assert.equal(errors.length,0,'Unexpected page errors: '+JSON.stringify(errors));
  console.log('GIFT_PREVIEW_BROWSER_PASS',JSON.stringify({gifts:35,autumnOrnaments:autumnWorks.length,forests:forestCounts,rotationX:[xBefore,xAfter],firstTitle:title,firstHref:href,image}));
