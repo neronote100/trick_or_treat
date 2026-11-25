@@ -324,6 +324,12 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
   w=width;h=height;
   camera.aspect=w/h;camera.updateProjectionMatrix();
   renderer.setSize(w,h,false);
+  // Ground circle coordinates for browser-level visual regression checks.
+  // They are calculated by the SAME camera projection used for the gift boxes.
+  const rimNear=new THREE.Vector3(0,GIFT_GROUND_Y-.032,SNOW_PLATFORM_RADIUS).project(camera);
+  const rimFar=new THREE.Vector3(0,GIFT_GROUND_Y-.032,-SNOW_PLATFORM_RADIUS).project(camera);
+  canvas.dataset.snowFrontY=((1-rimNear.y)*50).toFixed(2);
+  canvas.dataset.snowBackY=((1-rimFar.y)*50).toFixed(2);
  }
  const resizeObserver=new ResizeObserver(resize);
  resizeObserver.observe(canvas);resize();
