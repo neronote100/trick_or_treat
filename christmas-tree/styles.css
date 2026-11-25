@@ -447,3 +447,51 @@ body[data-mode="gift-preview"] .santa-gift-floor{
  .preview-disclaimer{margin:20px 10px 10px;padding:13px}
  .gift-preview-hero{padding-bottom:39px}
 }
+
+/* SANTA'S ROTATING GROUND — boxes share the 3D tree's world-space rotation.
+   Separate near/far layers let the tree genuinely occlude its rear presents. */
+.gift-orbit-layer{
+ position:absolute;inset:0;pointer-events:none;isolation:isolate;
+}
+.gift-orbit-rear{z-index:2}
+.gift-orbit-front{z-index:7}
+.gift-orbit-layer .santa-gift{
+ position:absolute;width:15%;max-width:86px;min-width:45px;height:122px;
+ min-height:0;margin:0;pointer-events:auto;
+ animation:none;transform-origin:50% 100%;
+ will-change:transform,left,top,opacity;
+}
+.gift-orbit-layer .santa-gift[data-facing="rear"]{pointer-events:none}
+.gift-orbit-layer .gift-box{
+ touch-action:pan-y;
+}
+.gift-orbit-layer .gift-body{height:53px;bottom:21px}
+.gift-orbit-layer .gift-lid{bottom:69px;height:17px}
+.gift-orbit-layer .gift-ribbon-v{bottom:21px;height:65px}
+.gift-orbit-layer .gift-ribbon-h{bottom:43px;height:10px}
+.gift-orbit-layer .gift-bow{bottom:86px;width:14px}
+.gift-orbit-layer .santa-gift.is-open .gift-lid{transform:translateY(-53px) rotate(-14deg)}
+.gift-orbit-layer .santa-gift.is-open .gift-bow{transform:translate(-50%,-53px) rotate(-14deg)}
+.gift-orbit-layer .gift-reveal{top:2px;left:10%;right:10%}
+.gift-orbit-layer .gift-thumbnail{border-width:1.5px}
+.gift-orbit-layer .gift-article-title{font-size:9px;line-height:1.2;min-height:22px}
+.gift-orbit-layer .gift-number{font-size:9px;margin-top:0}
+.tree-canvas[data-has-gifts="true"]::before{
+ content:"";position:absolute;left:10%;right:10%;bottom:10%;height:13%;
+ z-index:1;pointer-events:none;border-radius:50%;
+ background:radial-gradient(ellipse,#e4eff05a 0%,#bfd8d035 29%,transparent 71%);
+}
+@media(max-width:650px){
+ .gift-orbit-layer .santa-gift{width:15.8%;max-width:69px;min-width:40px;height:110px}
+ .gift-orbit-layer .gift-body{height:44px;bottom:19px}
+ .gift-orbit-layer .gift-lid{bottom:59px;height:15px}
+ .gift-orbit-layer .gift-ribbon-v{bottom:19px;height:55px}
+ .gift-orbit-layer .gift-ribbon-h{bottom:39px;height:9px}
+ .gift-orbit-layer .gift-bow{bottom:74px}
+ .gift-orbit-layer .santa-gift.is-open .gift-lid{transform:translateY(-44px) rotate(-14deg)}
+ .gift-orbit-layer .santa-gift.is-open .gift-bow{transform:translate(-50%,-44px) rotate(-14deg)}
+ .gift-orbit-layer .gift-article-title{font-size:8px;min-height:18px}
+}
+@media(prefers-reduced-motion:reduce){
+ .gift-orbit-layer .santa-gift{will-change:auto}
+}

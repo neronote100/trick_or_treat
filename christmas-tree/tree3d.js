@@ -4,7 +4,7 @@
 // The note article images remain DOM links projected from matching 3D anchors
 // so they can open in the browser without cross-origin canvas texture problems.
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import {ornamentOrbit} from './tree-core.js';
+import {ornamentOrbit,santaGiftOrbit} from './tree-core.js';
 
 const DEG=Math.PI/180;
 const UP=new THREE.Vector3(0,1,0);
@@ -202,7 +202,7 @@ function createBaubles(tree,count,baubleColors=BAUBLE,trimColor=0xffdf98){
  }
  return entries;
 }
-export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='rose',variant=0){
+export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='rose',variant=0,giftCount=0){
  if(!window.WebGLRenderingContext && !window.WebGL2RenderingContext)
   throw new Error('WebGL is unavailable');
  const palette=STORY_PALETTES[themeKey];
@@ -259,6 +259,15 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
  }));
  scene.add(sky);
  const balls=createBaubles(tree,Math.max(0,Math.min(48,ornamentCount)),palette?.baubles,palette?.metals?.[0]);
+ // Invisible world-space anchors: DOM gift boxes remain clickable and keep their
+ // open state, but travel with the real 3D tree instead of a fixed 2D grid.
+ const giftAnchors=[];
+ for(let i=0;i<Math.max(0,Math.min(12,giftCount));i++){
+  const orbit=santaGiftOrbit(i),angle=orbit.angle*DEG;
+  const anchor=new THREE.Object3D();
+  anchor.position.set(orbit.worldRadius*Math.sin(angle),orbit.worldY,orbit.worldRadius*Math.cos(angle));
+  tree.add(anchor);giftAnchors.push(anchor);
+ }
  const ground=new THREE.Mesh(new THREE.CircleGeometry(3.2,48),
    new THREE.MeshBasicMaterial({color:palette?.ground??0x9cc7dc,transparent:true,opacity:.10,side:THREE.DoubleSide}));
  ground.rotation.x=-Math.PI/2;ground.position.y=.11;scene.add(ground);
@@ -283,7 +292,7 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
     for(let i=0;i<balls.length;i++)balls[i].pendulum.rotation.z=(sways[i]||0)*DEG;
     scene.updateMatrixWorld(true);
     renderer.render(scene,camera);
-    return balls.map(({ball})=>{
+    const projectedOrnaments=balls.map(({ball})=>{
       ball.getWorldPosition(working);
       projected.copy(working).project(camera);
       const depth=working.z;
@@ -296,6 +305,21 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
         scale:Math.min(1.13,Math.max(.78,.88+depth*.055)),
       };
     });
+    const projectedGifts=giftAnchors.map(anchor=>{
+     anchor.getWorldPosition(working);
+     projected.copy(working).project(camera);
+     const depth=working.z;
+     const x=(projected.x+1)*50,y=(1-projected.y)*50;
+     const dist=13.2-depth;
+     return {
+      x,y,depth,
+      interactive:depth>-.08&&projected.z<1&&projected.z>-1&&x>7&&x<93&&y>61&&y<97,
+      opacity:depth>-.08?1:.45,
+      zIndex:Math.round(50+depth*12),
+      scale:Math.min(1.17,Math.max(.74,.94*13.2/dist))
+     };
+    });
+    return {ornaments:projectedOrnaments,gifts:projectedGifts};
    },
    dispose(){
     if(disposed)return;disposed=true;

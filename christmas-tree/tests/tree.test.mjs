@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
  stageForCount,noteArticleUrl,RING_TIERS,TREE_CAPACITY,TREES_PER_PAGE,TREE_PAGE_SIZE,
  treeCountForWorks,grovePage,ornamentOrbit,projectOrbit,stepSway,
- SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftDestination,santaGiftsForForest
+ SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftDestination,santaGiftsForForest,
+ santaGiftOrbit,projectSantaGift
 } from '../tree-core.js';
 test('tree stays in four growth stages',()=>{
  for(const [n,expected] of [[0,1],[8,2],[20,3],[40,4],[999,4]])
@@ -105,4 +106,32 @@ test('Santa boxes and normal ornaments coexist without overflow or lost gifts',(
  assert.deepEqual(distributed,gifts);
  assert.equal(grovePage(ornaments,0).totalTrees,1);
  assert.equal(grovePage(Array.from({length:98},(_,i)=>({id:i})),0,TREE_CAPACITY,2).totalTrees,3);
+});
+
+test('Santa gifts are grounded on the real tree rotation axis, never in a static grid',()=>{
+ const gifts=Array.from({length:SANTA_GIFT_CAPACITY},(_,i)=>santaGiftOrbit(i));
+ assert.equal(gifts.length,12);
+ assert.ok(gifts.every(g=>g&&g.worldY<.5&&g.worldRadius>2));
+ assert.equal(new Set(gifts.map(g=>g.angle)).size,12);
+ assert.equal(santaGiftOrbit(-1),null);
+ assert.equal(santaGiftOrbit(12),null);
+ const orbit=gifts[0];
+ const initial=projectSantaGift(orbit,0);
+ const quarter=projectSantaGift(orbit,90);
+ const opposite=projectSantaGift(orbit,180);
+ const fullTurn=projectSantaGift(orbit,360);
+ assert.ok(initial.interactive,'front-facing present is tappable');
+ assert.equal(opposite.interactive,false,'present behind tree cannot be tapped');
+ assert.ok(Math.abs(initial.x-quarter.x)>12,'turning moves presents horizontally');
+ assert.ok(Math.abs(initial.x-fullTurn.x)<1e-9);
+ assert.ok(Math.abs(initial.y-fullTurn.y)<1e-9);
+ assert.ok(opposite.opacity<initial.opacity);
+ assert.ok(opposite.scale<initial.scale,'perspective shrinks presents behind tree');
+ for(let i=0;i<12;i++){
+  for(let angle=0;angle<360;angle+=20){
+   const p=projectSantaGift(gifts[i],angle);
+   assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));
+   assert.ok(p.scale>.7&&p.scale<1.2);
+  }
+ }
 });

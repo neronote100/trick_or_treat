@@ -49,7 +49,21 @@ try{
  assert.equal(perTree.reduce((n,c)=>n+c,0),firstCount);
  assert.ok(perTree.every(c=>c>=0&&c<=12),'Each individual tree must have at most 12 gifts');
  assert.equal(await page.locator('.santa-gift.is-open').count(),0);
- const first=page.locator('.santa-gift').first();
+ // The 3D gifts must live INSIDE the canvas, not in the old fixed floor grid.
+ assert.equal(await page.locator('.santa-gift-floor').count(),0);
+ assert.equal(await page.locator('.tree-canvas .santa-gift').count(),firstCount);
+ await page.waitForFunction(()=>document.querySelector('.tree-canvas .santa-gift')?.style.left?.endsWith('%'));
+ const rotatingGift=page.locator('.tree-unit').first().locator('.santa-gift').first();
+ const xBefore=parseFloat(await rotatingGift.evaluate(g=>g.style.left));
+ const turnRight=page.getByRole('button',{name:'1本目を右へ回転'});
+ await turnRight.click();
+ const xAfter=parseFloat(await rotatingGift.evaluate(g=>g.style.left));
+ assert.ok(Math.abs(xBefore-xAfter)>1,'Gift box must move when the 3D tree turns');
+ await page.getByRole('button',{name:'1本目を左へ回転'}).click();
+ // Back-facing presents are hidden behind the tree and cannot be activated.
+ assert.ok(await page.locator('.gift-orbit-rear .santa-gift').count()>0);
+ assert.ok(await page.locator('.gift-orbit-front .santa-gift').count()>0);
+ const first=page.locator('.gift-orbit-front .santa-gift').first();
  await first.locator('button.gift-box').click();
  await page.waitForFunction(()=>document.querySelector('.santa-gift.is-open .gift-article img')?.src?.includes('assets.st-note.com'),null,{timeout:15000});
  const href=await first.locator('a.gift-article').getAttribute('href');
@@ -81,7 +95,7 @@ try{
  await page.waitForFunction(()=>document.querySelectorAll('.work-card').length===35,null,{timeout:15000});
  assert.equal(await page.locator('.santa-gift.is-open').count(),await page.locator('.santa-gift').count(),'All visible gifts open');
  assert.equal(errors.length,0,'Unexpected page errors: '+JSON.stringify(errors));
- console.log('GIFT_PREVIEW_BROWSER_PASS',JSON.stringify({sample:35,forests:forestCounts,firstTitle:title,firstHref:href,image}));
+ console.log('GIFT_PREVIEW_BROWSER_PASS',JSON.stringify({sample:35,forests:forestCounts,rotationX:[xBefore,xAfter],firstTitle:title,firstHref:href,image}));
 }finally{
  await browser.close();await new Promise(resolve=>server.close(resolve));
 }
