@@ -1,4 +1,4 @@
-import {noteArticleUrl,imageUrl,TREE_CAPACITY,SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftsForForest,grovePage,ornamentOrbit,projectOrbit,stepSway,clamp,AUTO_ROTATION_DEG_PER_SEC} from './tree-core.js';
+import {noteArticleUrl,imageUrl,TREE_CAPACITY,SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftsForForest,santaGiftOrbit,projectSantaGift,grovePage,ornamentOrbit,projectOrbit,stepSway,clamp,AUTO_ROTATION_DEG_PER_SEC} from './tree-core.js';
 const el=id=>document.getElementById(id);
 const archiveMode=document.body.dataset.mode==='archive';
 const giftPreviewMode=document.body.dataset.mode==='gift-preview';
@@ -73,11 +73,11 @@ function createTurningTree(canvas,theme,variant){
  let engine=null,disposed=false,pendingRotation=0,pendingSways=[];
  return {
    scene,
-   init(ornamentCount){
+   init(ornamentCount,giftCount=0){
      import('./tree3d.js').then(module=>{
        if(disposed)return;
        try{
-         engine=module.createRealChristmasTree(scene,canvas,ornamentCount,theme,variant);
+         engine=module.createRealChristmasTree(scene,canvas,ornamentCount,theme,variant,giftCount);
          // A first WebGL frame MUST be painted before the static artwork hides.
          // This also prevents an empty tree if initialization happens offscreen.
          engine.draw(pendingRotation,pendingSways);
@@ -127,7 +127,7 @@ function createOrnament(article,index){
  hanger.append(cord,link);slot.append(hanger);
  return {slot,hanger,link,orbit,sway:{angle:0,velocity:0},front:false};
 }
-function createOrbitController(canvas,ornaments,number,controls,art){
+function createOrbitController(canvas,ornaments,number,controls,art,gifts=[]){
  const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
  let reduced=motion.matches,rotation=(number*43)%360,velocity=0,previousVelocity=0;
  let previousFrame=0,frameId=0,visible=true,auto=!reduced,idleUntil=0;
@@ -155,7 +155,8 @@ function createOrbitController(canvas,ornaments,number,controls,art){
      }
    }
    // WebGL projects each DOM article link from its real 3D bauble position.
-   const coordinates=art.draw(rotation,ornaments.map(o=>o.sway.angle));
+   const projections=art.draw(rotation,ornaments.map(o=>o.sway.angle));
+   const coordinates=Array.isArray(projections)?projections:projections?.ornaments;
    for(let i=0;i<ornaments.length;i++){
      const o=ornaments[i],p=coordinates?.[i]||projectOrbit(o.orbit,rotation);
      o.slot.style.left=p.x.toFixed(3)+'%';
@@ -171,6 +172,26 @@ function createOrbitController(canvas,ornaments,number,controls,art){
        o.link.tabIndex=p.interactive?0:-1;
        o.link.setAttribute('aria-hidden',String(!p.interactive));
      }
+   }
+   // Present boxes share the same rotation as the real 3D tree. Projecting
+   // DOM links from tree-attached anchors keeps unwrapping accessible.
+   const projectedGifts=projections?.gifts;
+   for(let i=0;i<gifts.length;i++){
+     const g=gifts[i],p=projectedGifts?.[i]||
+      projectSantaGift(g.orbit,rotation,canvas.clientWidth/canvas.clientHeight);
+     if(!p)continue;
+     g.slot.style.left=p.x.toFixed(3)+'%';
+     g.slot.style.top=p.y.toFixed(3)+'%';
+     g.slot.style.opacity=p.opacity.toFixed(3);
+     g.slot.style.zIndex=String(p.zIndex);
+     g.slot.style.transform='translate(-50%,-100%) scale('+p.scale.toFixed(3)+')';
+     g.slot.style.pointerEvents=p.interactive?'auto':'none';
+     const destination=p.depth>-.08?art.giftFront:art.giftRear;
+     if(destination&&g.slot.parentNode!==destination)destination.append(g.slot);
+     g.slot.dataset.facing=p.interactive?'front':'rear';
+     g.box.tabIndex=p.interactive&&!g.slot.classList.contains('is-open')?0:-1;
+     const link=g.slot.querySelector('.gift-article');
+     if(link)link.tabIndex=p.interactive?0:-1;
    }
  }
  function frame(now){
@@ -252,7 +273,7 @@ function createOrbitController(canvas,ornaments,number,controls,art){
  right.addEventListener('click',turnRight);
  toggle.addEventListener('click',toggleAuto);
  motion.addEventListener?.('change',motionChanged);
- art.init(ornaments.length);
+ art.init(ornaments.length,gifts.length);
  showToggle();draw();frameId=requestAnimationFrame(frame);
  return {destroy(){
    disposed=true;cancelAnimationFrame(frameId);observer?.disconnect();art.destroy();
@@ -322,7 +343,7 @@ function renderTree(){
  text(el('tree-stage'),layout.totalTrees+'本のツリー / 1本48作品・12プレゼントまで');
  el('stage-fill').style.width=count?((count-1)%TREE_CAPACITY+1)/TREE_CAPACITY*100+'%':'0%';
  const description=document.querySelector('.tree-bottom>p');
- if(description)text(description,'✦ 3Dツリーを360°回転。飾りはnoteへ、足元のプレゼントはタップして開封 ✦');
+ if(description)text(description,'✦ ツリーとプレゼントが一緒に360°回転。正面に来たプレゼントをタップして開封 ✦');
  text(el('works-title'),'このツリーに飾られた作品');
  const grove=el('tree-grove');grove.replaceChildren();
  for(const unit of layout.trees){
@@ -361,21 +382,29 @@ function renderTree(){
   right.setAttribute('aria-label',unit.number+'本目を右へ回転');
   controls.append(left,toggle,right);
   const hint=make('p','orbit-hint',unitGifts.length
-   ?'ツリーを回してオーナメントを見つけよう。下のプレゼントはタップで開封！'
+   ?'ツリーと一緒にプレゼントも回転！ 正面に来た箱をタップして開封しよう'
    :'3Dツリーを360°回転 · 飾りをタップしてnoteへ');
-  card.append(caption,canvas);
+  const giftEntries=[];
+  const giftRear=make('div','gift-orbit-layer gift-orbit-rear');
+  giftRear.setAttribute('aria-hidden','true');
+  const giftFront=make('div','gift-orbit-layer gift-orbit-front');
+  giftFront.setAttribute('aria-label',p.name+'のツリーの根元のプレゼント');
   if(unitGifts.length){
-   const floor=make('div','santa-gift-floor');
-   floor.setAttribute('aria-label',p.name+'のツリーに届いた'+unitGifts.length+'個のプレゼント');
    unitGifts.forEach((article,i)=>{
     const gift=createSantaGift(article,(unit.number-1)*SANTA_GIFT_CAPACITY+i);
-    if(gift)floor.append(gift);
+    const orbit=santaGiftOrbit(i);
+    if(gift&&orbit){
+     gift.classList.add('orbiting-gift');
+     giftFront.append(gift);
+     giftEntries.push({slot:gift,orbit,box:gift.querySelector('.gift-box')});
+    }
    });
-   card.append(floor);
+   // Both gift layers sit INSIDE the 3D tree projection surface, not below it.
+   canvas.append(giftRear,giftFront);
   }
-  card.append(controls,hint);grove.append(card);
+  card.append(caption,canvas,controls,hint);grove.append(card);
   orbitControllers.push(createOrbitController(canvas,ornaments,unit.number,
-   {left,toggle,right},{...artwork,rear,front}));
+   {left,toggle,right},{...artwork,rear,front,giftRear,giftFront},giftEntries));
  }
  const paging=el('tree-paging');paging.hidden=layout.pages<=1;
  text(el('tree-page-label'),(layout.page+1)+' / '+layout.pages+' エリア');
