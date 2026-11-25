@@ -424,3 +424,23 @@ body[data-mode="gift-preview"] .santa-gift-floor{
  .gift-orbit-layer .santa-gift{will-change:auto}
 }
 
+
+
+/* The only snow circle during WebGL rendering is the REAL 3D ground mesh.
+   Never paint an unrelated CSS ellipse under orbiting gifts. */
+.tree-canvas[data-rendering="webgl-3d"][data-has-gifts="true"]::before{
+ display:none;
+}
+.preview-mix-summary{
+ max-width:730px;display:flex;justify-content:center;flex-wrap:wrap;
+ gap:8px 14px;margin:17px auto 0;color:#f9e8c7;
+ font-size:13px;line-height:1.75;
+}
+.preview-mix-summary span{
+ display:inline-block;padding:7px 13px;
+ background:#173039b8;border:1px solid #d9c18c73;border-radius:99px;
+}
+.preview-mix-summary strong{color:#ffe3a0}
+@media(max-width:650px){
+ .preview-mix-summary{align-items:center;flex-direction:column;font-size:12px}
+}
