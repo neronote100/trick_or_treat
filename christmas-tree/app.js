@@ -2,6 +2,7 @@ import {noteArticleUrl,imageUrl,TREE_CAPACITY,SANTA_GIFT_CAPACITY,SANTA_FOREST_I
 const el=id=>document.getElementById(id);
 const archiveMode=document.body.dataset.mode==='archive';
 const giftPreviewMode=document.body.dataset.mode==='gift-preview';
+const autumnPreviewMode=giftPreviewMode&&new URLSearchParams(location.search).get('ornaments')==='autumn';
 // The P1 demonstration must never affect real Santa open-state history.
 const GIFT_STORAGE_KEY=giftPreviewMode?'heartful-tree:p1-gift-preview:opened:v1':'christmas-kingdom-2026:santa-opened:v1';
 const state={config:null,articles:[],selected:'letter',page:0,query:'',openedGifts:new Set()};
@@ -419,7 +420,7 @@ function renderTree(){
 function renderWorks(){
  // Santa articles are intentionally excluded here until a person opens a box.
  // Their links and thumbnails are revealed inside their assigned gift box only.
- const all=giftPreviewMode?state.articles.filter(wasGiftOpened):articlesFor(state.selected);
+ const all=giftPreviewMode?state.articles.filter(a=>a.project_id==='santa'&&wasGiftOpened(a)):articlesFor(state.selected);
  const items=all.filter(x=>
   (String(x.title||'')+' '+String(x.author||'')).toLocaleLowerCase('ja').includes(state.query));
  const list=el('work-list');list.replaceChildren();
@@ -432,15 +433,16 @@ function renderWorks(){
   if(a.featured_by)detail.append(make('em','featured-note','✦ '+a.featured_by+'さんのおすすめ'));
   link.append(thumb,detail);list.append(link);
  }
- text(el('work-total'),giftPreviewMode?all.length+' / '+state.articles.length+' 個 開封済み':items.length+' 作品');
+ text(el('work-total'),giftPreviewMode?all.length+' / '+state.articles.filter(a=>a.project_id==='santa').length+' 個 開封済み':items.length+' 作品');
  el('work-empty').hidden=items.length!==0;
  text(el('work-empty'),state.query?'検索条件に合う作品がありません。':
   giftPreviewMode?'プレゼントを開けると、その記事がここにも表示されます🎁':'このツリーのオーナメント作品を待っています。サンタのプレゼントはツリーの下に届きます🎁');
 }
 
 function render(){
- const uniqueAuthors=new Set(state.articles.map(x=>(x.author_id||x.author||'').trim()).filter(Boolean));
- text(el('all-works'),state.articles.length);text(el('all-authors'),uniqueAuthors.size);
+ const featured=giftPreviewMode?state.articles.filter(x=>x.project_id==='santa'):state.articles;
+ const uniqueAuthors=new Set(featured.map(x=>(x.author_id||x.author||'').trim()).filter(Boolean));
+ text(el('all-works'),featured.length);text(el('all-authors'),uniqueAuthors.size);
  text(el('all-trees'),giftPreviewMode?visibleForests().length:state.config.projects.length);
  buildNavigation();renderTree();renderWorks();
 
@@ -498,6 +500,28 @@ async function init(){
    if(!r.ok)throw Error('ornament data unavailable');
    const data=await r.json();
    state.articles=(Array.isArray(data.articles)?data.articles:[]).filter(x=>noteArticleUrl(x.url) && state.config.projects.some(p=>p.id===x.project_id));
+    if(autumnPreviewMode){
+     // Real archived #秋読コレクション note articles, NOT event entries.
+     // Keep 48 autumn ornaments on tree 1 and 2, and the remainder on tree 3.
+     const a=await fetch('./data/archive.json',{cache:'no-store'});
+     if(!a.ok)throw Error('秋読コレクション archive unavailable');
+     const historic=await a.json();
+     const autumn=(Array.isArray(historic.articles)?historic.articles:[])
+      .filter(x=>x.project_id==='autumn-reading'&&noteArticleUrl(x.url)&&imageUrl(x.thumbnail))
+      .slice(0,TREE_CAPACITY*SANTA_FOREST_IDS.length);
+     const mapped=autumn.map((article,i)=>({
+      ...article,project_id:SANTA_FOREST_IDS[Math.floor(i/TREE_CAPACITY)]
+     }));
+     state.articles.push(...mapped);
+     document.body.dataset.ornamentPreview='autumn';
+     const info=el('autumn-preview-info');
+     if(info){
+      info.hidden=false;
+      text(info,'🍁 秋読コレクション '+mapped.length+
+       '作品を実際のオーナメントとして表示中（48件＋48件＋残り）。'+
+       ' #王子ごっこP1 の35作品は地面のプレゼントです。すべて表示テスト専用です。');
+     }
+    }
   }catch{
    const info=make('p','system-notice','作品データを読み込めませんでした。時間をおいて再読み込みしてください。');
    document.querySelector('.forest').append(info);
@@ -505,7 +529,7 @@ async function init(){
   render();
   if(giftPreviewMode){
    el('open-all-preview-gifts')?.addEventListener('click',()=>{
-    state.openedGifts=new Set(state.articles.map(a=>noteArticleUrl(a.url)).filter(Boolean));
+    state.openedGifts=new Set(state.articles.filter(a=>a.project_id==='santa').map(a=>noteArticleUrl(a.url)).filter(Boolean));
     try{localStorage.setItem(GIFT_STORAGE_KEY,JSON.stringify([...state.openedGifts]));}catch{}
     render();
    });
