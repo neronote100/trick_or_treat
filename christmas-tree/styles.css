@@ -371,6 +371,22 @@ body[data-mode="archive"] .hero .eyebrow{color:#f1cc95}
  font-size:12px;line-height:1.95;
 }
 .preview-disclaimer strong{color:#ffe6b1}
+.preview-autumn-info{
+ max-width:780px;margin:14px auto;padding:12px 15px;
+ font-size:12px;line-height:1.85;
+ color:#ffe8c4;border:1px solid #ddac66b5;border-radius:13px;
+ background:linear-gradient(110deg,#573f376e,#282c3bcb);
+}
+.preview-autumn-info[hidden]{display:none}
+.preview-autumn-link{
+ display:inline-flex;align-items:center;justify-content:center;
+ text-decoration:none;min-height:43px;padding:8px 15px;
+ color:#fff0d5;border:1px solid #efc08488;border-radius:99px;
+ background:#382b3c8f;font-size:12px;
+}
+.preview-autumn-link:hover,.preview-autumn-link:focus-visible{
+ border-color:#ffe5b1;color:#fff;box-shadow:0 0 20px #f8c4743d;
+}
 .gift-preview-actions{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:27px auto 0}
 .gift-preview-actions .primary-pill{margin:0}
 .gift-preview-actions .orbit-button{min-height:43px;font-size:12px}
