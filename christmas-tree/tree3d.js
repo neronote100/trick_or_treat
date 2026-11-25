@@ -4,7 +4,7 @@
 // The note article images remain DOM links projected from matching 3D anchors
 // so they can open in the browser without cross-origin canvas texture problems.
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import {ornamentOrbit,santaGiftOrbit,TREE_CAMERA,TREE_CANOPY_LIFT,GIFT_GROUND_Y} from './tree-core.js';
+import {ornamentOrbit,santaGiftOrbit,TREE_CAMERA,TREE_CANOPY_LIFT,GIFT_GROUND_Y,SNOW_PLATFORM_RADIUS} from './tree-core.js';
 
 const DEG=Math.PI/180;
 const UP=new THREE.Vector3(0,1,0);
@@ -276,9 +276,45 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
   anchor.position.set(orbit.worldRadius*Math.sin(angle),orbit.worldY,orbit.worldRadius*Math.cos(angle));
   tree.add(anchor);giftAnchors.push(anchor);
  }
- const ground=new THREE.Mesh(new THREE.CircleGeometry(3.2,48),
-   new THREE.MeshBasicMaterial({color:palette?.ground??0x9cc7dc,transparent:true,opacity:.10,side:THREE.DoubleSide}));
- ground.rotation.x=-Math.PI/2;ground.position.y=GIFT_GROUND_Y-.025;scene.add(ground);
+ // A single physical snowy circle, shared by the trunk and ALL gift anchors.
+ // Its near edge remains inside the camera viewport even on tall phones.
+ const ground=new THREE.Mesh(new THREE.CircleGeometry(SNOW_PLATFORM_RADIUS,96),
+   new THREE.MeshBasicMaterial({
+    color:palette?.ground??0xc9dfde,transparent:true,opacity:.24,
+    side:THREE.DoubleSide,depthWrite:false
+   }));
+ ground.name='snow-platform';
+ ground.rotation.x=-Math.PI/2;
+ ground.position.y=GIFT_GROUND_Y-.032;
+ scene.add(ground);
+ // A delicate perimeter makes it obvious that presents rest on one surface.
+ const rim=new THREE.Mesh(
+  new THREE.RingGeometry(SNOW_PLATFORM_RADIUS-.055,SNOW_PLATFORM_RADIUS,96),
+  new THREE.MeshBasicMaterial({
+   color:0xf5ebd9,transparent:true,opacity:.42,
+   side:THREE.DoubleSide,depthWrite:false
+  }));
+ rim.name='snow-platform-rim';
+ rim.rotation.x=-Math.PI/2;
+ rim.position.y=GIFT_GROUND_Y-.029;
+ scene.add(rim);
+ // Contact shadows are on the SAME rotating tree group as their boxes.
+ const shadowGeo=new THREE.CircleGeometry(.31,28);
+ const shadowMat=new THREE.MeshBasicMaterial({
+  color:0x0a1e26,transparent:true,opacity:.34,side:THREE.DoubleSide,
+  depthWrite:false
+ });
+ for(let i=0;i<giftAnchors.length;i++){
+  const orbit=santaGiftOrbit(i),angle=orbit.angle*DEG;
+  const shadow=new THREE.Mesh(shadowGeo,shadowMat);
+  shadow.name='gift-contact-shadow';
+  shadow.rotation.x=-Math.PI/2;
+  shadow.position.set(
+   orbit.worldRadius*Math.sin(angle),GIFT_GROUND_Y-.012,
+   orbit.worldRadius*Math.cos(angle)
+  );
+  tree.add(shadow);
+ }
  let disposed=false,w=0,h=0;
  const working=new THREE.Vector3(),projected=new THREE.Vector3();
  function resize(){
@@ -322,7 +358,7 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
      return {
       x,y,depth,
       interactive:depth>-.08&&projected.z<1&&projected.z>-1&&x>7&&x<93&&y>73&&y<99,
-      opacity:depth>-.08?1:.25,
+      opacity:depth>-.08?1:0,
       zIndex:Math.round(50+depth*12),
       scale:Math.min(1.18,Math.max(.72,.94*TREE_CAMERA.z/dist))
      };
