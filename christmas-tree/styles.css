@@ -253,131 +253,74 @@ body[data-forest-variant="2"] .tree-panel {--page-glow:#d89bb52a}
  background:radial-gradient(ellipse at 50% 88%,#ffefcf21 0%,transparent 43%),
   radial-gradient(ellipse at 50% 47%,transparent 53%,#06181c71 100%);
 }
-.tree-panel[data-theme="confession-essay"] .santa-gift-floor{
- border-color:#a4b7dd74;
- background:radial-gradient(ellipse at 50% 1%,#e4d0ed35,transparent 61%),
-  linear-gradient(180deg,#38486aeb,#192940ec 75%,#101b37f4);
-}
-.tree-panel[data-theme="confession-illustration"] .santa-gift-floor{
- border-color:#d9b5e889;
- background:radial-gradient(ellipse at 50% 1%,#f7d7eb50,transparent 63%),
-  linear-gradient(180deg,#5b477deb,#312a50f0 74%,#1b1836f4);
-}
-.tree-panel[data-theme="christmas-card"] .santa-gift-floor{
- border-color:#efcd8c88;
- background:radial-gradient(ellipse at 50% 1%,#fff4cd40,transparent 61%),
-  linear-gradient(180deg,#315d4cdb,#193a35ed 74%,#0d2424f5);
-}
-.santa-gift-floor{
- position:relative;z-index:7;
- display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:end;
- gap:10px 9px;
- min-height:152px;margin:-28px 1px 0;
- padding:30px 12px 17px;border-radius:18px;
- border:1px solid #ead5aa40;
- background:radial-gradient(ellipse at 50% 1%,#e3f3e93e 0%,transparent 60%),linear-gradient(180deg,#34544aeb,#142a2dea 75%,#0b1d23f4);
- box-shadow:0 -9px 35px #b7dfd91b,0 17px 28px #0005;
-}
-.santa-gift-floor::before{
- content:"";position:absolute;left:5%;right:5%;top:2px;height:15px;pointer-events:none;
- border-radius:50%;background:radial-gradient(ellipse,#eaf8e77a,transparent 70%);
-}
+.tree-panel[data-theme="confession-essay"] /* Wrapped presents share their face shape with the revealed article thumbnail.
+   No lid opens upward; the gift simply flips its front face into an image. */
 .santa-gift{
  --wrap:#aa3d50;--ribbon:#f9dd9f;--wrap-edge:#5c203b;
- position:relative;min-width:0;height:178px;
- display:flex;justify-content:flex-end;align-items:center;flex-direction:column;
- animation:santa-delivery .48s ease-out backwards;
+ position:relative;min-width:0;
 }
 .santa-gift[data-wrap="1"]{--wrap:#278e83;--ribbon:#f8db9c;--wrap-edge:#175e5b}
 .santa-gift[data-wrap="2"]{--wrap:#e0bb73;--ribbon:#a43855;--wrap-edge:#92723c}
 .santa-gift[data-wrap="3"]{--wrap:#81619e;--ribbon:#f6d3a0;--wrap-edge:#44365f}
 .santa-gift[data-wrap="4"]{--wrap:#c16c65;--ribbon:#ffe7b0;--wrap-edge:#743e46}
 .santa-gift[data-wrap="5"]{--wrap:#4b86ab;--ribbon:#fff2c6;--wrap-edge:#275171}
-.santa-gift:nth-child(2n){animation-delay:.06s}
-.santa-gift:nth-child(3n){animation-delay:.12s}
-@keyframes santa-delivery{
- from{opacity:0;transform:translateY(-13px) scale(.91)}
- to{opacity:1;transform:translateY(0) scale(1)}
+.gift-flip{
+ position:absolute;left:5%;right:5%;bottom:0;aspect-ratio:1;
+ transform-style:preserve-3d;
+ transition:transform .56s cubic-bezier(.23,.8,.3,1);
+}
+.gift-box,.gift-reveal{
+ position:absolute;inset:0;display:block;
+ border-radius:6px;overflow:hidden;
+ backface-visibility:hidden;-webkit-backface-visibility:hidden;
 }
 .gift-box{
- position:absolute;inset:0;width:100%;height:100%;
- padding:0;background:none;border:0;cursor:pointer;
- filter:drop-shadow(0 7px 5px #0006);
+ padding:0;border:1px solid #fff4cc9c;
+ background:linear-gradient(130deg,var(--wrap),var(--wrap-edge));
+ cursor:pointer;box-shadow:inset 2px 3px 0 #fff4,0 7px 12px #0009;
 }
-.gift-box:focus-visible{outline:3px solid #ffe2a3;outline-offset:2px;border-radius:7px}
+.gift-box:focus-visible,.gift-article:focus-visible{outline:3px solid #ffe7b4;outline-offset:3px}
 .gift-box:disabled{opacity:1;cursor:default}
-.gift-body,.gift-lid,.gift-ribbon-v,.gift-ribbon-h,.gift-bow{position:absolute;display:block;pointer-events:none}
-.gift-body{
- left:10%;right:10%;bottom:26px;height:62px;
- background:linear-gradient(120deg,var(--wrap),var(--wrap-edge));
- border:1px solid #fff5ca55;border-radius:3px 3px 8px 8px;
- box-shadow:inset 0 -6px 0 #0002,inset 2px 0 #fff5;
-}
-.gift-lid{
- z-index:4;left:6%;right:6%;bottom:82px;height:22px;
- background:linear-gradient(115deg,var(--wrap),var(--wrap-edge));
- border:1px solid #fff8d18a;border-radius:5px 5px 2px 2px;
- box-shadow:0 3px 6px #0004;
- transform-origin:16% 85%;
- transition:transform .68s cubic-bezier(.16,.82,.27,1.07);
-}
+.gift-body{position:absolute;inset:0;display:block;pointer-events:none;background:linear-gradient(130deg,#fff2 0%,transparent 39%,#0002 100%)}
+.gift-ribbon-v,.gift-ribbon-h,.gift-bow{display:block;position:absolute;pointer-events:none}
 .gift-ribbon-v{
- z-index:2;left:46%;width:8%;bottom:26px;height:78px;
- background:linear-gradient(90deg,#0002,var(--ribbon),#fff5);
+ left:43%;top:0;bottom:0;width:14%;
+ background:linear-gradient(90deg,#0003,var(--ribbon) 38%,#fff9 59%,var(--ribbon));
+ box-shadow:0 0 4px #0003;
 }
 .gift-ribbon-h{
- z-index:2;left:9%;right:9%;bottom:55px;height:12px;
- background:linear-gradient(#fff6,var(--ribbon) 35%,#0001);
+ left:0;right:0;top:43%;height:14%;
+ background:linear-gradient(#fff8,var(--ribbon) 30%,#0003);
 }
 .gift-bow{
- z-index:5;left:50%;bottom:104px;width:16px;height:12px;
- transform:translateX(-50%);border-radius:50%;background:var(--ribbon);
- box-shadow:-11px -3px 0 -2px var(--ribbon),11px -3px 0 -2px var(--ribbon);
- transition:transform .68s cubic-bezier(.16,.82,.27,1.07);
+ z-index:3;top:11%;left:50%;width:24%;height:15%;
+ transform:translateX(-50%);border-radius:90% 40% 90% 40%;
+ background:var(--ribbon);box-shadow:-6px 2px 0 -1px #fff9,6px 2px 0 -1px var(--ribbon);
 }
 .gift-reveal{
- position:absolute;z-index:3;top:3px;left:12%;right:12%;
- opacity:0;transform:translateY(36px) scale(.74);pointer-events:none;
- transition:opacity .4s ease .18s,transform .58s cubic-bezier(.2,.8,.2,1) .13s;
+ opacity:1;pointer-events:none;transform:rotateY(180deg);
+ background:#182d35;box-shadow:0 5px 17px #0008;
+ border:2px solid #f5dba7;
 }
-.gift-article{display:block;color:#fff5e6;text-decoration:none;outline-offset:5px}
-.gift-thumbnail{
- display:block;width:100%;aspect-ratio:1;border:2px solid #ffe1aa;
- border-radius:6px;box-shadow:0 4px 16px #0009,0 0 13px #ffe1aa53;
- overflow:hidden;background:#62546c;
-}
+.gift-article{position:absolute;inset:0;display:block;text-decoration:none;outline-offset:3px}
+.gift-thumbnail{position:absolute;inset:0;display:block;overflow:hidden;background:#62546c}
 .gift-thumbnail img,.gift-thumbnail .fallback{display:block;width:100%;height:100%;object-fit:cover}
-.gift-thumbnail .fallback{display:grid;place-items:center;font-size:20px}
+.gift-thumbnail .fallback{display:grid;place-items:center;color:#fff1c1;font-size:19px}
 .gift-article-title{
- display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
- color:#fff3df;font-size:10px;line-height:1.3;margin-top:3px;min-height:25px;
- overflow-wrap:anywhere;text-shadow:0 1px 4px #000;
+ position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+ clip:rect(0,0,0,0);white-space:nowrap;border:0;
 }
-.gift-number{font:10px Georgia,serif;letter-spacing:.08em;color:#f7dca8;margin-top:5px;z-index:5}
-.santa-gift.is-open .gift-lid{transform:translateY(-87px) rotate(-14deg)}
-.santa-gift.is-open .gift-bow{transform:translate(-50%,-87px) rotate(-14deg)}
-.santa-gift.is-open .gift-reveal{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
-.santa-gift.gift-restored,.santa-gift.gift-restored *{animation:none!important;transition:none!important}
-.santa-gift-empty{
- grid-column:1 / -1;text-align:center;color:#ffe6b7;
- font-size:13px;line-height:1.8;padding:36px 8px;margin:0;
+.gift-number{
+ position:absolute;left:50%;bottom:3px;z-index:6;transform:translateX(-50%);
+ font:8px Georgia,serif;letter-spacing:.02em;color:#ffe4a8;
+ text-shadow:0 1px 4px #111c25;
+ pointer-events:none;white-space:nowrap;
 }
-@media(max-width:650px){
- .santa-gift-floor{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:29px 6px 13px;margin-top:-18px}
- .santa-gift{height:153px}
- .gift-body{height:52px;bottom:26px}
- .gift-lid{bottom:72px;height:18px}
- .gift-ribbon-v{bottom:26px;height:63px}
- .gift-ribbon-h{bottom:47px;height:10px}
- .gift-bow{bottom:89px;width:14px}
- .santa-gift.is-open .gift-lid{transform:translateY(-65px) rotate(-14deg)}
- .santa-gift.is-open .gift-bow{transform:translate(-50%,-65px) rotate(-14deg)}
- .gift-article-title{font-size:9px}
-}
-@media(prefers-reduced-motion:reduce){
- .santa-gift{animation:none}
- .santa-gift .gift-lid,.santa-gift .gift-bow,.santa-gift .gift-reveal{transition:none}
-}
+.santa-gift.is-open .gift-flip{transform:rotateY(180deg)}
+.santa-gift.is-open .gift-reveal{pointer-events:auto}
+.santa-gift.is-open .gift-number{opacity:0}
+.santa-gift.gift-restored .gift-flip{transition:none}
+@media(prefers-reduced-motion:reduce){.gift-flip{transition:none}}
 
 /* HEARTFUL TREE — warm starlight wordmark inspired by the official visual.
    Use text rather than a baked-in image to remain crisp on mobile. */
@@ -448,50 +391,36 @@ body[data-mode="gift-preview"] .santa-gift-floor{
  .gift-preview-hero{padding-bottom:39px}
 }
 
-/* SANTA'S ROTATING GROUND — boxes share the 3D tree's world-space rotation.
-   Separate near/far layers let the tree genuinely occlude its rear presents. */
-.gift-orbit-layer{
- position:absolute;inset:0;pointer-events:none;isolation:isolate;
-}
+/* GROUND-LEVEL SANTA GIFTS
+   The DOM box bottom is its projected world-space contact point on the snow.
+   The Three.js ground and gift anchors are at the same height. */
+.gift-orbit-layer{position:absolute;inset:0;pointer-events:none;isolation:isolate}
 .gift-orbit-rear{z-index:2}
 .gift-orbit-front{z-index:7}
 .gift-orbit-layer .santa-gift{
- position:absolute;width:15%;max-width:86px;min-width:45px;height:122px;
- min-height:0;margin:0;pointer-events:auto;
- animation:none;transform-origin:50% 100%;
- will-change:transform,left,top,opacity;
+ position:absolute;width:12.4%;max-width:64px;min-width:30px;height:65px;
+ margin:0;pointer-events:auto;animation:none;
+ transform-origin:50% 100%;will-change:transform,left,top,opacity;
+}
+.gift-orbit-layer .santa-gift::after{
+ content:"";position:absolute;z-index:-1;left:13%;right:13%;bottom:-3px;height:8px;
+ border-radius:50%;background:#030b0aab;filter:blur(3px);pointer-events:none;
 }
 .gift-orbit-layer .santa-gift[data-facing="rear"]{pointer-events:none}
-.gift-orbit-layer .gift-box{
- touch-action:pan-y;
-}
-.gift-orbit-layer .gift-body{height:53px;bottom:21px}
-.gift-orbit-layer .gift-lid{bottom:69px;height:17px}
-.gift-orbit-layer .gift-ribbon-v{bottom:21px;height:65px}
-.gift-orbit-layer .gift-ribbon-h{bottom:43px;height:10px}
-.gift-orbit-layer .gift-bow{bottom:86px;width:14px}
-.gift-orbit-layer .santa-gift.is-open .gift-lid{transform:translateY(-53px) rotate(-14deg)}
-.gift-orbit-layer .santa-gift.is-open .gift-bow{transform:translate(-50%,-53px) rotate(-14deg)}
-.gift-orbit-layer .gift-reveal{top:2px;left:10%;right:10%}
-.gift-orbit-layer .gift-thumbnail{border-width:1.5px}
-.gift-orbit-layer .gift-article-title{font-size:9px;line-height:1.2;min-height:22px}
-.gift-orbit-layer .gift-number{font-size:9px;margin-top:0}
+.gift-orbit-layer .gift-box{touch-action:pan-y}
+.gift-orbit-layer .gift-flip{bottom:0}
+.gift-orbit-layer .gift-number{bottom:4px}
 .tree-canvas[data-has-gifts="true"]::before{
- content:"";position:absolute;left:10%;right:10%;bottom:10%;height:13%;
+ content:"";position:absolute;left:7%;right:7%;bottom:1.5%;height:18%;
  z-index:1;pointer-events:none;border-radius:50%;
- background:radial-gradient(ellipse,#e4eff05a 0%,#bfd8d035 29%,transparent 71%);
+ background:radial-gradient(ellipse,#e7f0e575 0%,#cadfe04b 32%,transparent 71%);
 }
 @media(max-width:650px){
- .gift-orbit-layer .santa-gift{width:15.8%;max-width:69px;min-width:40px;height:110px}
- .gift-orbit-layer .gift-body{height:44px;bottom:19px}
- .gift-orbit-layer .gift-lid{bottom:59px;height:15px}
- .gift-orbit-layer .gift-ribbon-v{bottom:19px;height:55px}
- .gift-orbit-layer .gift-ribbon-h{bottom:39px;height:9px}
- .gift-orbit-layer .gift-bow{bottom:74px}
- .gift-orbit-layer .santa-gift.is-open .gift-lid{transform:translateY(-44px) rotate(-14deg)}
- .gift-orbit-layer .santa-gift.is-open .gift-bow{transform:translate(-50%,-44px) rotate(-14deg)}
- .gift-orbit-layer .gift-article-title{font-size:8px;min-height:18px}
+ .gift-orbit-layer .santa-gift{width:12.8%;max-width:52px;min-width:28px;height:48px}
+ .gift-orbit-layer .gift-flip{left:3%;right:3%}
+ .gift-orbit-layer .gift-number{font-size:7px;bottom:2px}
 }
 @media(prefers-reduced-motion:reduce){
  .gift-orbit-layer .santa-gift{will-change:auto}
 }
+
