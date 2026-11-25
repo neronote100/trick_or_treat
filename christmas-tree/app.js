@@ -397,6 +397,10 @@ function renderTree(){
     const orbit=santaGiftOrbit(i);
     if(gift&&orbit){
      gift.classList.add('orbiting-gift');
+     // CSS inheritance can leave gift cards position:relative on mobile.
+     // Force absolute placement, or every subsequent parcel stacks BELOW
+     // its projected ground contact point even if the 3D math is correct.
+     gift.style.setProperty('position','absolute','important');
      giftFront.append(gift);
      giftEntries.push({slot:gift,orbit,box:gift.querySelector('.gift-box')});
     }
