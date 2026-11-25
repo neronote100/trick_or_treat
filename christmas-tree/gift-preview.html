@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#101c39">
 <meta name="robots" content="noindex,nofollow">
-<meta name="description" content="HEARTFUL TREE プレゼント開封表示テスト。公開ハッシュタグ #王子ごっこP1 のnote作品を使って、サンタのプレゼントの見た目と動作を確認する試験ページです。">
-<title>プレゼント開封テスト｜#王子ごっこP1｜HEARTFUL TREE</title>
+<meta name="description" content="HEARTFUL TREE プレゼント開封表示テスト。秋読コレクションの実際のnote作品をオーナメントに、#王子ごっこP1の記事をプレゼントに使い、雪の円と開封動作を確認する試験ページです。">
+<title>秋読コレクション × 王子ごっこP1｜ツリー＆プレゼント検証｜HEARTFUL TREE</title>
 <link rel="stylesheet" href="./styles.css">
 </head>
 <body data-mode="gift-preview">
@@ -18,12 +18,13 @@
 <main>
  <section class="hero gift-preview-hero">
   <p class="eyebrow">HEARTFUL TREE · SANTA GIFT LAB</p>
-  <p class="hero-mini">🎅 サンタさんのプレゼント表示テスト</p>
+  <p class="hero-mini">🍁 秋読コレクション × 🎁 王子ごっこP1</p>
   <h1>ツリーの下に届いた<br><em>贈り物を開けてみよう。</em></h1>
-  <p class="hero-desc">公開ハッシュタグ <strong>#王子ごっこP1</strong> の記事を使った表示サンプルです。<br>赤いリボンの箱をタップすると、記事のサムネイルが現れます。</p>
-  <p class="preview-disclaimer"><strong>これは検証専用ページです。</strong>記事の作者がHEARTFUL TREEのサンタさん企画に参加したという意味ではありません。通常の応募作品には追加していません。</p>
+  <p class="hero-desc"><strong>秋読コレクション</strong>の公開作品をツリーのオーナメントに、<br><strong>#王子ごっこP1</strong> の記事を地面のプレゼントにしています。箱を開くと正面が記事サムネイルに変わります。</p>
+  <p class="preview-disclaimer"><strong>これは検証専用ページです。</strong>秋読コレクション・王子ごっこP1の作者がHEARTFUL TREEに参加したという意味ではありません。既存の公開記事の画像とリンクだけを表示し、通常の企画には追加していません。</p>
+  <p class="preview-mix-summary"><span>🍁 <strong id="preview-ornament-count">0</strong>件の秋読コレクション作品をオーナメントに</span><span>🎁 <strong id="preview-present-count">0</strong>件の王子ごっこP1作品をプレゼントに</span></p>
   <div class="hero-stats">
-   <div><strong id="all-works">0</strong><span>テスト記事</span></div><i></i>
+   <div><strong id="all-works">0</strong><span>表示作品（合計）</span></div><i></i>
    <div><strong id="all-authors">0</strong><span>作者</span></div><i></i>
    <div><strong id="all-trees">3</strong><span>配送先の森</span></div>
   </div>
@@ -32,10 +33,10 @@
    <button type="button" class="orbit-button" id="open-all-preview-gifts">🎁 すべて開封して確認</button>
    <button type="button" class="orbit-button" id="reset-preview-gifts">↻ 未開封に戻してテスト</button>
   </div>
-  <p class="preview-asof">2026年11月24日に取得した公開記事のスナップショット。新しい投稿は自動追加されません。</p>
+  <p class="preview-asof">王子ごっこP1のプレゼントは2026年11月24日の35件のスナップショット、オーナメントは過去企画の秋読コレクション公開アーカイブから表示しています。実際のHEARTFUL TREE応募作品には含まれません。</p>
  </section>
  <section class="forest" id="forest" aria-labelledby="forest-title">
-  <div class="section-head"><p class="eyebrow">SANTA'S SECRET DELIVERY</p><h2 id="forest-title">サンタさんは、どの木に届けた？</h2><p>3つのオーナメントツリーの下へ、記事のプレゼントをランダム風に配置しています。<br>企画を切り替えて、届いた箱を開けてみよう。</p></div>
+  <div class="section-head"><p class="eyebrow">SANTA'S SECRET DELIVERY</p><h2 id="forest-title">サンタさんは、どの木に届けた？</h2><p>3つの森の木に秋読コレクション作品を飾り、地面の円に王子ごっこP1のプレゼントを置きました。<br>木を回して、オーナメントと箱の位置関係を確認しよう。</p></div>
   <div class="project-grid" id="project-nav" role="group" aria-label="プレゼントの配送先を選ぶ"></div>
  </section>
  <section class="tree-panel" id="tree-panel" data-theme="confession-essay" aria-labelledby="tree-title">
@@ -48,7 +49,7 @@
   </div>
   <div class="tree-grove" id="tree-grove" aria-label="3Dツリーの下のプレゼントボックス"></div>
   <div class="tree-bottom">
-   <p>🎁 プレゼントを開けよう。サムネイルをタップするとnoteへ移動します。</p>
+   <p>🍁 秋読コレクションのオーナメントと、🎁 王子ごっこP1のプレゼント。地面の円の内側を一緒に回ります。</p>
    <div class="tree-paging" id="tree-paging" role="navigation" aria-label="森のページ切り替え" hidden>
     <button type="button" id="prev-tree">前の森</button><span id="tree-page-label" aria-live="polite"></span><button type="button" id="next-tree">次の森</button>
    </div>
@@ -58,7 +59,7 @@
   <div class="section-head"><p class="eyebrow">UNWRAPPED GIFTS</p><h2 id="works-title">開封したプレゼントの中身</h2><p>箱を開けた記事だけを一覧に表示します。別の森で開けた作品もここに集まります。</p></div>
   <div class="work-tools">
    <label for="search">開封済みの記事を検索</label>
-   <input id="search" type="search" placeholder="作品名・作者名で探す">
+   <input id="search" type="search" placeholder="開封したプレゼントを検索">
    <span id="work-total">0 / 0 個 開封済み</span>
   </div>
   <div class="work-list" id="work-list"></div>
