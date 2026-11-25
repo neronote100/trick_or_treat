@@ -26,6 +26,33 @@ export const RING_TIERS=Object.freeze([
 export const TREE_CAPACITY=RING_TIERS.reduce((n,t)=>n+t.count,0);
 // Santa gifts sit on the snowy ground rather than on ornament orbits.
 export const SANTA_GIFT_CAPACITY=12;
+// These gift positions are tied to the SAME Y-axis rotation as the real 3D tree.
+// The fallback projection mirrors the WebGL camera (38° FOV, camera z=13.2).
+export function santaGiftOrbit(index){
+ if(!Number.isInteger(index)||index<0||index>=SANTA_GIFT_CAPACITY)return null;
+ return {
+  angle:8+index*360/SANTA_GIFT_CAPACITY,
+  worldRadius:2.25+(index%3)*0.09,
+  worldY:0.38+(index%2)*0.05
+ };
+}
+export function projectSantaGift(orbit,rotationDegrees=0,aspect=850/1250){
+ if(!orbit)return null;
+ const rad=(orbit.angle+rotationDegrees)*Math.PI/180;
+ const x3d=orbit.worldRadius*Math.sin(rad);
+ const depth=orbit.worldRadius*Math.cos(rad);
+ const dist=13.2-depth, halfY=dist*Math.tan(19*Math.PI/180);
+ const x=50+50*x3d/(halfY*aspect);
+ const y=50+50*(3.45-orbit.worldY)/halfY;
+ const interactive=depth>-.08&&x>7&&x<93&&y>61&&y<97;
+ return {
+  x,y,depth,interactive,
+  opacity:depth>-.08?1:.45,
+  scale:Math.min(1.17,Math.max(.74,.94*13.2/dist)),
+  zIndex:Math.round(50+depth*12)
+ };
+}
+
 // Santa articles are mapped to one of the three existing ornament forests.
 // A stable hash makes the "random" delivery independent of reloading or device.
 export const SANTA_FOREST_IDS=Object.freeze(['letter','confession','card']);
