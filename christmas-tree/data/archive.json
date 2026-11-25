@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-25T08:19:43+00:00",
+  "updated_at": "2026-11-25T18:49:59+00:00",
   "articles": [
     {
       "url": "https://note.com/ai_08creator/n/ne567607116c9",
@@ -5500,6 +5500,16 @@
       "published_at": "2026-11-24T19:36:38+09:00",
       "project_id": "prince-play",
       "first_seen": "2026-11-24T15:17:29+00:00"
+    },
+    {
+      "url": "https://note.com/kan_mina867/n/ndfb8e877f7e3",
+      "title": "【企画参加】パイオニア、いざ出陣‼️ 王子ごっこP-1大会～望月家（仮名）、一家総出のうちわ大戦争～",
+      "author": "❁⃘*.ﾟMina❁⃘*.ﾟ｜︎︎雲バル・ブラバル運営中☁️🖤",
+      "author_id": "kan_mina867",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340353981/rectangle_large_type_2_9aaca9915e304ca9c40b19e909f5bed1.jpg",
+      "published_at": "2026-11-25T18:29:41+09:00",
+      "project_id": "prince-play",
+      "first_seen": "2026-11-25T18:49:54+00:00"
     }
   ],
   "sources": [
@@ -5509,7 +5519,7 @@
       "project_id": "prince-play",
       "tag": "王子ごっこ",
       "ok": true,
-      "items": 196,
+      "items": 197,
       "pages": 4
     },
     {
