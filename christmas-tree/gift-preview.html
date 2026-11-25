@@ -22,6 +22,7 @@
   <h1>ツリーの下に届いた<br><em>贈り物を開けてみよう。</em></h1>
   <p class="hero-desc">公開ハッシュタグ <strong>#王子ごっこP1</strong> の記事を使った表示サンプルです。<br>赤いリボンの箱をタップすると、記事のサムネイルが現れます。</p>
   <p class="preview-disclaimer"><strong>これは検証専用ページです。</strong>記事の作者がHEARTFUL TREEのサンタさん企画に参加したという意味ではありません。通常の応募作品には追加していません。</p>
+  <p id="autumn-preview-info" class="preview-autumn-info" hidden></p>
   <div class="hero-stats">
    <div><strong id="all-works">0</strong><span>テスト記事</span></div><i></i>
    <div><strong id="all-authors">0</strong><span>作者</span></div><i></i>
@@ -29,13 +30,14 @@
   </div>
   <div class="gift-preview-actions">
    <a class="primary-pill" href="#forest">プレゼントを開く ↓</a>
+   <a class="orbit-button preview-autumn-link" href="./gift-preview.html?ornaments=autumn#forest">🍁 秋読コレクションと一緒に確認</a>
    <button type="button" class="orbit-button" id="open-all-preview-gifts">🎁 すべて開封して確認</button>
    <button type="button" class="orbit-button" id="reset-preview-gifts">↻ 未開封に戻してテスト</button>
   </div>
   <p class="preview-asof">2026年11月24日に取得した公開記事のスナップショット。新しい投稿は自動追加されません。</p>
  </section>
  <section class="forest" id="forest" aria-labelledby="forest-title">
-  <div class="section-head"><p class="eyebrow">SANTA'S SECRET DELIVERY</p><h2 id="forest-title">サンタさんは、どの木に届けた？</h2><p>3つのオーナメントツリーの下へ、記事のプレゼントをランダム風に配置しています。<br>企画を切り替えて、届いた箱を開けてみよう。</p></div>
+  <div class="section-head"><p class="eyebrow">SANTA'S SECRET DELIVERY</p><h2 id="forest-title">サンタさんは、どの木に届けた？</h2><p>3つのオーナメントツリーの下へ、記事のプレゼントをランダム風に配置しています。秋読コレクションの記事も同時表示で検証できます。<br>企画を切り替えて、届いた箱を開けてみよう。</p></div>
   <div class="project-grid" id="project-nav" role="group" aria-label="プレゼントの配送先を選ぶ"></div>
  </section>
  <section class="tree-panel" id="tree-panel" data-theme="confession-essay" aria-labelledby="tree-title">

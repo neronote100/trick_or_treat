@@ -4,7 +4,7 @@
 // The note article images remain DOM links projected from matching 3D anchors
 // so they can open in the browser without cross-origin canvas texture problems.
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-import {ornamentOrbit,santaGiftOrbit,TREE_CAMERA,TREE_CANOPY_LIFT,GIFT_GROUND_Y} from './tree-core.js';
+import {ornamentOrbit,santaGiftOrbit,TREE_CAMERA,TREE_CANOPY_LIFT,GIFT_GROUND_Y,GIFT_PLATFORM_RADIUS} from './tree-core.js';
 
 const DEG=Math.PI/180;
 const UP=new THREE.Vector3(0,1,0);
@@ -276,9 +276,39 @@ export function createRealChristmasTree(stage,canvas,ornamentCount,themeKey='ros
   anchor.position.set(orbit.worldRadius*Math.sin(angle),orbit.worldY,orbit.worldRadius*Math.cos(angle));
   tree.add(anchor);giftAnchors.push(anchor);
  }
- const ground=new THREE.Mesh(new THREE.CircleGeometry(3.2,48),
-   new THREE.MeshBasicMaterial({color:palette?.ground??0x9cc7dc,transparent:true,opacity:.10,side:THREE.DoubleSide}));
- ground.rotation.x=-Math.PI/2;ground.position.y=GIFT_GROUND_Y-.025;scene.add(ground);
+ // The platform and gift anchors now share one actual ground plane.
+ // The full circular rim stays inside the camera frame, unlike the previous
+ // large faded circle clipped by the bottom of the mobile canvas.
+ const ground=new THREE.Mesh(new THREE.CircleGeometry(GIFT_PLATFORM_RADIUS,96),
+  new THREE.MeshBasicMaterial({
+   color:palette?.ground??0xbcdedc,transparent:true,opacity:.28,
+   side:THREE.DoubleSide,depthWrite:false
+  }));
+ ground.name='round-snow-gift-platform';
+ ground.rotation.x=-Math.PI/2;ground.position.y=GIFT_GROUND_Y-.035;scene.add(ground);
+ const snowRim=new THREE.Mesh(
+  new THREE.RingGeometry(GIFT_PLATFORM_RADIUS-.045,GIFT_PLATFORM_RADIUS,96),
+  new THREE.MeshBasicMaterial({
+   color:0xe6f5ed,transparent:true,opacity:.42,side:THREE.DoubleSide,
+   depthWrite:false
+  }));
+ snowRim.name='visible-round-snow-rim';
+ snowRim.rotation.x=-Math.PI/2;snowRim.position.y=GIFT_GROUND_Y-.025;
+ scene.add(snowRim);
+ // Physical shadow pools follow the same anchors as each HTML present.
+ // They establish contact with the disc as the entire tree rotates.
+ const shadowGeo=new THREE.CircleGeometry(.32,24);
+ const shadowMat=new THREE.MeshBasicMaterial({
+  color:0x071522,transparent:true,opacity:.43,side:THREE.DoubleSide,
+  depthWrite:false
+ });
+ for(const anchor of giftAnchors){
+  const contact=new THREE.Mesh(shadowGeo,shadowMat);
+  contact.name='gift-contact-shadow';
+  contact.rotation.x=-Math.PI/2;
+  contact.position.set(anchor.position.x,GIFT_GROUND_Y-.014,anchor.position.z);
+  tree.add(contact);
+ }
  let disposed=false,w=0,h=0;
  const working=new THREE.Vector3(),projected=new THREE.Vector3();
  function resize(){

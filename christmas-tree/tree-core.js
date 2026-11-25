@@ -29,8 +29,10 @@ export const SANTA_GIFT_CAPACITY=12;
 // A visible central trunk separates the ornaments from the gifts on the ground.
 // Camera and positioning constants are shared with the Three.js renderer.
 export const TREE_CANOPY_LIFT=0.96;
-export const TREE_CAMERA=Object.freeze({y:3.88,z:14,fov:38});
+// Camera looks slightly lower so the entire circular snow platform is visible.
+export const TREE_CAMERA=Object.freeze({y:3.46,z:14,fov:38});
 export const GIFT_GROUND_Y=0.13;
+export const GIFT_PLATFORM_RADIUS=2.76;
 
 // 12 modest-size boxes circle the lower TRUNK, not the bottom ornament tier.
 // These world coordinates denote the BASE of each box on the snow.

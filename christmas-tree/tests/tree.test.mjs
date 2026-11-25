@@ -4,7 +4,7 @@ import {
  stageForCount,noteArticleUrl,RING_TIERS,TREE_CAPACITY,TREES_PER_PAGE,TREE_PAGE_SIZE,
  treeCountForWorks,grovePage,ornamentOrbit,projectOrbit,stepSway,
  SANTA_GIFT_CAPACITY,SANTA_FOREST_IDS,santaGiftDestination,santaGiftsForForest,
- santaGiftOrbit,projectSantaGift,TREE_CANOPY_LIFT,TREE_CAMERA,GIFT_GROUND_Y
+ santaGiftOrbit,projectSantaGift,TREE_CANOPY_LIFT,TREE_CAMERA,GIFT_GROUND_Y,GIFT_PLATFORM_RADIUS
 } from '../tree-core.js';
 test('tree stays in four growth stages',()=>{
  for(const [n,expected] of [[0,1],[8,2],[20,3],[40,4],[999,4]])
@@ -113,7 +113,15 @@ test('Santa gifts are grounded on the real tree rotation axis, never in a static
  assert.equal(gifts.length,12);
  assert.ok(gifts.every(g=>g&&Math.abs(g.worldY-GIFT_GROUND_Y)<1e-9&&g.worldRadius>1.4&&g.worldRadius<2.1));
  assert.ok(TREE_CANOPY_LIFT>=.8&&TREE_CANOPY_LIFT<=1.25);
- assert.ok(TREE_CAMERA.y>3.5&&TREE_CAMERA.z>=13.5);
+ assert.ok(TREE_CAMERA.y>3.3&&TREE_CAMERA.y<3.6&&TREE_CAMERA.z>=13.5);
+ assert.ok(Math.max(...gifts.map(g=>g.worldRadius))+.45<GIFT_PLATFORM_RADIUS,
+  'Gift boxes, not only their centers, must lie inside the actual snow circle');
+ for(const angle of [0,90,180,270]){
+  const circumference=projectSantaGift({angle,worldRadius:GIFT_PLATFORM_RADIUS,
+   worldY:GIFT_GROUND_Y},0);
+  assert.ok(circumference.y>70&&circumference.y<97,
+   'Visible snow circle must never be clipped by canvas edges');
+ }
  assert.equal(new Set(gifts.map(g=>g.angle)).size,12);
  assert.equal(santaGiftOrbit(-1),null);
  assert.equal(santaGiftOrbit(12),null);
