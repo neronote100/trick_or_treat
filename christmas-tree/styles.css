@@ -300,7 +300,7 @@ body[data-forest-variant="2"] .tree-panel {--page-glow:#d89bb52a}
 .gift-reveal{
  opacity:1;pointer-events:none;transform:rotateY(180deg);
  background:#182d35;box-shadow:0 5px 17px #0008;
- border:2px solid #f5dba7;
+ border:1px solid #f5dba7;
 }
 .gift-article{position:absolute;inset:0;display:block;text-decoration:none;outline-offset:3px}
 .gift-thumbnail{position:absolute;inset:0;display:block;overflow:hidden;background:#62546c}
