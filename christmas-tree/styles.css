@@ -283,19 +283,40 @@ body[data-forest-variant="2"] .tree-panel {--page-glow:#d89bb52a}
 .gift-box:disabled{opacity:1;cursor:default}
 .gift-body{position:absolute;inset:0;display:block;pointer-events:none;background:linear-gradient(130deg,#fff2 0%,transparent 39%,#0002 100%)}
 .gift-ribbon-v,.gift-ribbon-h,.gift-bow{display:block;position:absolute;pointer-events:none}
+/* Satin cross-ribbons and a real two-loop bow: readable even on
+   the smallest ground-level presents, without enlarging their footprint. */
 .gift-ribbon-v{
- left:43%;top:0;bottom:0;width:14%;
- background:linear-gradient(90deg,#0003,var(--ribbon) 38%,#fff9 59%,var(--ribbon));
- box-shadow:0 0 4px #0003;
+ z-index:1;left:41%;top:0;bottom:0;width:18%;
+ background:linear-gradient(90deg,#0004 0%,var(--ribbon) 25%,#fff8 53%,var(--ribbon) 77%,#0003 100%);
+ box-shadow:1px 0 2px #0003;
 }
 .gift-ribbon-h{
- left:0;right:0;top:43%;height:14%;
- background:linear-gradient(#fff8,var(--ribbon) 30%,#0003);
+ z-index:1;left:0;right:0;top:41%;height:18%;
+ background:linear-gradient(180deg,#fff9 0%,var(--ribbon) 30%,var(--ribbon) 67%,#0004 100%);
+ box-shadow:0 1px 2px #0003;
 }
 .gift-bow{
- z-index:3;top:11%;left:50%;width:24%;height:15%;
- transform:translateX(-50%);border-radius:90% 40% 90% 40%;
- background:var(--ribbon);box-shadow:-6px 2px 0 -1px #fff9,6px 2px 0 -1px var(--ribbon);
+ z-index:3;top:33%;left:50%;width:18%;height:18%;
+ transform:translate(-50%,-7%);
+ border-radius:50%;
+ border:1px solid #fff9;
+ background:radial-gradient(circle at 34% 25%,#fff8,var(--ribbon) 57%,#0003 100%);
+ box-shadow:0 1px 3px #0007;
+}
+.gift-bow::before,.gift-bow::after{
+ content:"";position:absolute;
+ top:-41%;width:105%;height:109%;
+ border:1px solid #fff9;
+ background:linear-gradient(140deg,#fff8 0%,var(--ribbon) 42%,#0003 100%);
+ box-shadow:0 1px 2px #0006;
+}
+.gift-bow::before{
+ right:80%;border-radius:77% 18% 65% 19%;
+ transform:rotate(-29deg);
+}
+.gift-bow::after{
+ left:80%;border-radius:18% 77% 19% 65%;
+ transform:rotate(29deg);
 }
 .gift-reveal{
  opacity:1;pointer-events:none;transform:rotateY(180deg);
