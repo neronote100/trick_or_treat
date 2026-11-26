@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-25T18:49:59+00:00",
+  "updated_at": "2026-11-26T10:46:14+00:00",
   "articles": [
     {
       "url": "https://note.com/ai_08creator/n/ne567607116c9",
@@ -904,7 +904,7 @@
     {
       "url": "https://note.com/bvt_4240/n/ned3c078039dd",
       "title": "【企画参加】AIがあれば棒人間は王子になれるのか？",
-      "author": "びばって｜『自分なり』を応援する人｜棒人間絵日記の人｜Lv.20くらいでユルユル遊ぶ",
+      "author": "びばって｜棒人間絵日記の人｜『自分なり』を応援する人｜Lv.20くらいでユルユル遊ぶ",
       "author_id": "bvt_4240",
       "thumbnail": "https://assets.st-note.com/production/uploads/images/312600526/rectangle_large_type_2_73bd9339eb99e48db01ae9306fadfc9d.jpeg",
       "published_at": "2026-09-12T08:51:57+09:00",
@@ -1354,7 +1354,7 @@
     {
       "url": "https://note.com/lofty_eagle5366/n/n29dd2cccfb1a",
       "title": "企画初参戦。王子ごっこ、やってみました",
-      "author": "久世拓弥",
+      "author": "久世 拓弥 AIart",
       "author_id": "lofty_eagle5366",
       "thumbnail": "https://assets.st-note.com/production/uploads/images/313533288/rectangle_large_type_2_bc207ffbadf998bd00f829e018312855.png",
       "published_at": "2026-09-14T18:05:23+09:00",
@@ -5510,6 +5510,16 @@
       "published_at": "2026-11-25T18:29:41+09:00",
       "project_id": "prince-play",
       "first_seen": "2026-11-25T18:49:54+00:00"
+    },
+    {
+      "url": "https://note.com/open_tulip9172/n/nc36311074bb2",
+      "title": "【ご紹介第二弾】🌙\"王子ごっこ\"P-1大会👑ご参加ありがとうございました🎵総勢36名の方達が遊んでまくれました|",
+      "author": "ミノリ・グルーヴ@Minoriからの転生",
+      "author_id": "open_tulip9172",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341013781/rectangle_large_type_2_25c1148a37d4f2e3471a34bdf9870013.jpg",
+      "published_at": "2026-11-26T18:46:10+09:00",
+      "project_id": "prince-play",
+      "first_seen": "2026-11-26T10:46:09+00:00"
     }
   ],
   "sources": [
@@ -5519,7 +5529,7 @@
       "project_id": "prince-play",
       "tag": "王子ごっこ",
       "ok": true,
-      "items": 197,
+      "items": 198,
       "pages": 4
     },
     {
