@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-27T12:02:42+00:00",
+  "updated_at": "2026-11-27T21:07:41+00:00",
   "articles": [
     {
       "url": "https://note.com/ai_08creator/n/ne567607116c9",
@@ -163,7 +163,7 @@
     },
     {
       "url": "https://note.com/open_tulip9172/n/naafb86843eef",
-      "title": "緊急クエスト🚨🌙挑戦者が現れました🌙【合同企画】🌙\"王子ごっこ\"P-1大会👑を開催致します✨王子の城下町|麗しのネロ|※11/22更新",
+      "title": "終了しました🙇【合同企画】🌙\"王子ごっこ\"P-1大会👑を開催致します✨王子の城下町|麗しのネロ|",
       "author": "ミノリ・グルーヴ@Minoriからの転生",
       "thumbnail": "https://assets.st-note.com/production/uploads/images/330326436/rectangle_large_type_2_a84004fafeb6a575c6e2b77915b16226.jpg",
       "published_at": "2026-11-02T19:02:16+09:00",
@@ -5530,6 +5530,26 @@
       "published_at": "2026-11-26T21:35:50+09:00",
       "project_id": "prince-play",
       "first_seen": "2026-11-26T20:06:32+00:00"
+    },
+    {
+      "url": "https://note.com/modern_broom3378/n/n1c952ad9d827",
+      "title": "距離、つめに行きます！！",
+      "author": "柚木崎",
+      "author_id": "modern_broom3378",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341574170/rectangle_large_type_2_9a84c66deb9e6079afec63cf15750f21.png",
+      "published_at": "2026-11-27T23:23:12+09:00",
+      "project_id": "prince-play",
+      "first_seen": "2026-11-27T21:07:36+00:00"
+    },
+    {
+      "url": "https://note.com/natty_skink7179/n/n5b225db8073e",
+      "title": "新曲完成【1,000名様御礼寄贈】あなたが、癒されたい夜、泣きたいときにずっとそばにいてくれる冬のバラード『トワイライトの向こう側』月城玻璃ver.完成＆今週末、note内で公開！！（YouTube動画）（予定）【決して明るい所で聴かないで！】",
+      "author": "枢木 経介｜【note発】ユーチューバー＆【新資本論／ネオ江戸思想家】",
+      "author_id": "natty_skink7179",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341511030/rectangle_large_type_2_3201c037d15d2b1ec048dd1fedc4bba2.jpeg",
+      "published_at": "2026-11-27T22:50:14+09:00",
+      "project_id": "prince-play",
+      "first_seen": "2026-11-27T21:07:36+00:00"
     }
   ],
   "sources": [
@@ -5539,8 +5559,8 @@
       "project_id": "prince-play",
       "tag": "王子ごっこ",
       "ok": true,
-      "items": 199,
-      "pages": 4
+      "items": 201,
+      "pages": 5
     },
     {
       "type": "hashtag",

@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-27T03:08:43+00:00",
+  "updated_at": "2026-11-27T21:07:33+00:00",
   "articles": [
     {
       "url": "https://note.com/00irea00/n/ndb6db045f483",
@@ -100,6 +100,16 @@
       "published_at": "2026-11-27T06:30:00+09:00",
       "project_id": "common",
       "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/n49de957ab0eb",
+      "title": "🌙 王子、デートの準備を始めました。｜ROYAL CLOSET Vol.01",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341495836/rectangle_large_type_2_740ba8fa69564c1af12e12dd8f0a6e24.png",
+      "published_at": "2026-11-27T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T21:07:31+00:00"
     }
   ],
   "sources": [
@@ -109,7 +119,7 @@
       "project_id": "common",
       "tag": "ハートフルツリー",
       "ok": true,
-      "items": 10,
+      "items": 11,
       "pages": 1
     },
     {
@@ -264,6 +274,16 @@
       "published_at": "2019-03-21T15:53:27+09:00",
       "project_id": "letter",
       "first_seen": "2026-11-27T03:08:42+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/n49de957ab0eb",
+      "title": "🌙 王子、デートの準備を始めました。｜ROYAL CLOSET Vol.01",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341495836/rectangle_large_type_2_740ba8fa69564c1af12e12dd8f0a6e24.png",
+      "published_at": "2026-11-27T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T21:07:31+00:00"
     }
   ]
 }
