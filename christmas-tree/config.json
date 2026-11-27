@@ -97,5 +97,6 @@
   "archive_exclude_by_project": [],
   "max_pages_per_tag": 25,
   "archive_max_pages_per_tag": 25,
-  "group_common_articles": true
+  "group_common_articles": true,
+  "event_since": "2026-11-24T00:00:00+09:00"
 }

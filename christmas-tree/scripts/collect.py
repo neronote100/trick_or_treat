@@ -303,7 +303,18 @@ def collect_grouped(config, previous, fetcher, now, api_fetcher, sleep):
     raw_previous = {**previous, "articles": previous.get("tag_articles", previous.get("articles", []))}
     raw = collect(raw_config, raw_previous, fetcher, now, api_fetcher, sleep)
     by_url = {}
+    cutoff = config.get("event_since")
     for article in raw["articles"]:
+        # Generic dedicated tags may contain unrelated historical posts.
+        if cutoff and article.get("published_at"):
+            try:
+                published = datetime.fromisoformat(article["published_at"])
+                if published.tzinfo is None:
+                    published = published.replace(tzinfo=timezone.utc)
+                if published < datetime.fromisoformat(cutoff):
+                    continue
+            except ValueError:
+                pass
         by_url.setdefault(article["url"], {})[article["project_id"]] = article
     displayed = []
     for url, memberships in by_url.items():

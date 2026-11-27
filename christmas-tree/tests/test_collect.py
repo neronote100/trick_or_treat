@@ -23,6 +23,17 @@ CONFIG = {
 }
 
 class CollectorTests(unittest.TestCase):
+    def test_grouped_event_excludes_old_unrelated_tag(self):
+        old = {"key": "n123abcde", "name": "old", "publish_at": "2019-03-21T15:53:27+09:00",
+               "user": {"urlname": "creator"}}
+        new = {**old, "key": "n987abcde", "name": "new", "publish_at": "2026-11-25T00:00:00+09:00"}
+        cfg = {**CONFIG, "group_common_articles": True, "event_since": "2026-11-24T00:00:00+09:00",
+               "projects": [{"id": "letter", "hashtag": "letter"}]}
+        result = collect(cfg, {"articles": []}, fetcher=lambda _: EMPTY,
+                         api_fetcher=lambda tag, page: {"data": {"notes": [old, new]}},
+                         now=lambda: "now", sleep=lambda _: None)
+        self.assertEqual([a["title"] for a in result["articles"]], ["new"])
+
     def test_common_tree_routes_multi_and_common_only(self):
         def article(n):
             return {"key": f"n{n:08d}", "name": str(n), "user": {"urlname": "creator"}}
