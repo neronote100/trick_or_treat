@@ -1,12 +1,132 @@
 {
-  "updated_at": "2026-11-23T14:57:12+00:00",
-  "articles": [],
+  "updated_at": "2026-11-27T03:08:43+00:00",
+  "articles": [
+    {
+      "url": "https://note.com/00irea00/n/ndb6db045f483",
+      "title": "ハートフルツリー｜クリスマス企画",
+      "author": "紡えり🐱 ⁂GPT遊びに夢中⁂",
+      "author_id": "00irea00",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340577976/rectangle_large_type_2_5a3f3c7c33a9335e08ac66ba43526258.jpg",
+      "published_at": "2026-11-25T18:44:16+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/futurelnve5r/n/n3e508247a04e",
+      "title": "挑戦状‼️",
+      "author": "Labo.（17）",
+      "author_id": "futurelnve5r",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340855467/rectangle_large_type_2_e031c7abfaa8eecd8ff8f34502f31f7f.jpg",
+      "published_at": "2026-11-26T10:45:23+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/good_ixia6698/n/ne41938bf5f59",
+      "title": "【クリスマス企画告知♡】今年はnoteでも、とびきり素敵なクリスマスを🌟ハートフルツリー🎄",
+      "author": "堂安咲和🪞 恋の本音を、物語と言葉に。",
+      "author_id": "good_ixia6698",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340978083/rectangle_large_type_2_956c74043ee931b92f40cb6001fdc87b.jpg",
+      "published_at": "2026-11-26T18:02:40+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/kan_mina867/n/ndfb8e877f7e3",
+      "title": "【企画参加】パイオニア、いざ出陣‼️ 王子ごっこP-1大会～望月家（仮名）、一家総出のうちわ大戦争～",
+      "author": "❁⃘*.ﾟMina❁⃘*.ﾟ｜︎︎雲バル・ブラバル運営中☁️🖤",
+      "author_id": "kan_mina867",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340353981/rectangle_large_type_2_9aaca9915e304ca9c40b19e909f5bed1.jpg",
+      "published_at": "2026-11-25T18:29:41+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/late_mugi6/n/n63d29759340a",
+      "title": "【告知】12/1よりクリスマスイベント開催します！｜ハートフルツリー",
+      "author": "らて｜メンバーシップはじめました",
+      "author_id": "late_mugi6",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340615986/rectangle_large_type_2_24d8ede1c5596eaa02cd2b11ac019e3b.png",
+      "published_at": "2026-11-25T20:04:25+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/n36cd6f5a5428",
+      "title": "🌙今日からクリスマスにお着替え｜これが王子のアンサーだ！【第3弾】",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340537551/rectangle_large_type_2_a21fbede8d6dbed46d60d5885c9879e8.png",
+      "published_at": "2026-11-25T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/n3f50d6efe681",
+      "title": "【イベント予告】ハートフルツリー｜クリスマス企画🌙 #はじめてのnote",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340115386/rectangle_large_type_2_8ecb8b209935996ad596d2d4a9db3575.png",
+      "published_at": "2026-11-24T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/n75e933c80ef1",
+      "title": "🌙 夜のパレード｜歩道橋｜地図にない灯り",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340923694/rectangle_large_type_2_1e61ec182ae5b1b4c9049a5ad6671015.png",
+      "published_at": "2026-11-26T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/saigo_wa_kan/n/n4b92b8d53f1b",
+      "title": "クリスマス企画の予告だぁ❣️ー告知だよー｜ハートフルツリー",
+      "author": "山田、最後は勘。",
+      "author_id": "saigo_wa_kan",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340453065/rectangle_large_type_2_a710e2e6fd37577ee09a28551916bb52.jpg",
+      "published_at": "2026-11-25T18:52:08+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/zoohones/n/n7aefa6e0299a",
+      "title": "予告　ネロ王子の城下町企画｜ハートフルツリー",
+      "author": "☀️zoo | 猫の師匠ソルとnote初心者ステラの物語 📚　フォロバ100　年内3000人に挑戦中",
+      "author_id": "zoohones",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341161706/rectangle_large_type_2_e0a6af3a11d257313298aec4c2bef11d.jpg",
+      "published_at": "2026-11-27T06:30:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/tamano0/n/nff73f36a670f",
+      "title": "Mayary’s Photo",
+      "author": "mio",
+      "author_id": "tamano0",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/10580836/rectangle_large_type_2_a166be9ca75a7281c8dda44b9a23c3dc.jpeg",
+      "published_at": "2019-03-21T15:53:27+09:00",
+      "project_id": "letter",
+      "first_seen": "2026-11-27T03:08:42+00:00"
+    }
+  ],
   "sources": [
     {
       "type": "hashtag",
+      "method": "note-api",
+      "project_id": "common",
+      "tag": "ハートフルツリー",
+      "ok": true,
+      "items": 10,
+      "pages": 1
+    },
+    {
+      "type": "hashtag",
       "method": "failed",
-      "project_id": "letter",
-      "tag": "キングダム恋文2026",
+      "project_id": "card",
+      "tag": "ハートフルカード",
       "ok": false,
       "items": 0,
       "pages": 0
@@ -15,34 +135,145 @@
       "type": "hashtag",
       "method": "failed",
       "project_id": "confession",
-      "tag": "キングダム告白2026",
+      "tag": "君に好きって伝えたい",
       "ok": false,
       "items": 0,
       "pages": 0
     },
     {
       "type": "hashtag",
-      "method": "failed",
-      "project_id": "card",
-      "tag": "キングダムカード2026",
-      "ok": false,
-      "items": 0,
-      "pages": 0
+      "method": "note-api",
+      "project_id": "letter",
+      "tag": "届けないラブレター",
+      "ok": true,
+      "items": 1,
+      "pages": 1
     },
     {
       "type": "hashtag",
       "method": "failed",
       "project_id": "santa",
-      "tag": "キングダムサンタ2026",
+      "tag": "ハートフルプレゼント",
       "ok": false,
       "items": 0,
       "pages": 0
     }
   ],
   "warnings": [
-    "letter: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found",
-    "confession: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found",
     "card: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found",
+    "confession: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found",
     "santa: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found"
+  ],
+  "tag_articles": [
+    {
+      "url": "https://note.com/00irea00/n/ndb6db045f483",
+      "title": "ハートフルツリー｜クリスマス企画",
+      "author": "紡えり🐱 ⁂GPT遊びに夢中⁂",
+      "author_id": "00irea00",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340577976/rectangle_large_type_2_5a3f3c7c33a9335e08ac66ba43526258.jpg",
+      "published_at": "2026-11-25T18:44:16+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/futurelnve5r/n/n3e508247a04e",
+      "title": "挑戦状‼️",
+      "author": "Labo.（17）",
+      "author_id": "futurelnve5r",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340855467/rectangle_large_type_2_e031c7abfaa8eecd8ff8f34502f31f7f.jpg",
+      "published_at": "2026-11-26T10:45:23+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/good_ixia6698/n/ne41938bf5f59",
+      "title": "【クリスマス企画告知♡】今年はnoteでも、とびきり素敵なクリスマスを🌟ハートフルツリー🎄",
+      "author": "堂安咲和🪞 恋の本音を、物語と言葉に。",
+      "author_id": "good_ixia6698",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340978083/rectangle_large_type_2_956c74043ee931b92f40cb6001fdc87b.jpg",
+      "published_at": "2026-11-26T18:02:40+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/kan_mina867/n/ndfb8e877f7e3",
+      "title": "【企画参加】パイオニア、いざ出陣‼️ 王子ごっこP-1大会～望月家（仮名）、一家総出のうちわ大戦争～",
+      "author": "❁⃘*.ﾟMina❁⃘*.ﾟ｜︎︎雲バル・ブラバル運営中☁️🖤",
+      "author_id": "kan_mina867",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340353981/rectangle_large_type_2_9aaca9915e304ca9c40b19e909f5bed1.jpg",
+      "published_at": "2026-11-25T18:29:41+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/late_mugi6/n/n63d29759340a",
+      "title": "【告知】12/1よりクリスマスイベント開催します！｜ハートフルツリー",
+      "author": "らて｜メンバーシップはじめました",
+      "author_id": "late_mugi6",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340615986/rectangle_large_type_2_24d8ede1c5596eaa02cd2b11ac019e3b.png",
+      "published_at": "2026-11-25T20:04:25+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/n36cd6f5a5428",
+      "title": "🌙今日からクリスマスにお着替え｜これが王子のアンサーだ！【第3弾】",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340537551/rectangle_large_type_2_a21fbede8d6dbed46d60d5885c9879e8.png",
+      "published_at": "2026-11-25T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/n3f50d6efe681",
+      "title": "【イベント予告】ハートフルツリー｜クリスマス企画🌙 #はじめてのnote",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340115386/rectangle_large_type_2_8ecb8b209935996ad596d2d4a9db3575.png",
+      "published_at": "2026-11-24T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/n75e933c80ef1",
+      "title": "🌙 夜のパレード｜歩道橋｜地図にない灯り",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340923694/rectangle_large_type_2_1e61ec182ae5b1b4c9049a5ad6671015.png",
+      "published_at": "2026-11-26T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/saigo_wa_kan/n/n4b92b8d53f1b",
+      "title": "クリスマス企画の予告だぁ❣️ー告知だよー｜ハートフルツリー",
+      "author": "山田、最後は勘。",
+      "author_id": "saigo_wa_kan",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/340453065/rectangle_large_type_2_a710e2e6fd37577ee09a28551916bb52.jpg",
+      "published_at": "2026-11-25T18:52:08+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/zoohones/n/n7aefa6e0299a",
+      "title": "予告　ネロ王子の城下町企画｜ハートフルツリー",
+      "author": "☀️zoo | 猫の師匠ソルとnote初心者ステラの物語 📚　フォロバ100　年内3000人に挑戦中",
+      "author_id": "zoohones",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341161706/rectangle_large_type_2_e0a6af3a11d257313298aec4c2bef11d.jpg",
+      "published_at": "2026-11-27T06:30:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-27T03:08:40+00:00"
+    },
+    {
+      "url": "https://note.com/tamano0/n/nff73f36a670f",
+      "title": "Mayary’s Photo",
+      "author": "mio",
+      "author_id": "tamano0",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/10580836/rectangle_large_type_2_a166be9ca75a7281c8dda44b9a23c3dc.jpeg",
+      "published_at": "2019-03-21T15:53:27+09:00",
+      "project_id": "letter",
+      "first_seen": "2026-11-27T03:08:42+00:00"
+    }
   ]
 }
