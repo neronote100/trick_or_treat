@@ -9,6 +9,35 @@
   ],
   "projects": [
     {
+      "id": "common",
+      "icon": "🎄",
+      "name": "ハートフルツリー",
+      "subtitle": "お祭りの応援・紹介や、複数の企画をまとめた作品を飾る共通ツリー",
+      "theme": "gold",
+      "hashtag": "ハートフルツリー",
+      "accepting": true
+    },
+    {
+      "id": "card",
+      "icon": "🎁",
+      "name": "ハートフルカード",
+      "subtitle": "大切な誰かへ感謝を贈ろう",
+      "hosts": "企画準備中",
+      "theme": "christmas-card",
+      "accepting": false,
+      "hashtag": "ハートフルカード"
+    },
+    {
+      "id": "confession",
+      "icon": "💕",
+      "name": "君に好きって伝えたい",
+      "subtitle": "好きな人も、作品も、気持ちは自由",
+      "hosts": "企画準備中",
+      "theme": "confession-illustration",
+      "accepting": false,
+      "hashtag": "君に好きって伝えたい"
+    },
+    {
       "id": "letter",
       "icon": "💌",
       "name": "届けないラブレター",
@@ -16,43 +45,23 @@
       "hosts": "らてさん × 王子",
       "theme": "confession-essay",
       "accepting": false,
-      "hashtag": "キングダム恋文2026"
-    },
-    {
-      "id": "confession",
-      "icon": "💕",
-      "name": "好きの告白",
-      "subtitle": "好きな人も、作品も、気持ちは自由",
-      "hosts": "企画準備中",
-      "theme": "confession-illustration",
-      "accepting": false,
-      "hashtag": "キングダム告白2026"
-    },
-    {
-      "id": "card",
-      "icon": "🎁",
-      "name": "クリスマスカード",
-      "subtitle": "大切な誰かへ感謝を贈ろう",
-      "hosts": "企画準備中",
-      "theme": "christmas-card",
-      "accepting": false,
-      "hashtag": "キングダムカード2026"
+      "hashtag": "届けないラブレター"
     },
     {
       "id": "santa",
       "icon": "🎅",
-      "name": "サンタさん企画",
-      "subtitle": "ツリーの下に届く、誰かからの贈り物",
+      "name": "ハートフルプレゼント",
+      "subtitle": "どこかのツリーの下に届いているよ。プレゼントを探して開けてみよう！",
       "hosts": "企画準備中",
       "display": "gifts",
       "accepting": false,
-      "hashtag": "キングダムサンタ2026"
+      "hashtag": "ハートフルプレゼント"
     }
   ],
   "manual_articles": [],
   "exclude_urls": [],
   "max_articles": 1000,
-  "common_hashtag": "クリスマスキングダム2026",
+  "common_hashtag": "ハートフルツリー",
   "exclude_by_project": [],
   "archive_projects": [
     {
@@ -87,5 +96,6 @@
   "archive_exclude_urls": [],
   "archive_exclude_by_project": [],
   "max_pages_per_tag": 25,
-  "archive_max_pages_per_tag": 25
+  "archive_max_pages_per_tag": 25,
+  "group_common_articles": true
 }

@@ -229,6 +229,8 @@ def api_articles_for_tag(tag: str, page_fetcher=fetch_note_page,
 
 def collect(config:dict,previous:dict,fetcher=fetch_feed,now=iso_now,
             api_fetcher=None,sleep=time.sleep)->dict:
+    if config.get("group_common_articles"):
+        return collect_grouped(config, previous, fetcher, now, api_fetcher, sleep)
     projects=[(str(p.get("id","")),str(p.get("hashtag","")).strip().lstrip("#"))
               for p in config.get("projects",[]) if p.get("id") and p.get("hashtag")]
     allowed={pid for pid,_ in projects}
@@ -293,6 +295,35 @@ def collect(config:dict,previous:dict,fetcher=fetch_feed,now=iso_now,
         warnings.append("No project hashtags configured");changed=True
     return {"updated_at":now() if changed else previous.get("updated_at"),
             "articles":articles,"sources":sources,"warnings":warnings}
+
+
+def collect_grouped(config, previous, fetcher, now, api_fetcher, sleep):
+    """Retain source memberships across transient feed failures, then route display."""
+    raw_config = {**config, "group_common_articles": False}
+    raw_previous = {**previous, "articles": previous.get("tag_articles", previous.get("articles", []))}
+    raw = collect(raw_config, raw_previous, fetcher, now, api_fetcher, sleep)
+    by_url = {}
+    for article in raw["articles"]:
+        by_url.setdefault(article["url"], {})[article["project_id"]] = article
+    displayed = []
+    for url, memberships in by_url.items():
+        dedicated = sorted(set(memberships) - {"common"})
+        if len(dedicated) > 1 or not dedicated:
+            target = "common"
+        else:
+            target = dedicated[0]
+        article = memberships.get(target) or memberships.get("common") or memberships[dedicated[0]]
+        displayed.append({**article, "project_id": target})
+        # A gift tag always preserves the physical gift, even in a mixed article.
+        if target != "santa" and "santa" in memberships:
+            displayed.append(memberships["santa"])
+    blocked = {(str(x.get("project_id", "")), valid_note_url(x.get("url", "")))
+               for x in config.get("exclude_by_project", [])}
+    displayed = [a for a in displayed if (a["project_id"], a["url"]) not in blocked]
+    displayed.sort(key=lambda a: (a.get("first_seen", ""), a["project_id"], a["url"]))
+    changed = displayed != previous.get("articles", []) or raw["articles"] != previous.get("tag_articles", [])
+    return {**raw, "articles": displayed, "tag_articles": raw["articles"],
+            "updated_at": now() if changed else raw["updated_at"]}
 
 
 def archive_config(config: dict) -> dict:

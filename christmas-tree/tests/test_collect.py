@@ -23,6 +23,23 @@ CONFIG = {
 }
 
 class CollectorTests(unittest.TestCase):
+    def test_common_tree_routes_multi_and_common_only(self):
+        def article(n):
+            return {"key": f"n{n:08d}", "name": str(n), "user": {"urlname": "creator"}}
+        tags = {"common": [1, 2, 3, 4], "card": [2, 3, 5], "letter": [3, 6], "santa": [4, 6]}
+        cfg = {**CONFIG, "group_common_articles": True,
+               "projects": [{"id": k, "hashtag": k} for k in tags]}
+        def page(tag, n):
+            return {"data": {"notes": [article(i) for i in tags[tag]], "next_page": None}}
+        result = collect(cfg, {"articles": []}, fetcher=lambda _: EMPTY,
+                         api_fetcher=page, now=lambda: "first", sleep=lambda _: None)
+        pairs = {(int(a["title"]), a["project_id"]) for a in result["articles"]}
+        self.assertEqual(pairs, {(1, "common"), (2, "card"), (3, "common"),
+                                 (4, "santa"), (5, "card"), (6, "common"), (6, "santa")})
+        again = collect(cfg, result, fetcher=lambda _: EMPTY, api_fetcher=page,
+                        now=lambda: "second", sleep=lambda _: None)
+        self.assertEqual(result, again)
+
     def test_archival_feeds_separate_from_christmas(self):
         setup = {"projects": [{"id": "letter", "hashtag": "キングダム恋文2026"}],
                  "archive_projects": [

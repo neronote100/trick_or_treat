@@ -6,10 +6,11 @@ const autumnPreviewMode=giftPreviewMode&&new URLSearchParams(location.search).ge
 // The P1 demonstration must never affect real Santa open-state history.
 const GIFT_STORAGE_KEY=giftPreviewMode?'heartful-tree:p1-gift-preview:opened:v1':'christmas-kingdom-2026:santa-opened:v1';
 const state={config:null,articles:[],selected:'letter',page:0,query:'',openedGifts:new Set()};
-function visibleForests(){return state.config?.projects.filter(p=>p.display!=='gifts')||[];}
+function visibleForests(){return state.config?.projects.filter(p=>p.display!=='gifts'&&(!giftPreviewMode||p.id!=='common')).sort((a,b)=>giftPreviewMode?SANTA_FOREST_IDS.indexOf(a.id)-SANTA_FOREST_IDS.indexOf(b.id):0)||[];}
 function giftsForForest(forestId){
- if(archiveMode||!SANTA_FOREST_IDS.includes(forestId))return [];
- return santaGiftsForForest(state.articles,forestId);
+ if(archiveMode)return [];
+ const ids=giftPreviewMode?SANTA_FOREST_IDS:visibleForests().map(p=>p.id);
+ return santaGiftsForForest(state.articles,forestId,ids);
 }
 function readOpenedGifts(){
  try{
@@ -44,13 +45,26 @@ function buildNavigation(){
                 make('small','',p.subtitle),
                 make('span','project-count',count+' 作品'));
   if(gifts)button.append(make('span','project-gift-count','🎁 '+gifts+' 個のプレゼント'));
-  if(!p.accepting&&!archiveMode&&!giftPreviewMode)button.append(make('em','coming-soon','企画準備中'));
+  if(!p.accepting&&!archiveMode&&!giftPreviewMode)button.append(make('em','coming-soon','12/1開始'));
   button.addEventListener('click',()=>{
    state.selected=p.id;state.page=0;
    history.replaceState(null,'',location.pathname+'?tree='+encodeURIComponent(p.id)+location.hash);
    render();el('tree-panel').scrollIntoView({behavior:'smooth'});
   });
   nav.append(button);
+ }
+ if(!archiveMode&&!giftPreviewMode){
+  const p=state.config.projects.find(p=>p.display==='gifts');
+  if(p){
+   const card=make('div','project-card gift-menu');card.dataset.palette='christmas-card';
+   card.append(make('span','project-icon',p.icon),make('strong','',p.name),make('small','',p.subtitle),make('span','project-count',articlesFor(p.id).length+' 個のプレゼント'));
+   const links=make('div','gift-menu-links');
+   for(const forest of visibleForests()){
+    const link=make('button','gift-menu-link',forest.icon+' '+forest.name+'（'+giftsForForest(forest.id).length+'個）');link.type='button';
+    link.addEventListener('click',()=>{state.selected=forest.id;state.page=0;history.replaceState(null,'',location.pathname+'?tree='+encodeURIComponent(forest.id)+'#tree-panel');render();el('tree-panel').scrollIntoView({behavior:'smooth'});});links.append(link);
+   }
+   card.append(links);nav.append(card);
+  }
  }
 }
 
@@ -448,8 +462,8 @@ function renderWorks(){
 function render(){
  const featured=giftPreviewMode?state.articles.filter(x=>x.project_id==='santa'):state.articles;
  const uniqueAuthors=new Set(featured.map(x=>(x.author_id||x.author||'').trim()).filter(Boolean));
- text(el('all-works'),featured.length);text(el('all-authors'),uniqueAuthors.size);
- text(el('all-trees'),giftPreviewMode?visibleForests().length:state.config.projects.length);
+ text(el('all-works'),new Set(featured.map(x=>noteArticleUrl(x.url))).size);text(el('all-authors'),uniqueAuthors.size);
+ text(el('all-trees'),archiveMode||giftPreviewMode?visibleForests().length:state.config.projects.filter(p=>p.id!=='common').length);
  buildNavigation();renderTree();renderWorks();
 
 }
@@ -457,12 +471,13 @@ function renderHashtagGuide() {
  const box=el('tag-guide');if(!box)return;
  box.replaceChildren();
  for(const p of state.config.projects){
+  if(p.id==='common')continue;
   const row=make('div','tag-guide-row');
   const header=make('div','tag-guide-name',p.icon+' '+p.name);
   const tag=make('a','tag-chip','#'+p.hashtag);
   tag.href='https://note.com/hashtag/'+encodeURIComponent(p.hashtag);
   tag.target='_blank';tag.rel='noopener noreferrer';
-  const note=make('span','tag-guide-note',p.accepting?'募集中':'企画準備中');
+  const note=make('span','tag-guide-note',p.accepting?'募集中':'12/1開始');
   row.append(header,tag,note);box.append(row);
  }
  const common=el('common-hashtag');

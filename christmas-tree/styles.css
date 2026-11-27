@@ -465,3 +465,6 @@ body[data-mode="gift-preview"] .santa-gift-floor{
  .gift-orbit-layer .santa-gift{will-change:auto}
 }
 
+
+/* Official event cover; maintain full published artwork without cropping. */
+.heartful-banner{display:block;width:100%;height:auto;margin:0 auto 30px;border:1px solid #dcbf8150;border-radius:18px;box-shadow:0 14px 55px #0007}.hero:has(.heartful-banner){padding-top:24px}.gift-menu{cursor:default}.gift-menu-links{display:flex;flex-direction:column;gap:6px;width:100%;margin-top:8px}.gift-menu-link{font:inherit;font-size:11px;color:inherit;background:#ffffff0d;border:1px solid #dcbf8150;border-radius:7px;padding:7px;cursor:pointer}.gift-menu-link:hover,.gift-menu-link:focus-visible{background:#dcbf8130}body:not([data-mode]) .project-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:600px){body:not([data-mode]) .project-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.heartful-banner{border-radius:10px;margin-bottom:22px}.gift-menu{grid-column:1/-1}.gift-menu-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
