@@ -1,0 +1,61 @@
+name: HEARTFUL TREE - install square OGP image
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/heartful-tree-ogp-asset.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  install:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Fetch the exact requested square artwork
+        run: |
+          curl --fail --silent --show-error --location --max-time 60 'https://videocdn.pollo.ai/web-cdn/pollo/production/cmtkkfs5x1l01jqbemlvk1tn/mcp-file/1795781893135-e4521882-2701-4029-86c4-2d2e5c7733a0.png' -o /tmp/heartful-ogp.png
+          echo '976258a279bf4a7448770432050c2dabc739901d6b08340e0538335982581f04  /tmp/heartful-ogp.png' | sha256sum -c -
+          cp /tmp/heartful-ogp.png christmas-tree/assets/heartful-ogp.png
+      - name: Set absolute OGP URL and include image in Pages build
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('christmas-tree/index.html')
+          s = p.read_text()
+          anchor = '<meta name="twitter:card" content="summary">'
+          metadata = '''<meta property="og:url" content="https://heartful-tree.pages.dev/">
+          <meta property="og:image" content="https://heartful-tree.pages.dev/assets/heartful-ogp.png">
+          <meta property="og:image:secure_url" content="https://heartful-tree.pages.dev/assets/heartful-ogp.png">
+          <meta property="og:image:type" content="image/png">
+          <meta property="og:image:width" content="1254">
+          <meta property="og:image:height" content="1254">
+          <meta property="og:image:alt" content="HEARTFUL TREE — 光り輝くクリスマスツリー">
+          <meta name="twitter:card" content="summary">
+          <meta name="twitter:image" content="https://heartful-tree.pages.dev/assets/heartful-ogp.png">'''
+          if 'property="og:image"' not in s:
+              assert anchor in s
+              p.write_text(s.replace(anchor, metadata, 1))
+          b = Path('christmas-tree/scripts/build.mjs')
+          s = b.read_text()
+          if "'heartful-ogp.png'" not in s:
+              s = s.replace("console.log('Cloudflare Pages build ready:',out);", "await copyFile(path.join(root,'assets','heartful-ogp.png'),path.join(out,'assets','heartful-ogp.png'));\nconsole.log('Cloudflare Pages build ready:',out);")
+              b.write_text(s)
+          PY
+          cd christmas-tree
+          npm run build
+          cmp assets/heartful-ogp.png dist/assets/heartful-ogp.png
+          grep 'property="og:image"' dist/index.html
+      - name: Publish asset and metadata atomically
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add christmas-tree/assets/heartful-ogp.png christmas-tree/index.html christmas-tree/scripts/build.mjs
+          if ! git diff --cached --quiet; then
+            git commit -m "feat(heartful-tree): set exact square note link preview artwork"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
