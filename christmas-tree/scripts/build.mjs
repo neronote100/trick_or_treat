@@ -13,4 +13,5 @@ await copyFile(path.join(root,'data','gift-preview-p1.json'),path.join(out,'data
 await mkdir(path.join(out,'assets'),{recursive:true});
 await copyFile(path.join(root,'assets','royal-tree.svg'),path.join(out,'assets','royal-tree.svg'));
 await copyFile(path.join(root,'assets','royal-tree.avif'),path.join(out,'assets','royal-tree.avif'));
+await copyFile(path.join(root,'assets','heartful-ogp.png'),path.join(out,'assets','heartful-ogp.png'));
 console.log('Cloudflare Pages build ready:',out);
