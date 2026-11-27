@@ -17,7 +17,7 @@ jobs:
           ref: main
       - name: Fetch the exact requested square artwork
         run: |
-          curl --fail --silent --show-error --location --max-time 60 'https://videocdn.pollo.ai/web-cdn/pollo/production/cmtkkfs5x1l01jqbemlvk1tn/mcp-file/1795781893135-e4521882-2701-4029-86c4-2d2e5c7733a0.png' -o /tmp/heartful-ogp.png
+          cat christmas-tree/.ogp-transfer/part-* | base64 --decode > /tmp/heartful-ogp.png
           echo '976258a279bf4a7448770432050c2dabc739901d6b08340e0538335982581f04  /tmp/heartful-ogp.png' | sha256sum -c -
           cp /tmp/heartful-ogp.png christmas-tree/assets/heartful-ogp.png
       - name: Set absolute OGP URL and include image in Pages build
@@ -53,6 +53,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -r christmas-tree/.ogp-transfer
           git add christmas-tree/assets/heartful-ogp.png christmas-tree/index.html christmas-tree/scripts/build.mjs
           if ! git diff --cached --quiet; then
             git commit -m "feat(heartful-tree): set exact square note link preview artwork"
