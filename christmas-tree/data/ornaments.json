@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-27T21:07:33+00:00",
+  "updated_at": "2026-11-28T02:22:50+00:00",
   "articles": [
     {
       "url": "https://note.com/00irea00/n/ndb6db045f483",
@@ -110,6 +110,16 @@
       "published_at": "2026-11-27T21:00:00+09:00",
       "project_id": "common",
       "first_seen": "2026-11-27T21:07:31+00:00"
+    },
+    {
+      "url": "https://note.com/rosanna_lips/n/ne72c6ecacf7a",
+      "title": "ステキな季節の始まりね",
+      "author": "ロザンナ・リップス｜相互フォローするわよ！",
+      "author_id": "rosanna_lips",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341690053/rectangle_large_type_2_5e9ee29813dfa111807650b5957e9935.png",
+      "published_at": "2026-11-28T09:10:09+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-28T02:22:48+00:00"
     }
   ],
   "sources": [
@@ -119,26 +129,26 @@
       "project_id": "common",
       "tag": "ハートフルツリー",
       "ok": true,
-      "items": 11,
+      "items": 12,
       "pages": 1
     },
     {
       "type": "hashtag",
-      "method": "failed",
+      "method": "rss-fallback",
       "project_id": "card",
       "tag": "ハートフルカード",
-      "ok": false,
+      "ok": true,
       "items": 0,
-      "pages": 0
+      "pages": 1
     },
     {
       "type": "hashtag",
-      "method": "failed",
+      "method": "rss-fallback",
       "project_id": "confession",
       "tag": "君に好きって伝えたい",
-      "ok": false,
+      "ok": true,
       "items": 0,
-      "pages": 0
+      "pages": 1
     },
     {
       "type": "hashtag",
@@ -151,19 +161,15 @@
     },
     {
       "type": "hashtag",
-      "method": "failed",
+      "method": "rss-fallback",
       "project_id": "santa",
       "tag": "ハートフルプレゼント",
-      "ok": false,
+      "ok": true,
       "items": 0,
-      "pages": 0
+      "pages": 1
     }
   ],
-  "warnings": [
-    "card: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found",
-    "confession: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found",
-    "santa: API HTTP Error 404: Not Found; RSS HTTP Error 404: Not Found"
-  ],
+  "warnings": [],
   "tag_articles": [
     {
       "url": "https://note.com/00irea00/n/ndb6db045f483",
@@ -284,6 +290,16 @@
       "published_at": "2026-11-27T21:00:00+09:00",
       "project_id": "common",
       "first_seen": "2026-11-27T21:07:31+00:00"
+    },
+    {
+      "url": "https://note.com/rosanna_lips/n/ne72c6ecacf7a",
+      "title": "ステキな季節の始まりね",
+      "author": "ロザンナ・リップス｜相互フォローするわよ！",
+      "author_id": "rosanna_lips",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341690053/rectangle_large_type_2_5e9ee29813dfa111807650b5957e9935.png",
+      "published_at": "2026-11-28T09:10:09+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-28T02:22:48+00:00"
     }
   ]
 }
