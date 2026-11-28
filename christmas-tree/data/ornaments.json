@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-28T02:22:50+00:00",
+  "updated_at": "2026-11-28T12:16:44+00:00",
   "articles": [
     {
       "url": "https://note.com/00irea00/n/ndb6db045f483",
@@ -120,6 +120,26 @@
       "published_at": "2026-11-28T09:10:09+09:00",
       "project_id": "common",
       "first_seen": "2026-11-28T02:22:48+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/nc958326f02af",
+      "title": "🌙【クリスマス企画】みんなで育てよう🎄│#ハートフルツリー",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341595466/rectangle_large_type_2_1783fb6fc2199eb848dcb04353593397.png",
+      "published_at": "2026-11-28T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-28T12:16:42+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/nc958326f02af",
+      "title": "🌙【クリスマス企画】みんなで育てよう🎄│#ハートフルツリー",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341595466/rectangle_large_type_2_1783fb6fc2199eb848dcb04353593397.png",
+      "published_at": "2026-11-28T21:00:00+09:00",
+      "project_id": "santa",
+      "first_seen": "2026-11-28T12:16:44+00:00"
     }
   ],
   "sources": [
@@ -129,25 +149,25 @@
       "project_id": "common",
       "tag": "ハートフルツリー",
       "ok": true,
-      "items": 12,
+      "items": 13,
       "pages": 1
     },
     {
       "type": "hashtag",
-      "method": "rss-fallback",
+      "method": "note-api",
       "project_id": "card",
       "tag": "ハートフルカード",
       "ok": true,
-      "items": 0,
+      "items": 1,
       "pages": 1
     },
     {
       "type": "hashtag",
-      "method": "rss-fallback",
+      "method": "note-api",
       "project_id": "confession",
       "tag": "君に好きって伝えたい",
       "ok": true,
-      "items": 0,
+      "items": 1,
       "pages": 1
     },
     {
@@ -156,16 +176,16 @@
       "project_id": "letter",
       "tag": "届けないラブレター",
       "ok": true,
-      "items": 1,
+      "items": 2,
       "pages": 1
     },
     {
       "type": "hashtag",
-      "method": "rss-fallback",
+      "method": "note-api",
       "project_id": "santa",
       "tag": "ハートフルプレゼント",
       "ok": true,
-      "items": 0,
+      "items": 1,
       "pages": 1
     }
   ],
@@ -300,6 +320,56 @@
       "published_at": "2026-11-28T09:10:09+09:00",
       "project_id": "common",
       "first_seen": "2026-11-28T02:22:48+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/nc958326f02af",
+      "title": "🌙【クリスマス企画】みんなで育てよう🎄│#ハートフルツリー",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341595466/rectangle_large_type_2_1783fb6fc2199eb848dcb04353593397.png",
+      "published_at": "2026-11-28T21:00:00+09:00",
+      "project_id": "card",
+      "first_seen": "2026-11-28T12:16:42+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/nc958326f02af",
+      "title": "🌙【クリスマス企画】みんなで育てよう🎄│#ハートフルツリー",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341595466/rectangle_large_type_2_1783fb6fc2199eb848dcb04353593397.png",
+      "published_at": "2026-11-28T21:00:00+09:00",
+      "project_id": "common",
+      "first_seen": "2026-11-28T12:16:42+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/nc958326f02af",
+      "title": "🌙【クリスマス企画】みんなで育てよう🎄│#ハートフルツリー",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341595466/rectangle_large_type_2_1783fb6fc2199eb848dcb04353593397.png",
+      "published_at": "2026-11-28T21:00:00+09:00",
+      "project_id": "confession",
+      "first_seen": "2026-11-28T12:16:43+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/nc958326f02af",
+      "title": "🌙【クリスマス企画】みんなで育てよう🎄│#ハートフルツリー",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341595466/rectangle_large_type_2_1783fb6fc2199eb848dcb04353593397.png",
+      "published_at": "2026-11-28T21:00:00+09:00",
+      "project_id": "letter",
+      "first_seen": "2026-11-28T12:16:43+00:00"
+    },
+    {
+      "url": "https://note.com/nero_notelover/n/nc958326f02af",
+      "title": "🌙【クリスマス企画】みんなで育てよう🎄│#ハートフルツリー",
+      "author": "ネロ🌙｜王子｜クリスマス企画【12/1スタート】",
+      "author_id": "nero_notelover",
+      "thumbnail": "https://assets.st-note.com/production/uploads/images/341595466/rectangle_large_type_2_1783fb6fc2199eb848dcb04353593397.png",
+      "published_at": "2026-11-28T21:00:00+09:00",
+      "project_id": "santa",
+      "first_seen": "2026-11-28T12:16:44+00:00"
     }
   ]
 }
