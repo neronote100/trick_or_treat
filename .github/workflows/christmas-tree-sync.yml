@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Test free scheduler
+        run: node --test heartful-tree-scheduler/worker.test.mjs
       - name: Test tag collector
         run: python3 -m unittest discover -s christmas-tree/tests -p 'test_*.py' -v
       - name: Discover public note hashtags and auto-publish to static JSON

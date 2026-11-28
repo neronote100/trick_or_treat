@@ -1,0 +1,12 @@
+{
+  "name": "heartful-tree-scheduler",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-28",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": {
+    "crons": [
+      "17,47 * * * *"
+    ]
+  }
+}
